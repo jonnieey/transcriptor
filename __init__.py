@@ -1,0 +1,1 @@
+WORK_FOLDER = "./workfolder"
