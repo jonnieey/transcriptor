@@ -15,14 +15,14 @@ class Client:
 
     @property
     def email(self):
-        return self.email
+        return self._email
 
     @email.setter
     def email(self, value):
         self._email = value
 
     def __str__(self):
-        return '%s %s' % (self._name, self._email)
+        return '%s' % (self._name)
 
     def to_dict(self):
         d = {}
