@@ -27,8 +27,8 @@ class Client:
     def to_dict(self):
         d = {}
 
-        d['Name'] = self._name
-        d['Email'] = self._email
+        d['name'] = self._name
+        d['email'] = self._email
 
         return d
 
@@ -51,15 +51,15 @@ class Client:
             except Exception:
                 return cls()
 
-        if 'Name' in js.keys():
-            name = js['Name']
+        if 'name' in js.keys():
+            name = js['name']
         else:
-            name = None
+            name = ''
 
-        if 'Email' in js.keys():
-            email = js['Email']
+        if 'email' in js.keys():
+            email = js['email']
         else:
-            email = None
+            email = ''
 
         return cls(name=name, email=email)
 

@@ -1,28 +1,23 @@
-from datetime import date, timedelta, datetime
-from typing import Type, Optional
-
-from client import Client
+from datetime import timedelta, datetime
 import json
 
 class Job:
     def __init__(
         self,
-        # client: Optional[Client],
-        date_received: date,
+        date_received: str,
         job_number: str,
         type : str,
-        quantity : float=None,
-        date_due: date=None,
-        date_submitted: date=None,
+        quantity : float= 0.0,
+        date_due: str = '',
+        date_submitted: str = '' ,
         media_files: list = []
     ) -> None:
-        # self.client = client
         self.date_received = date_received
         self.job_number = job_number
         self.type = type
         self.rate = self.get_job_details(type)['rate']
         self.quantity = quantity
-        self.date_due = date_due if date_due is not None else (datetime.today() + timedelta(abs(self.get_job_details(type)['due_in']))).strftime("%Y-%m-%d")
+        self.date_due = date_due if date_due != '' else self.get_date_due(type)
         self.date_submitted = date_submitted
         self.media_files = media_files
 
@@ -49,14 +44,6 @@ class Job:
     @rate.setter
     def rate(self, value):
         self._rate = value
-
-    # @property
-    # def client(self) -> Client:
-    #     return self._client
-    #
-    # @client.setter
-    # def client(self, value: Client):
-    #     self._client = value
 
     @property
     def quantity(self):
@@ -105,6 +92,10 @@ class Job:
             'Interpreted': {'rate':0.30,'due_in': 5},
         } # Use a file
         return job_types[job_type]
+
+    def get_date_due(self, type: str ):
+        due_date = (datetime.today() + timedelta(abs(self.get_job_details(type)['due_in']))).strftime("%Y-%m-%d")
+        return due_date
 
     def __str__(self):
         j = "%s %s %s %s %s %s %s" % (self.job_number, self.date_received, self.type, self.quantity, self.media_files, self.rate, self.date_due)
