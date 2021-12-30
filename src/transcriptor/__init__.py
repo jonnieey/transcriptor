@@ -1,1 +1,0 @@
-WORK_FOLDER = "./workfolder"

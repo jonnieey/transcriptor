@@ -1,14 +1,17 @@
-from magic import from_file
-from audioread import audio_open
-from whaaaaat import prompt
-from typing import Type, List
-from pathlib import Path
-from client import Client
 import json
 import re
-from math import floor
+
 from datetime import datetime, timedelta
 from functools import reduce
+from math import floor
+from pathlib import Path
+from typing import Type, List
+
+from audioread import audio_open
+from magic import from_file
+from whaaaaat import prompt
+
+from transcriptor.client import Client
 
 def parse_job_details(zip_file: Type[Path]) -> tuple:
     job_name = zip_file.stem   #remove .zip extension
@@ -164,9 +167,14 @@ def get_new_client_details():
         'type': 'input',
         'name': 'email',
         'message': 'Enter clients email:',
+        'filter' : lambda v: v.lower()
     },
     ]
 
     details = prompt(x)
     client = Client.from_json(details)
     return client
+
+def create_dir_or_file(path: str, Type: str):
+    path = Path(path)
+

@@ -1,12 +1,15 @@
 import json
 import shutil
 import zipfile
+import sys
 
 from datetime import datetime
-from job import Job
 from pathlib import Path
 
-from utils import (
+from transcriptor.job import Job
+from transcriptor.client import Client
+
+from transcriptor.utils import (
     get_missing_job_details, get_media_files, select_media_files,
     get_job_quantity, get_all_clients, select_client, get_new_client_details
 )
@@ -15,9 +18,15 @@ WORK_FOLDER = 'workfolder'
 CLIENTS_DIR = 'clients'
 JOB_DIR = 'jobs'
 
-def create_client() -> None:
-    client = get_new_client_details()
+def create_client(name='', email='') -> int:
+    if (name == '') or (email == ''):
+        client = get_new_client_details()
+    else:
+        client = Client(name=name, email=email)
 
+    return client
+
+def write_client(client: Client) -> bool:
     clients_dir = Path(CLIENTS_DIR)
 
     if not clients_dir.exists():
@@ -26,10 +35,13 @@ def create_client() -> None:
     client_file = clients_dir / str(client.name)
 
     if client_file.exists():
-        pass # Notify client already exists
+        print("Client already exists") # Notify client already exists
+        return False
+
     else:
         with open(clients_dir/str(client.name), 'w') as fd:
             fd.write(client.to_json())
+        return True
 
 def create_job(zip_file: Path, date_received: str = datetime.today().strftime("%Y-%m-%d"),):
 
@@ -49,7 +61,8 @@ def create_job(zip_file: Path, date_received: str = datetime.today().strftime("%
         new_zip_file = shutil.copy2(zip_file, job_folder) # should move
         zipfile.ZipFile(new_zip_file).extractall(job_folder)
     else:
-        pass #Notify user folder already exists
+        print('Job folder alread exists')
+        sys.exit(1)
 
     media_files = get_media_files(job_folder)
     selected_media_files = select_media_files(media_files)
@@ -88,5 +101,5 @@ def write_job(zip_file: Path):
             json.dump(d, fd, indent=2, ensure_ascii=False, sort_keys=True)
 
 if __name__ == "__main__":
-    # create_client()
-    write_job(Path("/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-21-501363_DUE_11.23_-_12.6_(VICTOR)/501363 DUE 11.23 - 12.6 (VICTOR).zip"))
+    create_client()
+    # write_job(Path("/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-21-501363_DUE_11.23_-_12.6_(VICTOR)/501363 DUE 11.23 - 12.6 (VICTOR).zip"))

@@ -1,23 +1,93 @@
 [[package]]
+name = "atomicwrites"
+sections = ["dev"]
+version = "1.4.0"
+marker = "sys_platform == 'win32'"
+summary = "Atomic file writes."
+
+[[package]]
+name = "attrs"
+sections = ["dev"]
+version = "21.3.0"
+summary = "Classes Without Boilerplate"
+
+[[package]]
 name = "audioread"
 sections = ["default"]
 version = "2.1.9"
 summary = "multi-library, cross-platform audio decoding"
 
 [[package]]
+name = "colorama"
+sections = ["dev"]
+version = "0.4.4"
+marker = "sys_platform == 'win32'"
+summary = "Cross-platform colored terminal text."
+
+[[package]]
+name = "iniconfig"
+sections = ["dev"]
+version = "1.1.1"
+summary = "iniconfig: brain-dead simple config-ini parsing"
+
+[[package]]
+name = "packaging"
+sections = ["dev"]
+version = "21.3"
+summary = "Core utilities for Python packages"
+dependencies = [
+    "pyparsing!=3.0.5,>=2.0.2",
+]
+
+[[package]]
+name = "pluggy"
+sections = ["dev"]
+version = "1.0.0"
+summary = "plugin and hook calling mechanisms for python"
+
+[[package]]
 name = "prompt-toolkit"
 sections = ["default"]
-version = "1.0.14"
+version = "1.0.18"
 summary = "Library for building powerful interactive command lines in Python"
 dependencies = [
+    "six>=1.9.0",
     "wcwidth",
 ]
+
+[[package]]
+name = "py"
+sections = ["dev"]
+version = "1.11.0"
+summary = "library with cross-python path, ini-parsing, io, code, log facilities"
 
 [[package]]
 name = "Pygments"
 sections = ["default"]
 version = "2.10.0"
 summary = "Pygments is a syntax highlighting package written in Python."
+
+[[package]]
+name = "pyparsing"
+sections = ["dev"]
+version = "3.0.6"
+summary = "Python parsing module"
+
+[[package]]
+name = "pytest"
+sections = ["dev"]
+version = "6.2.5"
+summary = "pytest: simple powerful testing with Python"
+dependencies = [
+    "attrs>=19.2.0",
+    "iniconfig",
+    "packaging",
+    "pluggy<2.0,>=0.12",
+    "py>=1.8.2",
+    "toml",
+    "atomicwrites>=1.0; sys_platform == \"win32\"",
+    "colorama; sys_platform == \"win32\"",
+]
 
 [[package]]
 name = "python-magic"
@@ -30,6 +100,18 @@ name = "regex"
 sections = ["default"]
 version = "2021.11.10"
 summary = "Alternative regular expression module, to replace re."
+
+[[package]]
+name = "six"
+sections = ["default"]
+version = "1.16.0"
+summary = "Python 2 and 3 compatibility utilities"
+
+[[package]]
+name = "toml"
+sections = ["dev"]
+version = "0.10.2"
+summary = "Python Library for Tom's Obvious, Minimal Language"
 
 [[package]]
 name = "wcwidth"
@@ -50,19 +132,56 @@ dependencies = [
 
 [metadata]
 lock_version = "2"
-content_hash = "sha256:60d5379734a7916b1c6f7531c2c624856f04e3d8e740c7583bd5bd70d8b2dda2"
+content_hash = "sha256:89fd3fec64b1da99377dd24dc292ca903dcf58d1fbc5c126c6e7e03b5bcbc24c"
 
 [metadata.files]
+"atomicwrites 1.4.0" = [
+    {file = "atomicwrites-1.4.0-py2.py3-none-any.whl", hash = "sha256:6d1784dea7c0c8d4a5172b6c620f40b6e4cbfdf96d783691f2e1302a7b88e197"},
+    {file = "atomicwrites-1.4.0.tar.gz", hash = "sha256:ae70396ad1a434f9c7046fd2dd196fc04b12f9e91ffb859164193be8b6168a7a"},
+]
+"attrs 21.3.0" = [
+    {file = "attrs-21.3.0-py2.py3-none-any.whl", hash = "sha256:8f7335278dedd26b58c38e006338242cc0977f06d51579b2b8b87b9b33bff66c"},
+    {file = "attrs-21.3.0.tar.gz", hash = "sha256:50f3c9b216dc9021042f71b392859a773b904ce1a029077f58f6598272432045"},
+]
 "audioread 2.1.9" = [
     {file = "audioread-2.1.9.tar.gz", hash = "sha256:a3480e42056c8e80a8192a54f6729a280ef66d27782ee11cbd63e9d4d1523089"},
 ]
-"prompt-toolkit 3.0.24" = [
-    {file = "prompt_toolkit-3.0.24-py3-none-any.whl", hash = "sha256:e56f2ff799bacecd3e88165b1e2f5ebf9bcd59e80e06d395fa0cc4b8bd7bb506"},
-    {file = "prompt_toolkit-3.0.24.tar.gz", hash = "sha256:1bb05628c7d87b645974a1bad3f17612be0c29fa39af9f7688030163f680bad6"},
+"colorama 0.4.4" = [
+    {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
+    {file = "colorama-0.4.4.tar.gz", hash = "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b"},
+]
+"iniconfig 1.1.1" = [
+    {file = "iniconfig-1.1.1-py2.py3-none-any.whl", hash = "sha256:011e24c64b7f47f6ebd835bb12a743f2fbe9a26d4cecaa7f53bc4f35ee9da8b3"},
+    {file = "iniconfig-1.1.1.tar.gz", hash = "sha256:bc3af051d7d14b2ee5ef9969666def0cd1a000e121eaea580d4a313df4b37f32"},
+]
+"packaging 21.3" = [
+    {file = "packaging-21.3-py3-none-any.whl", hash = "sha256:ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522"},
+    {file = "packaging-21.3.tar.gz", hash = "sha256:dd47c42927d89ab911e606518907cc2d3a1f38bbd026385970643f9c5b8ecfeb"},
+]
+"pluggy 1.0.0" = [
+    {file = "pluggy-1.0.0-py2.py3-none-any.whl", hash = "sha256:74134bbf457f031a36d68416e1509f34bd5ccc019f0bcc952c7b909d06b37bd3"},
+    {file = "pluggy-1.0.0.tar.gz", hash = "sha256:4224373bacce55f955a878bf9cfa763c1e360858e330072059e10bad68531159"},
+]
+"prompt-toolkit 1.0.18" = [
+    {file = "prompt_toolkit-1.0.18-py2-none-any.whl", hash = "sha256:f7eec66105baf40eda9ab026cd8b2e251337eea8d111196695d82e0c5f0af852"},
+    {file = "prompt_toolkit-1.0.18-py3-none-any.whl", hash = "sha256:37925b37a4af1f6448c76b7606e0285f79f434ad246dda007a27411cca730c6d"},
+    {file = "prompt_toolkit-1.0.18.tar.gz", hash = "sha256:dd4fca02c8069497ad931a2d09914c6b0d1b50151ce876bc15bde4c747090126"},
+]
+"py 1.11.0" = [
+    {file = "py-1.11.0-py2.py3-none-any.whl", hash = "sha256:607c53218732647dff4acdfcd50cb62615cedf612e72d1724fb1a0cc6405b378"},
+    {file = "py-1.11.0.tar.gz", hash = "sha256:51c75c4126074b472f746a24399ad32f6053d1b34b68d2fa41e558e6f4a98719"},
 ]
 "pygments 2.10.0" = [
     {file = "Pygments-2.10.0-py3-none-any.whl", hash = "sha256:b8e67fe6af78f492b3c4b3e2970c0624cbf08beb1e493b2c99b9fa1b67a20380"},
     {file = "Pygments-2.10.0.tar.gz", hash = "sha256:f398865f7eb6874156579fdf36bc840a03cab64d1cde9e93d68f46a425ec52c6"},
+]
+"pyparsing 3.0.6" = [
+    {file = "pyparsing-3.0.6-py3-none-any.whl", hash = "sha256:04ff808a5b90911829c55c4e26f75fa5ca8a2f5f36aa3a51f68e27033341d3e4"},
+    {file = "pyparsing-3.0.6.tar.gz", hash = "sha256:d9bdec0013ef1eb5a84ab39a3b3868911598afa494f5faa038647101504e2b81"},
+]
+"pytest 6.2.5" = [
+    {file = "pytest-6.2.5-py3-none-any.whl", hash = "sha256:7310f8d27bc79ced999e760ca304d69f6ba6c6649c0b60fb0e04a4a77cacc134"},
+    {file = "pytest-6.2.5.tar.gz", hash = "sha256:131b36680866a76e6781d13f101efb86cf674ebb9762eb70d3082b6f29889e89"},
 ]
 "python-magic 0.4.24" = [
     {file = "python_magic-0.4.24-py2.py3-none-any.whl", hash = "sha256:4fec8ee805fea30c07afccd1592c0f17977089895bdfaae5fec870a84e997626"},
@@ -143,6 +262,14 @@ content_hash = "sha256:60d5379734a7916b1c6f7531c2c624856f04e3d8e740c7583bd5bd70d
     {file = "regex-2021.11.10-cp39-cp39-win32.whl", hash = "sha256:3b5df18db1fccd66de15aa59c41e4f853b5df7550723d26aa6cb7f40e5d9da5a"},
     {file = "regex-2021.11.10-cp39-cp39-win_amd64.whl", hash = "sha256:83ee89483672b11f8952b158640d0c0ff02dc43d9cb1b70c1564b49abe92ce29"},
     {file = "regex-2021.11.10.tar.gz", hash = "sha256:f341ee2df0999bfdf7a95e448075effe0db212a59387de1a70690e4acb03d4c6"},
+]
+"six 1.16.0" = [
+    {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
+    {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
+]
+"toml 0.10.2" = [
+    {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
+    {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
 ]
 "wcwidth 0.2.5" = [
     {file = "wcwidth-0.2.5-py2.py3-none-any.whl", hash = "sha256:beb4802a9cebb9144e99086eff703a642a13d6a0052920003a230f3294bbe784"},
