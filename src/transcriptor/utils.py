@@ -175,6 +175,13 @@ def get_new_client_details():
     client = Client.from_json(details)
     return client
 
-def create_dir_or_file(path: str, Type: str):
-    path = Path(path)
+def create_dir(path):
+    path = Path(path) if isinstance(path, str) else path
+
+    if path.exists() and path.is_dir():
+        print("Path already exists")
+        return
+    else:
+        return path.mkdir(parents=True, exist_ok=True)
+
 

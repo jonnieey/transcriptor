@@ -1,7 +1,7 @@
 import pytest
 
 from transcriptor.client import Client
-from transcriptor.transcriptor import create_client
+from transcriptor.main import create_client
 
 def test_client_to_dict():
     client = Client()

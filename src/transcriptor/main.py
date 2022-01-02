@@ -10,8 +10,9 @@ from transcriptor.job import Job
 from transcriptor.client import Client
 
 from transcriptor.utils import (
-    get_missing_job_details, get_media_files, select_media_files,
-    get_job_quantity, get_all_clients, select_client, get_new_client_details
+    create_dir, get_all_clients, get_job_quantity, get_media_files,
+    get_missing_job_details, get_new_client_details, select_client,
+    select_media_files
 )
 
 WORK_FOLDER = 'workfolder'
@@ -29,8 +30,10 @@ def create_client(name='', email='') -> int:
 def write_client(client: Client) -> bool:
     clients_dir = Path(CLIENTS_DIR)
 
-    if not clients_dir.exists():
-        clients_dir.mkdir(parents=True, exist_ok=True)
+    # if not clients_dir.exists():
+    #     clients_dir.mkdir(parents=True, exist_ok=True)
+
+    create_dir(clients_dir)
 
     client_file = clients_dir / str(client.name)
 
@@ -56,8 +59,7 @@ def create_job(zip_file: Path, date_received: str = datetime.today().strftime("%
     )
     job_folder = Path(WORK_FOLDER) / job_folder_name
 
-    if not job_folder.exists() and not job_folder.is_dir():
-        job_folder.mkdir(parents=True, exist_ok=True)
+    if create_dir(job_folder) is not None:
         new_zip_file = shutil.copy2(zip_file, job_folder) # should move
         zipfile.ZipFile(new_zip_file).extractall(job_folder)
     else:
@@ -71,6 +73,8 @@ def create_job(zip_file: Path, date_received: str = datetime.today().strftime("%
     return job
 
 def write_job(zip_file: Path):
+    jobs_dir = Path(JOB_DIR)
+
     clients = get_all_clients(CLIENTS_DIR)
     client = select_client(clients)
     job = create_job(zip_file)
@@ -83,10 +87,7 @@ def write_job(zip_file: Path):
     d['job_list'] = []
     d['job_list'].append(job.to_dict())
 
-    jobs_dir = Path(JOB_DIR)
-
-    if not jobs_dir.exists():
-        jobs_dir.mkdir(parents=True, exist_ok=True)
+    create_dir(jobs_dir) # return None if dir exists else creates it
 
     if (jobs_dir / str(client.name)).exists():
         with open(jobs_dir/str(client.name), 'r') as fd:
@@ -100,6 +101,8 @@ def write_job(zip_file: Path):
         with open(Path(JOB_DIR) / str(client.name), 'w') as fd:
             json.dump(d, fd, indent=2, ensure_ascii=False, sort_keys=True)
 
+# def update_job_status(job: Job):
+
 if __name__ == "__main__":
-    create_client()
-    # write_job(Path("/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-21-501363_DUE_11.23_-_12.6_(VICTOR)/501363 DUE 11.23 - 12.6 (VICTOR).zip"))
+    # create_client()
+    write_job(Path("/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-21-501363_DUE_11.23_-_12.6_(VICTOR)/501363 DUE 11.23 - 12.6 (VICTOR).zip"))
