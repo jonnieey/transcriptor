@@ -8,20 +8,20 @@ class Job:
         date_received: str,
         job_number: str,
         type : str,
+        total_quantity : float,
         quantity : float= 0.0,
         date_due: str = '',
         date_submitted: str = '' ,
-        media_files: list = [],
         status: str = 'Pending',
     ) -> None:
         self.date_received = date_received
         self.job_number = job_number
         self.type = type
         self.rate = self.get_job_details(type)['rate']
+        self.total_quantity = total_quantity
         self.quantity = quantity
         self.date_due = date_due if date_due != '' else self.get_date_due(type)
         self.date_submitted = date_submitted
-        self.media_files = media_files
         self.status = status
 
     @property
@@ -59,6 +59,14 @@ class Job:
         self._quantity = value
 
     @property
+    def total_quantity(self):
+        return self._total_quantity
+
+    @total_quantity.setter
+    def total_quantity(self, value):
+        self._total_quantity = value
+
+    @property
     def date_received(self):
         return self._date_received
 
@@ -83,14 +91,6 @@ class Job:
         self._date_submitted = value
 
     @property
-    def media_files(self):
-        return self._media_files
-
-    @media_files.setter
-    def media_files(self, value):
-        self._media_files = value
-
-    @property
     def status(self):
         return self._status
 
@@ -111,12 +111,11 @@ class Job:
         return due_date
 
     def __str__(self):
-        j = "%s %s %s %s %s %s %s" % (
+        j = "%s %s %s %s %s %s" % (
             self.job_number,
             self.date_received,
             self.type,
             self.quantity,
-            self.media_files,
             self.rate,
             self.date_due,
         )
@@ -129,10 +128,10 @@ class Job:
         d['job_number'] = self._job_number
         d['type'] = self._type
         d['rate'] = self._rate
+        d['total_quantity'] = self._total_quantity
         d['quantity'] = self._quantity
         d['date_due'] = self._date_due
         d['date_submitted'] = self._date_submitted
-        d['media_files'] = self._media_files
         d['status'] = self._status
 
         return d
@@ -144,10 +143,3 @@ class Job:
             ensure_ascii=ensure_ascii,
             sort_keys=True,
         )
-
-if __name__ == "__main__":
-    client = Client('Anderson', 'Anderson@gmail.com')
-    job = Job(date_received = datetime.today().strftime('%Y-%m-%d'), job_number = '56321', type = 'Normal')
-    print(job.to_dict())
-
-

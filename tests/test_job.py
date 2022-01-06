@@ -8,6 +8,7 @@ def test_job_to_dict():
         date_received = datetime.today().strftime('%Y-%m-%d'),
         job_number = '56321',
         type = 'Normal',
+        total_quantity = 40
     )
     job.quantity = 20
     job.date_submitted = ''
@@ -18,10 +19,10 @@ def test_job_to_dict():
         'job_number': '56321',
         'type':'Normal',
         'rate': 0.4,
+        'total_quantity': 40,
         'quantity': 20,
         'date_due': date_due.strftime(DATE_STR_FMT),
         'date_submitted': '',
-        'media_files': [],
         'status': 'Pending',
     }
 
