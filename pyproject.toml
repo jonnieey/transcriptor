@@ -9,7 +9,8 @@ dependencies = [
     "audioread~=2.1",
     "python-magic~=0.4",
     "whaaaaat~=0.5",
-    "prompt-toolkit<2.0"
+    "prompt-toolkit<2.0",
+    "appdirs~=1.4",
 ]
 requires-python = ">=3.9"
 dynamic = ["classifiers"]

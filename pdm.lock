@@ -1,4 +1,10 @@
 [[package]]
+name = "appdirs"
+sections = ["default"]
+version = "1.4.4"
+summary = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
+
+[[package]]
 name = "atomicwrites"
 sections = ["dev"]
 version = "1.4.0"
@@ -132,9 +138,13 @@ dependencies = [
 
 [metadata]
 lock_version = "2"
-content_hash = "sha256:89fd3fec64b1da99377dd24dc292ca903dcf58d1fbc5c126c6e7e03b5bcbc24c"
+content_hash = "sha256:8daaf8138a13bdf917f08883463febe8db38f61c7da871797496b9922f686eb2"
 
 [metadata.files]
+"appdirs 1.4.4" = [
+    {file = "appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"},
+    {file = "appdirs-1.4.4.tar.gz", hash = "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41"},
+]
 "atomicwrites 1.4.0" = [
     {file = "atomicwrites-1.4.0-py2.py3-none-any.whl", hash = "sha256:6d1784dea7c0c8d4a5172b6c620f40b6e4cbfdf96d783691f2e1302a7b88e197"},
     {file = "atomicwrites-1.4.0.tar.gz", hash = "sha256:ae70396ad1a434f9c7046fd2dd196fc04b12f9e91ffb859164193be8b6168a7a"},

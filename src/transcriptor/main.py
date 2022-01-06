@@ -2,6 +2,7 @@ import json
 import shutil
 import zipfile
 import sys
+import argparse
 
 from datetime import datetime
 from pathlib import Path
@@ -12,72 +13,51 @@ from transcriptor.client import Client
 from transcriptor.utils import (
     create_dir, get_all_clients, get_job_quantity, get_media_files,
     get_missing_job_details, get_new_client_details, select_client,
-    select_media_files
+    select_media_files, create_client, write_client,
 )
+from transcriptor.settings import Settings
 
-WORK_FOLDER = 'workfolder'
-CLIENTS_DIR = 'clients'
-JOB_DIR = 'jobs'
-
-def create_client(name='', email='') -> int:
-    if (name == '') or (email == ''):
-        client = get_new_client_details()
-    else:
-        client = Client(name=name, email=email)
-
-    return client
-
-def write_client(client: Client) -> bool:
-    clients_dir = Path(CLIENTS_DIR)
-
-    # if not clients_dir.exists():
-    #     clients_dir.mkdir(parents=True, exist_ok=True)
-
-    create_dir(clients_dir)
-
-    client_file = clients_dir / str(client.name)
-
-    if client_file.exists():
-        print("Client already exists") # Notify client already exists
-        return False
-
-    else:
-        with open(clients_dir/str(client.name), 'w') as fd:
-            fd.write(client.to_json())
-        return True
+BASE_DIR = '/home/kamikaze/Documents/Wera/Transcription2'
+WORK_FOLDER = BASE_DIR + '/workfolder'
+CLIENTS_DIR = BASE_DIR +'/clients'
+JOB_DIR = BASE_DIR + '/jobs'
 
 def create_job(zip_file: Path, date_received: str = datetime.today().strftime("%Y-%m-%d"),):
 
     job_number, date_due, job_type = get_missing_job_details(zip_file)
 
+    clients = get_all_clients(CLIENTS_DIR)
+    if clients == []:
+        client = create_client()
+    else:
+        client = select_client(clients)
+
     job = Job(date_received=date_received, job_number=job_number, type=job_type, date_due=date_due)
 
-    job_folder_name = "%s-%s_DUE_%s" % (
+    work_folder_name = "%s-%s_DUE_%s" % (
         str(job.date_received),
         str(job.job_number),
         str(job.date_due)
     )
-    job_folder = Path(WORK_FOLDER) / job_folder_name
 
-    if create_dir(job_folder) is not None:
-        new_zip_file = shutil.copy2(zip_file, job_folder) # should move
-        zipfile.ZipFile(new_zip_file).extractall(job_folder)
+    workfolder = Path(WORK_FOLDER) /  client.name / work_folder_name
+
+    if (create_dir(workfolder) is not None) or (list(workfolder.iterdir()) == []):
+        new_zip_file = shutil.copy2(zip_file, workfolder) # should move
+        zipfile.ZipFile(new_zip_file).extractall(workfolder)
     else:
         print('Job folder alread exists')
-        sys.exit(1)
 
-    media_files = get_media_files(job_folder)
+    media_files = get_media_files(workfolder)
     selected_media_files = select_media_files(media_files)
     job.media_files, job.quantity = get_job_quantity(selected_media_files)
     # job.quantity = quantity
-    return job
+    return job, client
 
 def write_job(zip_file: Path):
     jobs_dir = Path(JOB_DIR)
 
-    clients = get_all_clients(CLIENTS_DIR)
-    client = select_client(clients)
-    job = create_job(zip_file)
+    job, client = create_job(zip_file)
 
     #Read from job file if exists
     #else create new
@@ -104,5 +84,9 @@ def write_job(zip_file: Path):
 # def update_job_status(job: Job):
 
 if __name__ == "__main__":
-    # create_client()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-n', help='Create new task')
+    parser.add_argument('-N', nargs='?', const=' ', help='')
+    parser.add_argument('-c', nargs='?', const=' ', help='Specify client')
+
     write_job(Path("/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-21-501363_DUE_11.23_-_12.6_(VICTOR)/501363 DUE 11.23 - 12.6 (VICTOR).zip"))

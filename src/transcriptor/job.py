@@ -1,5 +1,6 @@
 from datetime import timedelta, datetime
 import json
+from transcriptor.client import Client
 
 class Job:
     def __init__(
@@ -110,13 +111,20 @@ class Job:
         return due_date
 
     def __str__(self):
-        j = "%s %s %s %s %s %s %s" % (self.job_number, self.date_received, self.type, self.quantity, self.media_files, self.rate, self.date_due)
+        j = "%s %s %s %s %s %s %s" % (
+            self.job_number,
+            self.date_received,
+            self.type,
+            self.quantity,
+            self.media_files,
+            self.rate,
+            self.date_due,
+        )
         return j
 
     def to_dict(self):
         d = {}
 
-        # d['client'] = str(self._client)
         d['date_received'] = self._date_received
         d['job_number'] = self._job_number
         d['type'] = self._type
@@ -138,9 +146,8 @@ class Job:
         )
 
 if __name__ == "__main__":
+    client = Client('Anderson', 'Anderson@gmail.com')
     job = Job(date_received = datetime.today().strftime('%Y-%m-%d'), job_number = '56321', type = 'Normal')
-    job.quantity = 20
-    job.date_submitted = ''
     print(job.to_dict())
 
 
