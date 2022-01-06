@@ -7,7 +7,7 @@ class Job:
         self,
         date_received: str,
         job_number: str,
-        type : str,
+        job_type : str,
         total_quantity : float,
         quantity : float= 0.0,
         date_due: str = '',
@@ -16,21 +16,21 @@ class Job:
     ) -> None:
         self.date_received = date_received
         self.job_number = job_number
-        self.type = type
-        self.rate = self.get_job_details(type)['rate']
+        self.job_type = job_type
+        self.rate = self.get_job_details(job_type)['rate']
         self.total_quantity = total_quantity
         self.quantity = quantity
-        self.date_due = date_due if date_due != '' else self.get_date_due(type)
+        self.date_due = date_due if date_due != '' else self.get_date_due(job_type)
         self.date_submitted = date_submitted
         self.status = status
 
     @property
-    def type(self) -> str:
-        return self._type
+    def job_type(self) -> str:
+        return self._job_type
 
-    @type.setter
-    def type(self, value):
-        self._type = value
+    @job_type.setter
+    def job_type(self, value):
+        self._job_type = value
         self._rate = self.get_job_details(value)['rate']
         self._date_due = self.get_date_due(value)
 
@@ -106,15 +106,15 @@ class Job:
         } # Use a file
         return job_types[job_type]
 
-    def get_date_due(self, type: str ):
-        due_date = (datetime.today() + timedelta(abs(self.get_job_details(type)['due_in']))).strftime("%Y-%m-%d")
+    def get_date_due(self, job_type: str ):
+        due_date = (datetime.today() + timedelta(abs(self.get_job_details(job_type)['due_in']))).strftime("%Y-%m-%d")
         return due_date
 
     def __str__(self):
         j = "%s %s %s %s %s %s" % (
             self.job_number,
             self.date_received,
-            self.type,
+            self.job_type,
             self.quantity,
             self.rate,
             self.date_due,
@@ -126,7 +126,7 @@ class Job:
 
         d['date_received'] = self._date_received
         d['job_number'] = self._job_number
-        d['type'] = self._type
+        d['job_type'] = self._job_type
         d['rate'] = self._rate
         d['total_quantity'] = self._total_quantity
         d['quantity'] = self._quantity
