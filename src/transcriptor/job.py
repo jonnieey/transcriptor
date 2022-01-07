@@ -1,28 +1,41 @@
-from datetime import timedelta, datetime
+from datetime import timedelta, date, datetime
 import json
 from transcriptor.client import Client
+from transcriptor.utils import date_to_string, string_to_date
 
+DATE_FORMAT = '%Y-%m-%d'
 class Job:
     def __init__(
         self,
-        date_received: str,
+        date_received: date,
         job_number: str,
         job_type : str,
         total_quantity : float,
+        job_rate : float = None,
         quantity : float= 0.0,
-        date_due: str = '',
-        date_submitted: str = '' ,
+        date_due: date = None,
+        date_submitted: date = None ,
         status: str = 'Pending',
     ) -> None:
         self.date_received = date_received
         self.job_number = job_number
         self.job_type = job_type
-        self.rate = self.get_job_details(job_type)['rate']
         self.total_quantity = total_quantity
         self.quantity = quantity
-        self.date_due = date_due if date_due != '' else self.get_date_due(job_type)
         self.date_submitted = date_submitted
         self.status = status
+        self.job_rate = job_rate
+
+        if date_due is None and job_type:
+            date_due = self.get_date_due(date_received, job_type)
+            self.date_due =  date_due
+        elif isinstance(date_due, str):
+            date_due = string_to_date(date_due)
+            self.date_due = date_due
+
+        if job_rate is None and job_type:
+            job_rate = self.get_job_rate(job_type)
+            self.job_rate = job_rate
 
     @property
     def job_type(self) -> str:
@@ -31,8 +44,6 @@ class Job:
     @job_type.setter
     def job_type(self, value):
         self._job_type = value
-        self._rate = self.get_job_details(value)['rate']
-        self._date_due = self.get_date_due(value)
 
     @property
     def job_number(self) -> str:
@@ -43,12 +54,12 @@ class Job:
         self._job_number = value
 
     @property
-    def rate(self) -> float:
-        return self._rate
+    def job_rate(self) -> float:
+        return self._job_rate
 
-    @rate.setter
-    def rate(self, value):
-        self._rate = value
+    @job_rate.setter
+    def job_rate(self, value):
+        self._job_rate = value
 
     @property
     def quantity(self):
@@ -98,40 +109,38 @@ class Job:
     def status(self, value):
         self._status = value
 
-    def get_job_details(self, job_type):
-        job_types = {
-            'Expedite' : {'rate': 0.60, 'due_in': 1},
-            'Normal': {'rate': 0.40, 'due_in': 5 },
-            'Interpreted': {'rate':0.30,'due_in': 5},
-        } # Use a file
-        return job_types[job_type]
-
-    def get_date_due(self, job_type: str ):
-        due_date = (datetime.today() + timedelta(abs(self.get_job_details(job_type)['due_in']))).strftime("%Y-%m-%d")
-        return due_date
-
     def __str__(self):
         j = "%s %s %s %s %s %s" % (
             self.job_number,
             self.date_received,
             self.job_type,
             self.quantity,
-            self.rate,
+            self.job_rate,
             self.date_due,
         )
         return j
 
+    def get_date_due(self, date_received, job_type):
+        job_types = {'Normal': 5, 'Interpreted': 5, 'Expedite': 1}
+        job_days = job_types[job_type]
+        due_date = datetime.strptime(date_received.strftime(DATE_FORMAT), DATE_FORMAT) + timedelta(days=job_days)
+        return due_date.date()
+
+    def get_job_rate(self, job_type):
+        job_types = {'Normal': 0.4, 'Interpreted': 0.3, 'Expedite': 0.6}
+        return job_types[job_type]
+
     def to_dict(self):
         d = {}
 
-        d['date_received'] = self._date_received
+        d['date_received'] = date_to_string(self._date_received)
         d['job_number'] = self._job_number
         d['job_type'] = self._job_type
-        d['rate'] = self._rate
+        d['job_rate'] = self._job_rate
         d['total_quantity'] = self._total_quantity
         d['quantity'] = self._quantity
-        d['date_due'] = self._date_due
-        d['date_submitted'] = self._date_submitted
+        d['date_due'] = date_to_string(self._date_due)
+        d['date_submitted'] = date_to_string(self._date_submitted)
         d['status'] = self._status
 
         return d

@@ -1,16 +1,16 @@
 import pytest
+from datetime import datetime, timedelta, date
 
-from datetime import datetime, timedelta
 from transcriptor.job import Job
 from transcriptor.methods import create_job
 from transcriptor.client import Client
-from transcriptor.methods import create_client, get_job_details_from_zip
+from transcriptor.methods import create_client, get_job_details_from_zip, get_date_received
 
 CLIENT_NAME = 'TestClient'
 CLIENT_EMAIL = 'TestEmail'
 
-DATE_STR_FMT = "%Y-%m-%d"
-TODAY = datetime.today().strftime(DATE_STR_FMT)
+DATE_FMT = "%Y-%m-%d"
+TODAY = date.today()
 
 @pytest.fixture()
 def test_client():
@@ -19,7 +19,7 @@ def test_client():
 @pytest.fixture()
 def test_job():
     job = Job(
-        date_received = datetime.today().strftime('%Y-%m-%d'),
+        date_received = TODAY,
         job_number = '56321',
         job_type = 'Normal',
         total_quantity = 40
@@ -40,7 +40,7 @@ def test_create_job():
         job_number='511113',
         job_type='Normal',
         total_quantity=180,
-        date_due=(datetime.today() + timedelta(days=5)).strftime('%Y-%m-%d'),
+        date_due=(TODAY + timedelta(days=5)).strftime('%Y-%m-%d'),
     )
     assert isinstance(job, Job)
 
@@ -55,6 +55,16 @@ def test_get_job_details_from_zip():
 
     job_number, date_due = get_job_details_from_zip(zip)
     assert job_number == '514779'
-    assert date_due == '%s-11-15' % (datetime.today().year)
 
+    d = '%s-11-15' % (TODAY.year)
+    assert datetime.strptime(date_due, DATE_FMT).date() ==  datetime.strptime(d, DATE_FMT).date()
 
+def test_get_date_received_as_date_string():
+    date_received = '2021-11-12'
+    date_rec = get_date_received(date_received)
+    assert date_rec == datetime.strptime(date_received, '%Y-%m-%d')
+
+def test_get_date_received_as_int():
+    date_received = -2
+    date_rec = get_date_received(date_received)
+    assert date_rec == TODAY + timedelta(days=date_received)

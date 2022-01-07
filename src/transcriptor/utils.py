@@ -1,6 +1,19 @@
 import re
+from datetime import date
 from datetime import datetime, timedelta
 from pathlib import Path
+
+DATE_FORMAT = '%Y-%m-%d'
+
+def date_to_string(date_obj):
+    if date_obj is None:
+        return None
+    elif isinstance(date_obj, date) or isinstance(date_obj, datetime):
+        return date_obj.strftime(DATE_FORMAT)
+
+def string_to_date(date_str):
+    # Should accept other datetime formats
+    return datetime.strptime(date_str, DATE_FORMAT).date()
 
 def parse_job_details(zip_file):
     if isinstance(zip_file, str):
