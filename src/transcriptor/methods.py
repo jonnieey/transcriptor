@@ -1,12 +1,16 @@
 import json
-from datetime import datetime, timedelta, date
 
+from datetime import datetime, timedelta, date
 from pathlib import Path
+
 from transcriptor import CONF_FILE
 from transcriptor.client import Client
 from transcriptor.job import Job
-from transcriptor.utils import parse_job_details, string_to_date, read_settings, create_default_settings
-from transcriptor.ui import input_menu
+from transcriptor.utils import (
+    parse_job_details,
+    read_settings,
+    create_default_settings,
+)
 
 def check_settings():
     if Path(CONF_FILE).exists():
@@ -38,40 +42,45 @@ def save_client_to_file(client, clients_folder):
         print(error)
         return False
 
-def create_job(date_received, job_number, job_type, total_quantity, date_due):
-    job = Job(
+def create_task(
+    date_due,
+    date_received,
+    job_number,
+    job_type,
+    quantity,
+    total_quantity,
+):
+    task = Job(
+        date_due=date_due,
         date_received = date_received,
         job_number = job_number,
         job_type = job_type,
+        quantity=quantity,
         total_quantity = total_quantity,
-        date_due=date_due,
     )
-    return job
+    return task
 
-# def save_job_to_file(job):
-#     job_json = job.to_json()
-#     try:
-#         with open('jobs.txt', 'w') as fp:
-#             fp.write(job_json)
-#         return True
-#     except Exception as error:
-#         print(error)
-#         return False
-
-def save_client_job_to_file(client, job, job_folder):
+def save_client_job_to_file(client, jobs, job_folder):
     if not job_folder.exists():
         job_folder.mkdir(parents=True, exist_ok=True)
     client_jobs_file = job_folder / client.name
 
-    client_job_dict = {}
-    client_job_dict['client'] = client.to_dict()
-
     job_list = []
-    job_list.append(job.to_dict())
-    client_job_dict['job_list'] = job_list
+    for job in jobs:
+        job_list.append(job.to_dict())
+
+    if client_jobs_file.exists():
+        with open(client_jobs_file, 'r') as fd:
+            client_jobs_info = json.load(fd)
+            client_jobs_info['job_list'].extend(job_list)
+    else:
+
+        client_jobs_info = {}
+        client_jobs_info['client'] = client.to_dict()
+        client_jobs_info['job_list'] = job_list
 
     job_json = json.dumps(
-        client_job_dict,
+        client_jobs_info,
         indent=2,
         ensure_ascii=False,
         sort_keys=True,
@@ -87,28 +96,19 @@ def save_client_job_to_file(client, job, job_folder):
 
 def get_job_details_from_zip(zip_file):
     job_number, date_due = parse_job_details(zip_file)
-
     return job_number, date_due
 
 def get_date_received(date_received=None):
-    if (date_received is None) or (not date_received):
-        date_received = input_menu(
-            name='date_received',
-            msg='Enter date received [Year-Month-Date]: ',
-            default=date.today().strftime('%Y-%m-%d'),
-        )
-        date_rec = datetime.strptime(date_received, '%Y-%m-%d')
+    if date_received is None:
+        return None
 
-    elif not isinstance(date_received, int):
-        date_rec = datetime.strptime(date_received, '%Y-%m-%d')
-
-    elif isinstance(date_received, int):
-        date_rec = date.today() + timedelta(days=date_received)
-
-    else:
-        date_rec = date_received
-
-    return date_rec
+    try:
+        if isinstance(int(date_received), int):
+            date_rec = date.today() + timedelta(hours=int(date_received)*24)
+            return date_rec
+    except ValueError:
+            date_rec = datetime.strptime(date_received, '%Y-%m-%d').date()
+            return date_rec
 
 def get_all_clients(clients_folder):
     clients = []
@@ -124,7 +124,7 @@ def get_all_clients(clients_folder):
 
 if __name__ == "__main__":
 
-    zip = "/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-12-514779_DUE_11.15_(VICTOR)/514779 DUE 11.15 (VICTOR).zip"
+    zip_file = "/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-12-514779_DUE_11.15_(VICTOR)/514779 DUE 11.15 (VICTOR).zip"
 
     # zip = "/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-12-514779/(VICTOR)/514779(VICTOR).zip"
     # client = create_client('john')

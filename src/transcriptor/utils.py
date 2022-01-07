@@ -1,8 +1,11 @@
 import re
-from datetime import date
-from datetime import datetime, timedelta
+import zipfile
+from datetime import datetime, timedelta,date
 from pathlib import Path
 from transcriptor.settings import Settings
+from magic import from_file
+from audioread import audio_open
+from math import floor
 
 DATE_FORMAT = '%Y-%m-%d'
 
@@ -58,4 +61,24 @@ def read_settings():
     settings = Settings().read_settings_from_file()
     return settings
 
+def extract_zip_to(zip_file, destination_folder):
+    return zipfile.ZipFile(zip_file).extractall(destination_folder)
 
+def get_media_files(task_folder):
+    if isinstance(task_folder, str):
+        task_folder = Path(task_folder)
+
+    media_files = []
+
+    files = [f for f in task_folder.iterdir()]
+    for file in files:
+        file_type = from_file(str(file), mime=True)
+        if 'audio' in file_type or 'video' in file_type:
+            media_files.append(file)
+    return sorted(media_files)
+
+def get_media_duration(media_file):
+    return sec_to_min(audio_open(media_file).duration)
+
+def sec_to_min(seconds):
+    return round(int(seconds / 60), 0)

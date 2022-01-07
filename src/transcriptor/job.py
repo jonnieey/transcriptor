@@ -1,6 +1,5 @@
 from datetime import timedelta, date, datetime
 import json
-from transcriptor.client import Client
 from transcriptor.utils import date_to_string, string_to_date
 
 DATE_FORMAT = '%Y-%m-%d'
@@ -25,10 +24,12 @@ class Job:
         self.date_submitted = date_submitted
         self.status = status
         self.job_rate = job_rate
+        self.date_due =  date_due
 
         if date_due is None and job_type:
             date_due = self.get_date_due(date_received, job_type)
             self.date_due =  date_due
+
         elif isinstance(date_due, str):
             date_due = string_to_date(date_due)
             self.date_due = date_due

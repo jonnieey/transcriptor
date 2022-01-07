@@ -1,7 +1,6 @@
 import pytest
-from datetime import datetime, timedelta, date
+from datetime import timedelta, date
 from transcriptor.job import Job
-from transcriptor.methods import create_job
 from transcriptor.utils import date_to_string
 
 DATE_FMT = "%Y-%m-%d"

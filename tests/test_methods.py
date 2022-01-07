@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta, date
 
 from transcriptor.job import Job
-from transcriptor.methods import create_job
+from transcriptor.methods import create_task
 from transcriptor.client import Client
 from transcriptor.methods import create_client, get_job_details_from_zip, get_date_received
 
@@ -36,11 +36,12 @@ def test_create_client():
 def test_save_client_to_file(test_client):
     pass
 
-def test_create_job():
-    job = create_job(
+def test_create_task():
+    job = create_task(
         date_received=TODAY,
         job_number='511113',
         job_type='Normal',
+        quantity=80,
         total_quantity=180,
         date_due=(TODAY + timedelta(days=5)).strftime('%Y-%m-%d'),
     )
@@ -64,7 +65,8 @@ def test_get_job_details_from_zip():
 def test_get_date_received_as_date_string():
     date_received = '2021-11-12'
     date_rec = get_date_received(date_received)
-    assert date_rec == datetime.strptime(date_received, '%Y-%m-%d')
+    print(date_rec)
+    assert date_rec == datetime.strptime(date_received, DATE_FMT).date()
 
 def test_get_date_received_as_int():
     date_received = -2
