@@ -2,6 +2,7 @@ import re
 from datetime import date
 from datetime import datetime, timedelta
 from pathlib import Path
+from transcriptor.settings import Settings
 
 DATE_FORMAT = '%Y-%m-%d'
 
@@ -48,3 +49,13 @@ def format_date(d):
         d = datetime.strptime(date_string, '%m.%d.%Y')
 
     return d.strftime("%Y-%m-%d")
+
+def create_default_settings():
+    settings = Settings().generate_default_settings()
+    settings.write_settings_to_file()
+
+def read_settings():
+    settings = Settings().read_settings_from_file()
+    return settings
+
+
