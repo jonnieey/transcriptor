@@ -5,6 +5,7 @@ from transcriptor.client import Client
 from transcriptor.job import Job
 from transcriptor.utils import parse_job_details, string_to_date
 from transcriptor.ui import input_menu
+from transcriptor.settings import Settings
 
 def create_client(name, email) -> Client:
     client = Client(name, email)
@@ -87,12 +88,23 @@ def get_date_received(date_received=None):
 
     return date_rec
 
+def create_settings():
+    settings = Settings().generate_default_settings()
+    settings.write_settings_to_file()
+
+def read_settings():
+    settings = Settings().read_settings_from_file()
+    return settings
+
 if __name__ == "__main__":
 
-    zip = "/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-12-514779_DUE_11.15_(VICTOR)/514779 DUE 11.15 (VICTOR).zip"
+    # zip = "/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-12-514779_DUE_11.15_(VICTOR)/514779 DUE 11.15 (VICTOR).zip"
+
     # zip = "/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-12-514779/(VICTOR)/514779(VICTOR).zip"
-    client = create_client("Anderson", "Anderson@gmail.com")
-    date_received = get_date_received()
-    job_number, date_due = get_job_details_from_zip(zip)
-    job = create_job(date_received=date_received, job_number=job_number, job_type='Normal',  total_quantity=60, date_due=date_due)
-    save_client_job_to_file(client, job)
+    # client = create_client("Anderson", "Anderson@gmail.com")
+    # date_received = get_date_received()
+    # job_number, date_due = get_job_details_from_zip(zip)
+    # job = create_job(date_received=date_received, job_number=job_number, job_type='Normal',  total_quantity=60, date_due=date_due)
+    # save_client_job_to_file(client, job)
+
+    # print(read_settings().to_dict())
