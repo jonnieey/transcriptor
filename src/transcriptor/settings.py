@@ -3,22 +3,22 @@ import json
 from pathlib import Path
 
 class Settings:
-    def __init__(self, client_folder=None, job_folder=None, work_folder=None):
-        self.client_folder = client_folder
+    def __init__(self, clients_folder=None, job_folder=None, work_folder=None):
+        self.clients_folder = clients_folder
         self.job_folder = job_folder
         self.work_folder = work_folder
 
     @classmethod
     def generate_default_settings(cls):
         return cls(
-            client_folder=CLIENT_FOLDER,
+            clients_folder=CLIENT_FOLDER,
             job_folder=JOB_FOLDER,
             work_folder=WORK_FOLDER,
         )
 
     def to_dict(self):
         d = {}
-        d['client_folder'] = self.client_folder
+        d['clients_folder'] = self.clients_folder
         d['job_folder'] = self.job_folder
         d['work_folder'] = self.work_folder
 
@@ -42,10 +42,10 @@ class Settings:
             except Exception:
                 return cls()
 
-        if 'client_folder' in js.keys():
-            client_folder = js['client_folder']
+        if 'clients_folder' in js.keys():
+            clients_folder = js['clients_folder']
         else:
-            client_folder = None
+            clients_folder = None
 
         if 'job_folder' in js.keys():
             job_folder = js['job_folder']
@@ -57,7 +57,7 @@ class Settings:
         else:
             work_folder = None
 
-        return cls(client_folder=client_folder, job_folder=job_folder, work_folder=work_folder)
+        return cls(clients_folder=clients_folder, job_folder=job_folder, work_folder=work_folder)
 
     # make CONF_FILE editable by user
     def write_settings_to_file(self):

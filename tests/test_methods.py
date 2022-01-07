@@ -1,4 +1,6 @@
 import pytest
+import io
+import json
 from datetime import datetime, timedelta, date
 
 from transcriptor.job import Job
@@ -68,3 +70,6 @@ def test_get_date_received_as_int():
     date_received = -2
     date_rec = get_date_received(date_received)
     assert date_rec == TODAY + timedelta(days=date_received)
+
+def test_get_all_clients(test_client):
+    pass

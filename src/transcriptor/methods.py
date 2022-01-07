@@ -16,15 +16,14 @@ def check_settings():
 
     return settings
 
-def create_client(name=None, email=None) -> Client:
+def create_client(name=None, email=None):
     if name is None or email is None:
         return None
 
     client = Client(name, email)
     return client
 
-def save_client_to_file(client):
-    clients_folder = Path(check_settings().clients_folder)
+def save_client_to_file(client, clients_folder):
     if not clients_folder.exists():
         clients_folder.mkdir(parents=True, exist_ok=True)
 
@@ -59,8 +58,7 @@ def create_job(date_received, job_number, job_type, total_quantity, date_due):
 #         print(error)
 #         return False
 
-def save_client_job_to_file(client, job):
-    job_folder = Path(check_settings().job_folder)
+def save_client_job_to_file(client, job, job_folder):
     if not job_folder.exists():
         job_folder.mkdir(parents=True, exist_ok=True)
     client_jobs_file = job_folder / client.name
@@ -98,7 +96,7 @@ def get_date_received(date_received=None):
             name='date_received',
             msg='Enter date received [Year-Month-Date]: ',
             default=date.today().strftime('%Y-%m-%d'),
-        )['date_received']
+        )
         date_rec = datetime.strptime(date_received, '%Y-%m-%d')
 
     elif not isinstance(date_received, int):
@@ -107,26 +105,41 @@ def get_date_received(date_received=None):
     elif isinstance(date_received, int):
         date_rec = date.today() + timedelta(days=date_received)
 
+    else:
+        date_rec = date_received
+
     return date_rec
+
+def get_all_clients(clients_folder):
+    clients = []
+    if not clients_folder.exists():
+        return []
+    else:
+        clients_files = clients_folder.iterdir()
+        for client_file in clients_files:
+            with open(client_file, 'r') as fd:
+                client_json = json.load(fd)
+                clients.append(Client().from_json(client_json))
+    return clients
 
 if __name__ == "__main__":
 
     zip = "/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-12-514779_DUE_11.15_(VICTOR)/514779 DUE 11.15 (VICTOR).zip"
 
     # zip = "/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-12-514779/(VICTOR)/514779(VICTOR).zip"
-    client = create_client('john')
-    if client is None:
-            client_name = input_menu(name='client_name', msg='Enter client name: ')['client_name']
-            client_email = input_menu(name='client_email', msg='Enter client email: ')['client_email']
-            client =  Client(client_name, client_email)
-    date_received = get_date_received()
-    job_number, date_due = get_job_details_from_zip(zip)
-    if job_number is None:
-        job_number = input_menu(name='job_number', msg='Enter job number: ')['job_number']
-    if date_due is None:
-        date_due = input_menu(name='date_due', msg='Enter date due: ')['date_due']
-    if date_due == '':
-        date_due = None
-    job = create_job(date_received=date_received, job_number=job_number, job_type='Normal',  total_quantity=60, date_due=date_due)
-    save_client_job_to_file(client, job)
+    # client = create_client('john')
+    # if client is None:
+    #         client_name = input_menu(name='client_name', msg='Enter client name: ')
+    #         client_email = input_menu(name='client_email', msg='Enter client email: ')
+    #         client =  Client(client_name, client_email)
+    # date_received = get_date_received()
+    # job_number, date_due = get_job_details_from_zip(zip)
+    # if job_number is None:
+    #     job_number = input_menu(name='job_number', msg='Enter job number: ')
+    # if date_due is None:
+    #     date_due = input_menu(name='date_due', msg='Enter date due: ')
+    # if date_due == '':
+    #     date_due = None
+    # job = create_job(date_received=date_received, job_number=job_number, job_type='Normal',  total_quantity=60, date_due=date_due)
+    # save_client_job_to_file(client, job)
 

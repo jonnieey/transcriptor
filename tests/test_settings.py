@@ -12,7 +12,7 @@ def default_settings():
 def test_default_settings(default_settings):
 
     settings_dict = {
-        'client_folder': CLIENT_FOLDER,
+        'clients_folder': CLIENT_FOLDER,
         'job_folder': JOB_FOLDER,
         'work_folder': WORK_FOLDER,
     }

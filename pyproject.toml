@@ -9,8 +9,8 @@ dependencies = [
     "audioread~=2.1",
     "python-magic~=0.4",
     "appdirs~=1.4",
-    "inquirer~=2.9",
     "readchar~=3.0",
+    "questionary~=1.10",
 ]
 requires-python = ">=3.9"
 dynamic = ["classifiers"]
