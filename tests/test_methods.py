@@ -1,17 +1,23 @@
-import pytest
 import io
 import json
+import pytest
+
 from datetime import datetime, timedelta, date
 
-from transcriptor.job import Job
-from transcriptor.methods import create_task
+from transcriptor import DATE_FMT
 from transcriptor.client import Client
-from transcriptor.methods import create_client, get_job_details_from_zip, get_date_received
+from transcriptor.job import Job
+
+from transcriptor.methods import (
+    create_client,
+    create_task,
+    get_date_received,
+    get_job_details_from_zip,
+)
 
 CLIENT_NAME = 'TestClient'
 CLIENT_EMAIL = 'TestEmail'
 
-DATE_FMT = "%Y-%m-%d"
 TODAY = date.today()
 
 @pytest.fixture()
@@ -43,7 +49,7 @@ def test_create_task():
         job_type='Normal',
         quantity=80,
         total_quantity=180,
-        date_due=(TODAY + timedelta(days=5)).strftime('%Y-%m-%d'),
+        date_due=(TODAY + timedelta(days=5)).strftime(DATE_FMT),
     )
     assert isinstance(job, Job)
 

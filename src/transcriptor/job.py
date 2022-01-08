@@ -1,8 +1,8 @@
 from datetime import timedelta, date, datetime
 import json
+from transcriptor import DATE_FMT
 from transcriptor.utils import date_to_string, string_to_date
 
-DATE_FORMAT = '%Y-%m-%d'
 class Job:
     def __init__(
         self,
@@ -124,7 +124,7 @@ class Job:
     def get_date_due(self, date_received, job_type):
         job_types = {'Normal': 5, 'Interpreted': 5, 'Expedite': 1}
         job_days = job_types[job_type]
-        due_date = datetime.strptime(date_received.strftime(DATE_FORMAT), DATE_FORMAT) + timedelta(days=job_days)
+        due_date = datetime.strptime(date_received.strftime(DATE_FMT), DATE_FMT) + timedelta(days=job_days)
         return due_date.date()
 
     def get_job_rate(self, job_type):

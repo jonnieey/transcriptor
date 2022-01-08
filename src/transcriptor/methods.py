@@ -1,18 +1,18 @@
 import json
+import sys
 
 from datetime import datetime, timedelta, date
 from pathlib import Path
 
-from transcriptor import CONF_FILE
+from transcriptor import CONF_FILE, DATE_FMT
 from transcriptor.client import Client
 from transcriptor.job import Job
+
 from transcriptor.utils import (
     parse_job_details,
     read_settings,
     create_default_settings,
 )
-
-DATE_FMT = '%Y-%m-%d'
 
 def check_settings():
     if Path(CONF_FILE).exists():
@@ -101,22 +101,42 @@ def get_job_details_from_zip(zip_file):
     return job_number, date_due
 
 def get_date_received(date_received=None):
-    if date_received is None or date_received == '':
+    if date_received is None:
+        return None
+
+    elif date_received == '':
         return date.today()
 
     try:
-        if isinstance(int(date_received), int):
-            if int(date_received) > 0:
-                date_received *= -1
-            date_rec = date.today() + timedelta(days=int(date_received))
-            return date_rec
+        date_received = int(date_received)
+        if date_received > 0:
+            date_received *= -1
+        date_rec = date.today() + timedelta(days=int(date_received))
+        return date_rec
+
     except ValueError:
+        try:
             date_rec = datetime.strptime(date_received, DATE_FMT).date()
             return date_rec
+        except ValueError:
+            print("Enter valid date [Year-month-day] format")
+            sys.exit(1)
 
-# def get_date_due(date_received=None, date_due=None):
-#     if date_due is None and date_received is not None:
-#         date_due =
+def get_date_due(date_due=None):
+    try:
+        date_due = int(date_due)
+        if date_due < 0:
+            date_due *= -1
+        date_d = date.today() + timedelta(days=int(date_due))
+        return date_d
+
+    except ValueError:
+        try:
+            date_d = datetime.strptime(date_due, DATE_FMT).date()
+            return date_d
+        except ValueError:
+            print("Enter valid date [Year-month-day] format")
+            sys.exit(1)
 
 def get_all_clients(clients_folder):
     clients = []
@@ -129,25 +149,3 @@ def get_all_clients(clients_folder):
                 client_json = json.load(fd)
                 clients.append(Client().from_json(client_json))
     return clients
-
-if __name__ == "__main__":
-
-    zip_file = "/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-12-514779_DUE_11.15_(VICTOR)/514779 DUE 11.15 (VICTOR).zip"
-
-    # zip = "/home/kamikaze/Documents/Wera/Transcription/Wach/Chynna Barbosa/2021-11-12-514779/(VICTOR)/514779(VICTOR).zip"
-    # client = create_client('john')
-    # if client is None:
-    #         client_name = input_menu(name='client_name', msg='Enter client name: ')
-    #         client_email = input_menu(name='client_email', msg='Enter client email: ')
-    #         client =  Client(client_name, client_email)
-    # date_received = get_date_received()
-    # job_number, date_due = get_job_details_from_zip(zip)
-    # if job_number is None:
-    #     job_number = input_menu(name='job_number', msg='Enter job number: ')
-    # if date_due is None:
-    #     date_due = input_menu(name='date_due', msg='Enter date due: ')
-    # if date_due == '':
-    #     date_due = None
-    # job = create_job(date_received=date_received, job_number=job_number, job_type='Normal',  total_quantity=60, date_due=date_due)
-    # save_client_job_to_file(client, job)
-
