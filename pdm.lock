@@ -24,10 +24,19 @@ version = "2.1.9"
 summary = "multi-library, cross-platform audio decoding"
 
 [[package]]
+name = "click"
+sections = ["default"]
+version = "8.0.3"
+summary = "Composable command line interface toolkit"
+dependencies = [
+    "colorama; platform_system == \"Windows\"",
+]
+
+[[package]]
 name = "colorama"
-sections = ["dev"]
+sections = ["default", "dev"]
 version = "0.4.4"
-marker = "sys_platform == 'win32'"
+marker = "sys_platform == 'win32' or platform_system == 'Windows'"
 summary = "Cross-platform colored terminal text."
 
 [[package]]
@@ -123,7 +132,7 @@ summary = "Measures the displayed width of unicode strings in a terminal"
 
 [metadata]
 lock_version = "2"
-content_hash = "sha256:1a475da6c24643faf622b42ddc6774726301c368ed980e20247f99b5bfbcda6f"
+content_hash = "sha256:a73d8eda3b3d9ac1a40c2f435f8234bc6eea6af344a0f7f22534ba3439b3cbf7"
 
 [metadata.files]
 "appdirs 1.4.4" = [
@@ -140,6 +149,10 @@ content_hash = "sha256:1a475da6c24643faf622b42ddc6774726301c368ed980e20247f99b5b
 ]
 "audioread 2.1.9" = [
     {file = "audioread-2.1.9.tar.gz", hash = "sha256:a3480e42056c8e80a8192a54f6729a280ef66d27782ee11cbd63e9d4d1523089"},
+]
+"click 8.0.3" = [
+    {file = "click-8.0.3-py3-none-any.whl", hash = "sha256:353f466495adaeb40b6b5f592f9f91cb22372351c84caeb068132442a4518ef3"},
+    {file = "click-8.0.3.tar.gz", hash = "sha256:410e932b050f5eed773c4cda94de75971c89cdb3155a72a0831139a79e5ecb5b"},
 ]
 "colorama 0.4.4" = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
