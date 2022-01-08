@@ -47,7 +47,7 @@ class Client:
 
         if type(js) is not dict:
             try:
-                json.loads(js)
+                js = json.loads(js)
             except Exception:
                 return cls()
 

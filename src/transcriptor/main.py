@@ -20,6 +20,7 @@ from transcriptor.ui import (
     raw_menu_job_type,
     text_get_date,
     text_input_generic,
+    text_get_date_received,
 )
 from transcriptor.utils import get_media_files, extract_zip_to, get_media_duration
 
@@ -82,14 +83,17 @@ if __name__ == "__main__":
     work_folder = Path(settings.work_folder)
     job_folder = Path(settings.job_folder)
 
+    zip_file = Path("/home/kamikaze/Documents/Wera/Transcription/Jonnieey/Natalie Puelles/2021-11-04-513072/513072.zip")
+
     date_received = get_date_received()
     if date_received is None:
-        date_received = get_date_received(text_get_date('received'))
+        d = text_get_date_received(zip_file)
+        date_received = get_date_received(d)
 
-    zip_file = "/home/kamikaze/Documents/Wera/Transcription/Jonnieey/Natalie Puelles/2021-11-04-513072/513072.zip"
     job_number, date_due = get_job_details_from_zip(zip_file)
     if job_number is None:
         job_number = text_input_generic(name='job_number')
+
     if date_due is None:
         d = text_get_date('due')
         date_due = get_date_received(d)

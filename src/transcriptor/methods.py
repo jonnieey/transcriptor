@@ -12,6 +12,8 @@ from transcriptor.utils import (
     create_default_settings,
 )
 
+DATE_FMT = '%Y-%m-%d'
+
 def check_settings():
     if Path(CONF_FILE).exists():
         settings = read_settings()
@@ -99,16 +101,22 @@ def get_job_details_from_zip(zip_file):
     return job_number, date_due
 
 def get_date_received(date_received=None):
-    if date_received is None:
-        return None
+    if date_received is None or date_received == '':
+        return date.today()
 
     try:
         if isinstance(int(date_received), int):
-            date_rec = date.today() + timedelta(hours=int(date_received)*24)
+            if int(date_received) > 0:
+                date_received *= -1
+            date_rec = date.today() + timedelta(days=int(date_received))
             return date_rec
     except ValueError:
-            date_rec = datetime.strptime(date_received, '%Y-%m-%d').date()
+            date_rec = datetime.strptime(date_received, DATE_FMT).date()
             return date_rec
+
+# def get_date_due(date_received=None, date_due=None):
+#     if date_due is None and date_received is not None:
+#         date_due =
 
 def get_all_clients(clients_folder):
     clients = []

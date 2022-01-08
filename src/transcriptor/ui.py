@@ -1,4 +1,5 @@
 import questionary
+from datetime import date
 from questionary import prompt
 
 def input_menu(name, msg, default=None):
@@ -10,7 +11,7 @@ def raw_menu_client_list(clients_list):
         {
             "type": "rawselect",
             "name": "client",
-            "message": "Select item",
+            "message": "Select client: ",
             "choices": clients_list,
         },
     ]
@@ -21,12 +22,12 @@ def text_add_client():
         {
             "type": "text",
             "name": "name",
-            "message": "Enter client's name",
+            "message": "Enter client's name: ",
         },
         {
             "type": "text",
             "name": "email",
-            "message": "Enter client's email",
+            "message": "Enter client's email: ",
         },
     ]
 
@@ -38,7 +39,7 @@ def raw_menu_job_type(file_path):
         {
             "type": "rawselect",
             "name": "job_type",
-            "message": f"Select job type: {file_path}",
+            "message": f"Select job type: ",
             "choices": job_types,
         },
     ]
@@ -49,23 +50,34 @@ def text_job_quantity(file_path):
         {
             "type": "text",
             "name": "job_quantity",
-            "message": f"Enter Duration: {file_path.name}",
+            "message": f"Enter Duration: ",
         },
     ]
 
     return prompt(questions)['job_quantity']
+
+def text_get_date_received(file_path):
+    questions = [
+        {
+            "type": "text",
+            "name": "date_received",
+            "message": f"Enter date received",
+            "default" : f"{date.today().strftime('%Y-%m-%d')}"
+        },
+    ]
+
+    return prompt(questions)['date_received']
 
 def text_get_date(date_msg):
     questions = [
         {
             "type": "text",
             "name": "date",
-            "message": f"Enter date: {date_msg}",
+            "message": f"Enter date: {date_msg}: ",
         },
     ]
 
     return prompt(questions)['date']
-
 def text_input_generic(name):
     msg_str = name.replace("_", " ")
 
@@ -73,7 +85,7 @@ def text_input_generic(name):
         {
             "type": "text",
             "name": name,
-            "message": f"Enter {msg_str}",
+            "message": f"Enter {msg_str}: ",
         },
     ]
 
