@@ -1,27 +1,29 @@
 import re
 import zipfile
-from datetime import datetime, timedelta,date
-from pathlib import Path
-from transcriptor.settings import Settings
-from magic import from_file
-from audioread import audio_open
-from math import floor
 
-DATE_FORMAT = '%Y-%m-%d'
+from datetime import datetime, timedelta,date
+from math import floor
+from pathlib import Path
+
+from audioread import audio_open
+from magic import from_file
+
+from transcriptor import DATE_FMT
+from transcriptor.settings import Settings
 
 def date_to_string(date_obj):
     if date_obj is None:
         return None
     elif isinstance(date_obj, date) or isinstance(date_obj, datetime):
-        return date_obj.strftime(DATE_FORMAT)
+        return date_obj.strftime(DATE_FMT)
 
 def string_to_date(date_str):
-    # Should accept other datetime formats
-    return datetime.strptime(date_str, DATE_FORMAT).date()
+    return datetime.strptime(date_str, DATE_FMT).date()
 
 def parse_job_details(zip_file):
     if isinstance(zip_file, str):
         zip_file = Path(zip_file)
+
     job_name = zip_file.stem   #remove .zip extension
     job_number_pattern = re.compile(r'(\d{6,8})')
     date_due_pattern = re.compile(r'(?:(?<=DUE)|(?<=BACK))\s(\d{2}\.\d{2})', re.I)
@@ -51,7 +53,7 @@ def format_date(d):
         date_string = '%s.%s' % (d, datetime.today().year)
         d = datetime.strptime(date_string, '%m.%d.%Y')
 
-    return d.strftime("%Y-%m-%d")
+    return d.strftime(DATE_FMT)
 
 def create_default_settings():
     settings = Settings().generate_default_settings()
@@ -62,7 +64,7 @@ def read_settings():
     return settings
 
 def extract_zip_to(zip_file, destination_folder):
-    return zipfile.ZipFile(zip_file).extractall(destination_folder)
+    return zipfile.ZipFile(zip_file).extractall(destination_folder) # return path of extracted archive
 
 def get_media_files(task_folder):
     if isinstance(task_folder, str):

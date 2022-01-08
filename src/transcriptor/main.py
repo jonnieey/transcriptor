@@ -1,5 +1,6 @@
-from pathlib import Path
 import shutil
+
+from pathlib import Path
 
 from transcriptor.client import Client
 
@@ -7,6 +8,7 @@ from transcriptor.methods import (
     check_settings,
     create_task,
     save_client_to_file,
+    get_date_due,
     get_date_received,
     get_all_clients,
     get_job_details_from_zip,
@@ -96,7 +98,7 @@ if __name__ == "__main__":
 
     if date_due is None:
         d = text_get_date('due')
-        date_due = get_date_received(d)
+        date_due = get_date_due(d)
     # if date_due == '':
     #     date_due = None
     j = create_job(
