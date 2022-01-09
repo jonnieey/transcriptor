@@ -43,6 +43,7 @@ def create_task(
     job_type,
     quantity,
     total_quantity,
+    job_path,
 ):
     task = Job(
         date_due=date_due,
@@ -51,6 +52,7 @@ def create_task(
         job_type = job_type,
         quantity=quantity,
         total_quantity = total_quantity,
+        job_path = job_path,
     )
     return task
 

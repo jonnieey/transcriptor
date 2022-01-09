@@ -21,10 +21,11 @@ from transcriptor.methods import (
 )
 from transcriptor.utils import SETTINGS
 
-DATE_FMT, CLIENTS_FOLDER, JOBS_FOLDER = (
+DATE_FMT, CLIENTS_FOLDER, JOBS_FOLDER, WORKS_FOLDER = (
     SETTINGS['date_fmt'],
     SETTINGS['clients_folder'],
     SETTINGS['jobs_folder'],
+    SETTINGS['works_folder'],
 )
 
 CLIENT_NAME = 'TestClient'
@@ -42,7 +43,8 @@ def test_job():
         date_received = TODAY,
         job_number = '56321',
         job_type = 'Normal',
-        total_quantity = 40
+        total_quantity = 40,
+        job_path = WORKS_FOLDER / '2000-12-12-404404_DUE_2000-12-17'
     )
     return job
 
@@ -69,7 +71,8 @@ class Tests:
             job_type='Normal',
             quantity=80,
             total_quantity=180,
-            date_due=(TODAY + timedelta(days=5)).strftime(DATE_FMT),
+            date_due=TODAY + timedelta(days=5),
+            job_path = WORKS_FOLDER / 'TestDir',
         )
         assert isinstance(job, Job)
 

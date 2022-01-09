@@ -13,8 +13,10 @@ class Job:
         job_rate : float = None,
         quantity : float= 0.0,
         date_due: date = None,
-        date_submitted: date = None ,
+        date_submitted: date = None,
         status: str = 'Pending',
+        amount_paid = 0.0,
+        job_path = None,
     ) -> None:
         self.date_received = date_received
         self.job_number = job_number
@@ -25,6 +27,8 @@ class Job:
         self.status = status
         self.job_rate = job_rate
         self.date_due =  date_due
+        self.amount_paid = 0.0
+        self.job_path = job_path
 
         if date_due is None and job_type:
             date_due = self.get_date_due(date_received, job_type)
@@ -110,6 +114,22 @@ class Job:
     def status(self, value):
         self._status = value
 
+    @property
+    def amount_paid(self):
+        return self._amount_paid
+
+    @amount_paid.setter
+    def amount_paid(self, value):
+        self._amount_paid = value
+
+    @property
+    def job_path(self):
+        return self._job_path
+
+    @job_path.setter
+    def job_path(self, value):
+        self._job_path = value
+
     def __str__(self):
         j = "%s %s %s %s %s %s" % (
             self.job_number,
@@ -124,8 +144,8 @@ class Job:
     def get_date_due(self, date_received, job_type):
         job_types = {'Normal': 5, 'Interpreted': 5, 'Expedite': 1}
         job_days = job_types[job_type]
-        due_date = datetime.strptime(date_received.strftime(DATE_FMT), DATE_FMT) + timedelta(days=job_days)
-        return due_date.date()
+        due_date = date_received + timedelta(days=job_days)
+        return due_date
 
     def get_job_rate(self, job_type):
         job_types = {'Normal': 0.4, 'Interpreted': 0.3, 'Expedite': 0.6}
@@ -143,6 +163,8 @@ class Job:
         d['date_due'] = date_to_string(self._date_due)
         d['date_submitted'] = date_to_string(self._date_submitted)
         d['status'] = self._status
+        d['amount_paid'] = self._amount_paid
+        d['job_path'] = str(self._job_path)
 
         return d
 

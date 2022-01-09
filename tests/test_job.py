@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 from datetime import timedelta, date
 from transcriptor.job import Job
 from transcriptor.utils import date_to_string
@@ -13,7 +14,8 @@ def test_job():
         job_number = '56321',
         job_type = 'Normal',
         total_quantity = 40,
-        job_rate = 0.4
+        job_rate = 0.4,
+        job_path = Path('somerandompath'),
     )
     return job
 
@@ -30,6 +32,8 @@ def test_job_to_dict(test_job):
         'date_due': date_to_string(date_due),
         'date_submitted': None,
         'status': 'Pending',
+        'amount_paid': 0.0,
+        'job_path' : 'somerandompath',
     }
 
     assert test_job.to_dict() == job_dict
