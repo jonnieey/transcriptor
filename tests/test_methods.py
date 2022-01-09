@@ -79,7 +79,7 @@ class Tests:
             client_jobs_json = json.load(fp)
 
         assert client_jobs_json['client'] == test_client.to_dict()
-        assert client_jobs_json['job_list'] == [test_job.to_dict()]
+        assert client_jobs_json['jobs_list'] == [test_job.to_dict()]
 
     def test_get_job_details_from_zip(self,):
         zip = "2021-11-12-514779_DUE_11.15_(EXAMPLE)/514779 DUE 11.15 (EXAMPLE).zip"

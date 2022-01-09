@@ -59,19 +59,19 @@ def save_client_job_to_file(client, jobs, job_folder):
         job_folder.mkdir(parents=True, exist_ok=True)
     client_jobs_file = job_folder / client.name
 
-    job_list = []
+    jobs_list = []
     for job in jobs:
-        job_list.append(job.to_dict())
+        jobs_list.append(job.to_dict())
 
     if client_jobs_file.exists():
         with open(client_jobs_file, 'r') as fd:
             client_jobs_info = json.load(fd)
-            client_jobs_info['job_list'].extend(job_list)
+            client_jobs_info['jobs_list'].extend(jobs_list)
     else:
 
         client_jobs_info = {}
         client_jobs_info['client'] = client.to_dict()
-        client_jobs_info['job_list'] = job_list
+        client_jobs_info['jobs_list'] = jobs_list
 
     job_json = json.dumps(
         client_jobs_info,
