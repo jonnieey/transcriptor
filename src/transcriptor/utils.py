@@ -9,8 +9,26 @@ from pathlib import Path
 from audioread import audio_open
 from magic import from_file
 
-from transcriptor import DATE_FMT
 from transcriptor.settings import Settings
+
+def create_default_settings():
+    settings = Settings().generate_default_settings()
+    settings.write_settings_to_file()
+    return settings
+
+def read_settings():
+    settings = Settings().read_settings_from_file()
+    return settings
+
+def get_settings():
+    settings = read_settings()
+    if settings is None:
+        settings = create_default_settings()
+    return settings.__dict__
+
+SETTINGS = get_settings()
+
+DATE_FMT =  SETTINGS['date_fmt']
 
 def date_to_string(date_obj):
     if date_obj is None:
@@ -60,14 +78,6 @@ def format_date(d):
 
     return d.strftime(DATE_FMT)
 
-def create_default_settings():
-    settings = Settings().generate_default_settings()
-    settings.write_settings_to_file()
-
-def read_settings():
-    settings = Settings().read_settings_from_file()
-    return settings
-
 def extract_zip_to(zip_file, destination_folder):
     zipfile.ZipFile(zip_file).extractall(destination_folder)
 
@@ -115,4 +125,3 @@ def get_quantity(q, total_q=0.0):
             return quantity
         except Exception:
             return None
-

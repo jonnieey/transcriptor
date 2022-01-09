@@ -1,8 +1,28 @@
 import shutil
 import sys
-from transcriptor.methods import *
-from transcriptor import *
-from transcriptor.utils import *
+from transcriptor.methods import (
+    create_client,
+    save_client_to_file,
+    save_client_job_to_file,
+    create_task,
+    get_all_clients,
+)
+from transcriptor.utils import (
+    menu_from_list,
+    parse_job_due_date,
+    parse_job_number,
+    extract_zip_to,
+    get_media_files,
+    get_media_duration,
+    get_quantity,
+    SETTINGS,
+)
+
+CLIENTS_FOLDER, WORKS_FOLDER, JOBS_FOLDER  =  (
+    SETTINGS['clients_folder'],
+    SETTINGS['works_folder'],
+    SETTINGS['jobs_folder'],
+)
 
 def add_client(name=None, email=None, clients_folder=CLIENTS_FOLDER):
     client = create_client(name=name, email=email)

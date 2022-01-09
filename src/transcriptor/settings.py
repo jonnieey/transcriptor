@@ -1,25 +1,43 @@
-from transcriptor import CLIENTS_FOLDER, JOBS_FOLDER, WORKS_FOLDER, CONF_FOLDER
+from transcriptor.conf import get_config
+from pathlib import Path
+
 import json
 
+config = get_config()
+
+CLIENTS_FOLDER, JOBS_FOLDER, WORKS_FOLDER, CONFIG_FOLDER, DATE_FMT = (
+    config['clients_folder'],
+    config['jobs_folder'],
+    config['works_folder'],
+    config['config_folder'],
+    config['date_fmt'],
+)
+
 class Settings:
-    def __init__(self, clients_folder=None, job_folder=None, work_folder=None):
+    def __init__(self, clients_folder=None, jobs_folder=None, works_folder=None, date_fmt=None, config_folder=None):
         self.clients_folder = clients_folder
-        self.job_folder = job_folder
-        self.work_folder = work_folder
+        self.jobs_folder = jobs_folder
+        self.works_folder = works_folder
+        self.date_fmt = date_fmt
+        self.config_folder = config_folder
 
     @classmethod
     def generate_default_settings(cls):
         return cls(
-            clients_folder = str(CLIENTS_FOLDER),
-            job_folder     = str(JOBS_FOLDER),
-            work_folder    = str(WORKS_FOLDER),
+            clients_folder = CLIENTS_FOLDER,
+            config_folder  = CONFIG_FOLDER,
+            jobs_folder    = JOBS_FOLDER,
+            works_folder   = WORKS_FOLDER,
+            date_fmt       = DATE_FMT,
         )
 
     def to_dict(self):
         d = {}
-        d['clients_folder'] = self.clients_folder
-        d['job_folder']     = self.job_folder
-        d['work_folder']    = self.work_folder
+        d['clients_folder'] = str(self.clients_folder)
+        d['jobs_folder']     = str(self.jobs_folder)
+        d['works_folder']    = str(self.works_folder)
+        d['date_fmt']    = str(self.date_fmt)
+        d['config_folder']    = str(self.config_folder)
 
         return d
 
@@ -42,32 +60,47 @@ class Settings:
                 return cls()
 
         if 'clients_folder' in js.keys():
-            clients_folder = js['clients_folder']
+            clients_folder = Path(js['clients_folder'])
         else:
             clients_folder = None
 
-        if 'job_folder' in js.keys():
-            job_folder = js['job_folder']
+        if 'jobs_folder' in js.keys():
+            jobs_folder = Path(js['jobs_folder'])
         else:
-            job_folder = None
+            jobs_folder = None
 
-        if 'work_folder' in js.keys():
-            work_folder = js['work_folder']
+        if 'works_folder' in js.keys():
+            works_folder = Path(js['works_folder'])
         else:
-            work_folder = None
+            works_folder = None
 
-        return cls(clients_folder=clients_folder, job_folder=job_folder, work_folder=work_folder)
+        if 'config_folder' in js.keys():
+            config_folder = Path(js['config_folder'])
+        else:
+            config_folder = None
+
+        if 'date_fmt' in js.keys():
+            date_fmt = js['date_fmt']
+        else:
+            date_fmt = None
+
+        return cls(clients_folder=clients_folder, jobs_folder=jobs_folder, works_folder=works_folder, date_fmt=date_fmt, config_folder=config_folder)
 
     # make CONF_FILE editable by user
     def write_settings_to_file(self):
-        settings_file = CONF_FOLDER / 'conf.json'
-        with open(settings_file, 'w') as fp:
-            fp.write(self.to_json())
+        settings_file = CONFIG_FOLDER / 'conf.json'
+        if CONFIG_FOLDER.exists():
+            with open(settings_file, 'w') as fp:
+                fp.write(self.to_json())
+        else:
+            return
 
     def read_settings_from_file(self):
-        settings_file = CONF_FOLDER / 'conf.json'
-        with open(settings_file, 'r') as fp:
-            conf_json = json.load(fp)
-            return self.from_json(conf_json)
-
-
+        settings_file = CONFIG_FOLDER / 'conf.json'
+        if settings_file.exists() and not settings_file.is_dir():
+            with open(settings_file, 'r') as fp:
+                conf_json = json.load(fp)
+                return self.from_json(conf_json)
+        else:
+            return
+# if __name__  == "__main__":

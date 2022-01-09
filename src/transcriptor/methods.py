@@ -3,24 +3,16 @@ import sys
 
 from datetime import datetime, timedelta, date
 
-from transcriptor import CONF_FOLDER, DATE_FMT
 from transcriptor.client import Client
 from transcriptor.job import Job
 
 from transcriptor.utils import (
     parse_job_number,
     parse_job_due_date,
-    read_settings,
-    create_default_settings,
+    SETTINGS,
 )
 
-def check_settings():
-    if CONF_FOLDER.exists():
-        settings = read_settings()
-    else:
-        settings = create_default_settings()
-
-    return settings
+CONFIG_FOLDER, DATE_FMT = SETTINGS['config_folder'], SETTINGS['date_fmt']
 
 def create_client(name=None, email=None):
     if name is None or email is None:
