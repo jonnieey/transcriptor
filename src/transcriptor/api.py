@@ -90,6 +90,7 @@ def create_job(zip_file, date_received, date_due, client):
                 total_quantity=total_quantity,
                 quantity=quantity,
                 date_due=date_due,
+                job_path = job_folder,
             )
             tasks.append(task)
         else:
