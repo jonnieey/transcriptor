@@ -40,14 +40,13 @@ def get_client_object(client_name):
     for client_obj in clients:
         if client_name == client_obj.name:
             client = client_obj
-            break
+            return client
         else:
-            clients_menu = menu_from_list([c.name for c in clients], msg='Select client')
-            print(clients_menu)
-            selected_client = int(input('client number: '))
-            client = clients[selected_client]
-            break
-
+            continue
+    clients_menu = menu_from_list([c.name for c in clients], msg='Select client')
+    print(clients_menu)
+    selected_client = int(input('client number: '))
+    client = clients[selected_client]
     return client
 
 def create_job(zip_file, date_received, date_due, client):
