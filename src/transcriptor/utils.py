@@ -5,6 +5,7 @@ import zipfile
 from datetime import datetime, timedelta,date
 from math import floor
 from pathlib import Path
+from fractions import Fraction
 
 from audioread import audio_open
 from magic import from_file
@@ -69,14 +70,11 @@ def format_date(d):
     if d is None:
         return ''
     try:
-        if isinstance(abs(int(d)), int):
-            d = datetime.today() + timedelta(abs(int(d)))
-
-    except ValueError:
         date_string = '%s.%s' % (d, datetime.today().year)
         d = datetime.strptime(date_string, '%m.%d.%Y')
-
-    return d.strftime(DATE_FMT)
+        return d.strftime(DATE_FMT)
+    except ValueError:
+        pass
 
 def extract_zip_to(zip_file, destination_folder):
     zipfile.ZipFile(zip_file).extractall(destination_folder)
@@ -110,9 +108,7 @@ def get_quantity(q, total_q=0.0):
     quantity_words = {
         "whole": 1,
         'half': 0.5,
-        '1/2': 0.5,
         'quarter': 0.25,
-        '1/4': 0.25,
     }
 
     try:
@@ -120,8 +116,11 @@ def get_quantity(q, total_q=0.0):
             return float(q)
     except ValueError:
         try:
-            quantity = total_q * quantity_words[q]
-
+            quantity = Fraction(q) * total_q
             return quantity
-        except Exception:
-            return None
+        except ValueError:
+            try:
+                quantity = total_q * quantity_words[q]
+                return quantity
+            except Exception:
+                return None

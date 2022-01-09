@@ -90,11 +90,6 @@ def save_client_job_to_file(client, jobs, job_folder):
         print(error)
         return False
 
-def get_job_details_from_zip(zip_file):
-    job_number = parse_job_number(zip_file)
-    date_due =  parse_job_due_date(zip_file)
-    return job_number, date_due
-
 def get_date_received(date_received=None):
     if date_received is None:
         return None
