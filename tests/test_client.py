@@ -28,4 +28,3 @@ def test_client_from_json(test_client):
 
     assert  isinstance(client_obj, Client)
     assert client_obj.name == CLIENT_NAME
-

@@ -2,7 +2,7 @@ import pytest
 import io
 import json
 from transcriptor.settings import Settings
-from transcriptor import CLIENTS_FOLDER, JOBS_FOLDER, WORKS_FOLDER
+from transcriptor.conf import TEST_CLIENTS_FOLDER, TEST_JOBS_FOLDER, TEST_WORKS_FOLDER, TEST_DATE_FMT, TEST_CONFIG_FOLDER
 
 @pytest.fixture()
 def default_settings():
@@ -12,9 +12,11 @@ def default_settings():
 def test_default_settings(default_settings):
 
     settings_dict = {
-        'clients_folder': str(CLIENTS_FOLDER),
-        'job_folder': str(JOBS_FOLDER),
-        'work_folder': str(WORKS_FOLDER),
+        'clients_folder': str(TEST_CLIENTS_FOLDER),
+        'jobs_folder': str(TEST_JOBS_FOLDER),
+        'works_folder': str(TEST_WORKS_FOLDER),
+        'date_fmt': str(TEST_DATE_FMT),
+        'config_folder': str(TEST_CONFIG_FOLDER)
     }
 
     assert default_settings.to_dict() == settings_dict
