@@ -1,10 +1,10 @@
 import io
 import json
 import pytest
-from pathlib import Path
 import shutil
 
 from datetime import datetime, timedelta, date
+from pathlib import Path
 
 from transcriptor.client import Client
 from transcriptor.job import Job
@@ -16,10 +16,16 @@ from transcriptor.methods import (
     get_date_due,
     get_job_details_from_zip,
     save_client_to_file,
+    save_client_job_to_file,
+    get_all_clients
 )
 from transcriptor.utils import SETTINGS
 
-DATE_FMT, CLIENTS_FOLDER = SETTINGS['date_fmt'], SETTINGS['clients_folder']
+DATE_FMT, CLIENTS_FOLDER, JOBS_FOLDER = (
+    SETTINGS['date_fmt'],
+    SETTINGS['clients_folder'],
+    SETTINGS['jobs_folder'],
+)
 
 CLIENT_NAME = 'TestClient'
 CLIENT_EMAIL = 'TestEmail'
@@ -67,8 +73,13 @@ class Tests:
         )
         assert isinstance(job, Job)
 
-    def test_save_client_job_to_file(self,test_job):
-        pass
+    def test_save_client_job_to_file(self, test_client, test_job):
+        save_client_job_to_file(test_client, [test_job], JOBS_FOLDER)
+        with open(JOBS_FOLDER / test_client.name, 'r') as fp:
+            client_jobs_json = json.load(fp)
+
+        assert client_jobs_json['client'] == test_client.to_dict()
+        assert client_jobs_json['job_list'] == [test_job.to_dict()]
 
     def test_get_job_details_from_zip(self,):
         zip = "2021-11-12-514779_DUE_11.15_(EXAMPLE)/514779 DUE 11.15 (EXAMPLE).zip"
@@ -99,4 +110,10 @@ class Tests:
         assert date_d == TODAY + timedelta(days=abs(date_due))
 
     def test_get_all_clients(self,test_client):
-        pass
+        save_client_to_file(test_client, CLIENTS_FOLDER)
+        client2 = Client('TestClient1', 'TestEmail1')
+        save_client_to_file(client2, CLIENTS_FOLDER)
+
+        clients = get_all_clients(CLIENTS_FOLDER)
+
+        assert len(clients) == 2

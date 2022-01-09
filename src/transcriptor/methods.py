@@ -139,4 +139,4 @@ def get_all_clients(clients_folder):
             with open(client_file, 'r') as fd:
                 client_json = json.load(fd)
                 clients.append(Client().from_json(client_json))
-    return sorted(clients)
+    return clients
