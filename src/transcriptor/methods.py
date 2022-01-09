@@ -97,7 +97,8 @@ def save_client_job_to_file(client, jobs, job_folder):
         return False
 
 def get_job_details_from_zip(zip_file):
-    job_number, date_due = parse_job_number(zip_file), parse_job_due_date(zip_file)
+    job_number = parse_job_number(zip_file)
+    date_due =  parse_job_due_date(zip_file)
     return job_number, date_due
 
 def get_date_received(date_received=None):
@@ -124,10 +125,8 @@ def get_date_received(date_received=None):
 
 def get_date_due(date_due=None):
     try:
-        date_due = int(date_due)
-        if date_due < 0:
-            date_due *= -1
-        date_d = date.today() + timedelta(days=int(date_due))
+        date_due = abs(int(date_due))
+        date_d = date.today() + timedelta(days=date_due)
         return date_d
 
     except ValueError:
@@ -148,4 +147,4 @@ def get_all_clients(clients_folder):
             with open(client_file, 'r') as fd:
                 client_json = json.load(fd)
                 clients.append(Client().from_json(client_json))
-    return clients
+    return sorted(clients)

@@ -1,6 +1,6 @@
 import shutil
 import sys
-from methods import *
+from transcriptor.methods import *
 from transcriptor import *
 from transcriptor.utils import *
 
