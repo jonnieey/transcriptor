@@ -1,6 +1,5 @@
-from transcriptor import CLIENT_FOLDER, JOB_FOLDER, WORK_FOLDER, CONF_FILE
+from transcriptor import CLIENTS_FOLDER, JOBS_FOLDER, WORKS_FOLDER, CONF_FOLDER
 import json
-from pathlib import Path
 
 class Settings:
     def __init__(self, clients_folder=None, job_folder=None, work_folder=None):
@@ -11,16 +10,16 @@ class Settings:
     @classmethod
     def generate_default_settings(cls):
         return cls(
-            clients_folder=CLIENT_FOLDER,
-            job_folder=JOB_FOLDER,
-            work_folder=WORK_FOLDER,
+            clients_folder = str(CLIENTS_FOLDER),
+            job_folder     = str(JOBS_FOLDER),
+            work_folder    = str(WORKS_FOLDER),
         )
 
     def to_dict(self):
         d = {}
         d['clients_folder'] = self.clients_folder
-        d['job_folder'] = self.job_folder
-        d['work_folder'] = self.work_folder
+        d['job_folder']     = self.job_folder
+        d['work_folder']    = self.work_folder
 
         return d
 
@@ -61,12 +60,12 @@ class Settings:
 
     # make CONF_FILE editable by user
     def write_settings_to_file(self):
-        settings_file = Path(CONF_FILE) / 'conf.json'
+        settings_file = CONF_FOLDER / 'conf.json'
         with open(settings_file, 'w') as fp:
             fp.write(self.to_json())
 
     def read_settings_from_file(self):
-        settings_file = Path(CONF_FILE) / 'conf.json'
+        settings_file = CONF_FOLDER / 'conf.json'
         with open(settings_file, 'r') as fp:
             conf_json = json.load(fp)
             return self.from_json(conf_json)

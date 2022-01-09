@@ -1,4 +1,5 @@
 import re
+import json
 import zipfile
 
 from datetime import datetime, timedelta,date
@@ -10,6 +11,7 @@ from magic import from_file
 
 from transcriptor import DATE_FMT
 from transcriptor.settings import Settings
+from transcriptor.client import Client
 
 def date_to_string(date_obj):
     if date_obj is None:
@@ -20,19 +22,23 @@ def date_to_string(date_obj):
 def string_to_date(date_str):
     return datetime.strptime(date_str, DATE_FMT).date()
 
-def parse_job_details(zip_file):
+def parse_job_number(zip_file):
     if isinstance(zip_file, str):
         zip_file = Path(zip_file)
-
     job_name = zip_file.stem   #remove .zip extension
     job_number_pattern = re.compile(r'(\d{6,8})')
-    date_due_pattern = re.compile(r'(?:(?<=DUE)|(?<=BACK))\s(\d{2}\.\d{2})', re.I)
-
     try:
         job_number_matches = job_number_pattern.search(job_name)
         job_number = job_number_matches.group(1)
     except AttributeError:
         job_number = None
+    return job_number
+
+def parse_job_due_date(zip_file):
+    if isinstance(zip_file, str):
+        zip_file = Path(zip_file)
+    job_name = zip_file.stem   #remove .zip extension
+    date_due_pattern = re.compile(r'(?:(?<=DUE)|(?<=BACK))\s(\d{2}\.\d{2})', re.I)
 
     try:
         date_due_matches = date_due_pattern.search(job_name)
@@ -40,7 +46,7 @@ def parse_job_details(zip_file):
     except AttributeError:
         date_due = None
 
-    return job_number, date_due    # Due date in %m.%d format 10.11 (October, 11)
+    return date_due    # Due date in %m.%d format 10.11 (October, 11)
 
 def format_date(d):
     if d is None:
@@ -64,7 +70,7 @@ def read_settings():
     return settings
 
 def extract_zip_to(zip_file, destination_folder):
-    return zipfile.ZipFile(zip_file).extractall(destination_folder) # return path of extracted archive
+    zipfile.ZipFile(zip_file).extractall(destination_folder)
 
 def get_media_files(task_folder):
     if isinstance(task_folder, str):
@@ -84,3 +90,42 @@ def get_media_duration(media_file):
 
 def sec_to_min(seconds):
     return round(int(seconds / 60), 0)
+
+def menu_from_list(l, msg=''):
+    s = f"{msg}:\n"
+    for idx, i in enumerate(l):
+        s += ' %s. %s\n' % (idx, i)
+    return s
+
+def get_quantity(q, total_q=0.0):
+    quantity_words = {
+        "whole": 1,
+        'half': 0.5,
+        '1/2': 0.5,
+        'quarter': 0.25,
+        '1/4': 0.25,
+    }
+
+    try:
+        if isinstance(float(q), float):
+            return float(q)
+    except ValueError:
+        try:
+            quantity = total_q * quantity_words[q]
+
+            return quantity
+        except Exception:
+            return None
+
+def get_all_clients(clients_folder):
+    clients = []
+    if not clients_folder.exists():
+        clients_folder.mkdir(parents=True, exist_ok=True)
+    for client_file in clients_folder.iterdir():
+        with open(client_file, 'r') as fp:
+            client_json = json.load(fp)
+            client = Client().from_json(client_json)
+            clients.append(client)
+    return sorted(clients)
+
+
