@@ -12,6 +12,7 @@ from transcriptor.methods import (
     create_client,
     create_task,
     get_date_received,
+    get_date_due,
     get_job_details_from_zip,
 )
 
@@ -61,12 +62,10 @@ def test_save_client_job_to_file(test_job):
 
 def test_get_job_details_from_zip():
     zip = "2021-11-12-514779_DUE_11.15_(EXAMPLE)/514779 DUE 11.15 (EXAMPLE).zip"
-
     job_number, date_due = get_job_details_from_zip(zip)
     assert job_number == '514779'
-
     d = '%s-11-15' % (TODAY.year)
-    assert datetime.strptime(date_due, DATE_FMT).date() ==  datetime.strptime(d, DATE_FMT).date()
+    assert date_due ==  d
 
 def test_get_date_received_as_date_string():
     date_received = '2021-11-12'
@@ -78,6 +77,16 @@ def test_get_date_received_as_int():
     date_received = -2
     date_rec = get_date_received(date_received)
     assert date_rec == TODAY + timedelta(days=date_received)
+
+def test_get_date_due_as_date_string():
+    date_due = '2021-11-15'
+    date_d = get_date_due(date_due)
+    assert date_d == datetime.strptime(date_due, DATE_FMT).date()
+
+def test_get_date_due_as_int():
+    date_due = -2 # Convert to abs
+    date_d = get_date_due(date_due)
+    assert date_d == TODAY + timedelta(days=abs(date_due))
 
 def test_get_all_clients(test_client):
     pass
