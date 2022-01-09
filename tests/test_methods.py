@@ -14,7 +14,6 @@ from transcriptor.methods import (
     create_task,
     get_date_received,
     get_date_due,
-    get_job_details_from_zip,
     save_client_to_file,
     save_client_job_to_file,
     get_all_clients
@@ -83,13 +82,6 @@ class Tests:
 
         assert client_jobs_json['client'] == test_client.to_dict()
         assert client_jobs_json['jobs_list'] == [test_job.to_dict()]
-
-    def test_get_job_details_from_zip(self,):
-        zip = "2021-11-12-514779_DUE_11.15_(EXAMPLE)/514779 DUE 11.15 (EXAMPLE).zip"
-        job_number, date_due = get_job_details_from_zip(zip)
-        assert job_number == '514779'
-        d = '%s-11-15' % (TODAY.year)
-        assert date_due ==  d
 
     def test_get_date_received_as_date_string(self,):
         date_received = '2021-11-12'
