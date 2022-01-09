@@ -2,20 +2,20 @@ import json
 import sys
 
 from datetime import datetime, timedelta, date
-from pathlib import Path
 
-from transcriptor import CONF_FILE, DATE_FMT
+from transcriptor import CONF_FOLDER, DATE_FMT
 from transcriptor.client import Client
 from transcriptor.job import Job
 
 from transcriptor.utils import (
-    parse_job_details,
+    parse_job_number,
+    parse_job_due_date,
     read_settings,
     create_default_settings,
 )
 
 def check_settings():
-    if Path(CONF_FILE).exists():
+    if CONF_FOLDER.exists():
         settings = read_settings()
     else:
         settings = create_default_settings()
@@ -97,7 +97,7 @@ def save_client_job_to_file(client, jobs, job_folder):
         return False
 
 def get_job_details_from_zip(zip_file):
-    job_number, date_due = parse_job_details(zip_file)
+    job_number, date_due = parse_job_number(zip_file), parse_job_due_date(zip_file)
     return job_number, date_due
 
 def get_date_received(date_received=None):
