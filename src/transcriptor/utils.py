@@ -11,7 +11,6 @@ from magic import from_file
 
 from transcriptor import DATE_FMT
 from transcriptor.settings import Settings
-from transcriptor.client import Client
 
 def date_to_string(date_obj):
     if date_obj is None:
@@ -116,16 +115,4 @@ def get_quantity(q, total_q=0.0):
             return quantity
         except Exception:
             return None
-
-def get_all_clients(clients_folder):
-    clients = []
-    if not clients_folder.exists():
-        clients_folder.mkdir(parents=True, exist_ok=True)
-    for client_file in clients_folder.iterdir():
-        with open(client_file, 'r') as fp:
-            client_json = json.load(fp)
-            client = Client().from_json(client_json)
-            clients.append(client)
-    return sorted(clients)
-
 
