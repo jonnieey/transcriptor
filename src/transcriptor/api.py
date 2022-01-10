@@ -7,6 +7,7 @@ from transcriptor.methods import (
     create_client,
     create_task,
     get_all_clients,
+    get_all_jobs,
     get_client_jobs,
     save_client_job_to_file,
     save_client_to_file,
@@ -20,6 +21,7 @@ from transcriptor.utils import (
     menu_from_list,
     parse_job_due_date,
     parse_job_number,
+    remove_dict_key,
 )
 
 settings = get_settings()
@@ -133,3 +135,25 @@ def list_client_jobs(client_name):
             jobs.append(raw_job)
     jobs_table = tabulate(jobs, headers="keys", tablefmt="fancy_grid")
     return jobs_table
+
+
+def list_all_jobs():
+    all_jobs = get_all_jobs()
+
+    new_all_jobs = []  # remove job_path key
+    for jobs in all_jobs:  # get client's jobs
+        x = {}
+        for client_name, client_jobs in jobs.items():
+            j = []
+            for job in client_jobs:
+                remove_dict_key(job, key="job_path")
+                j.append(job)
+            x[client_name] = j
+
+        new_all_jobs.append(x)
+
+    for i in new_all_jobs:
+        for client_name, client_jobs in i.items():
+            print(f"{client_name} JOBS\n")
+            print(tabulate(client_jobs, headers="keys", tablefmt="fancy_grid"))
+            print()

@@ -43,8 +43,13 @@ def create(file, date_received=None, date_due=None, client=None, **kwargs):
 
 @cli.command()
 @click.option("-c", "--client", help="Specify client")
+@click.option("--all", is_flag=True, help="Specify client")
 def list(client=None, **kwargs):
     """List client's jobs"""
+    if all:
+        list_all_jobs()
+        return
+
     if client is None:
         clients = list_clients()
         choice = int(input("Select client: "))

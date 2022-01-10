@@ -4,6 +4,7 @@ import click
 
 plugin_folder = os.path.join(os.path.dirname(__file__), "commands")
 
+
 class MyCLI(click.MultiCommand):
     def list_commands(self, ctx):
         rv = []
@@ -21,10 +22,13 @@ class MyCLI(click.MultiCommand):
             eval(code, ns, ns)
         return ns["cli"]
 
+
 cli = MyCLI(help="This tool's subcommands are loaded from a " "plugin folder dynamically.")
+
 
 def main():
     cli()
+
 
 if __name__ == "__main__":
     cli()

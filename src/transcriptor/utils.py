@@ -157,3 +157,7 @@ def get_quantity(q, total_q=0.0):
                 return quantity
             except Exception:
                 return None
+
+
+def remove_dict_key(dict, key=""):
+    return dict.pop(key)
