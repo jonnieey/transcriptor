@@ -1,9 +1,6 @@
 import json
 import sys
 from datetime import date, datetime, timedelta
-from pprint import pprint
-
-from tabulate import tabulate
 
 from transcriptor.client import Client
 from transcriptor.job import Job
@@ -173,3 +170,29 @@ def get_all_jobs():
                 client_jobs[client_name] = client_json["jobs_list"]
             jobs.append(client_jobs)
     return jobs
+
+
+def get_updated_job(job, d={}):
+    job_dict = job.to_dict()
+    job_dict.update(d)
+    updated_job = Job.from_json(job_dict)
+    return updated_job
+
+
+def update_job(job_number, d={}):
+    for job_file in JOBS_FOLDER.iterdir():
+
+        with open(job_file, "r") as fd:
+            c_json = json.load(fd)
+            jobs_list = c_json["jobs_list"]
+
+            for idx, job in enumerate(jobs_list):
+                if job["job_number"] == job_number:
+                    job_obj = Job.from_json(job)
+                    updated_job = get_updated_job(job_obj, d)
+                    jobs_list[idx] = updated_job.to_dict()
+                    c_json["jobs_list"] = jobs_list
+                    break  # Allow user to select if multiple jobs exists; Only updates the first instance
+
+        with open(job_file, "w") as fd:
+            json.dump(c_json, fd, indent=2, ensure_ascii=False)
