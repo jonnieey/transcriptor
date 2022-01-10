@@ -1,7 +1,6 @@
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
-from transcriptor import DATE_FMT
 from transcriptor.utils import date_to_string, string_to_date
 
 
@@ -17,8 +16,8 @@ class Job:
         date_due: date = None,
         date_submitted: date = None,
         status: str = "Pending",
-        amount=0.0,
-        amount_paid=0.0,
+        amount: float = 0.0,
+        amount_paid: float = 0.0,
         job_path=None,
     ) -> None:
         self.date_received = date_received
@@ -30,8 +29,8 @@ class Job:
         self.status = status
         self.job_rate = job_rate
         self.date_due = date_due
-        self.amount = 0.0
-        self.amount_paid = 0.0
+        self.amount = amount
+        self.amount_paid = amount_paid
         self.job_path = job_path
 
         if date_due is None and job_type:
@@ -187,4 +186,89 @@ class Job:
             indent=indent,
             ensure_ascii=ensure_ascii,
             # sort_keys=True,
+        )
+
+    @classmethod
+    def from_json(cls, js=None):
+        if js is None:
+            return cls()
+
+        if type(js) is not dict:
+            try:
+                js = json.loads(js)
+            except Exception:
+                return cls()
+
+        if "date_received" in js.keys():
+            date_received = js["date_received"]
+        else:
+            date_received = None
+
+        if "date_due" in js.keys():
+            date_due = js["date_due"]
+        else:
+            date_due = None
+
+        if "job_number" in js.keys():
+            job_number = js["job_number"]
+        else:
+            job_number = None
+
+        if "job_type" in js.keys():
+            job_type = js["job_type"]
+        else:
+            job_type = None
+
+        if "job_rate" in js.keys():
+            job_rate = js["job_rate"]
+        else:
+            job_rate = None
+
+        if "total_quantity" in js.keys():
+            total_quantity = js["total_quantity"]
+        else:
+            total_quantity = None
+
+        if "quantity" in js.keys():
+            quantity = js["quantity"]
+        else:
+            quantity = None
+        if "status" in js.keys():
+            status = js["status"]
+        else:
+            status = None
+
+        if "date_submitted" in js.keys():
+            date_submitted = js["date_submitted"]
+        else:
+            date_submitted = None
+
+        if "amount" in js.keys():
+            amount = js["amount"]
+        else:
+            amount = None
+
+        if "amount_paid" in js.keys():
+            amount_paid = js["amount_paid"]
+        else:
+            amount_paid = None
+
+        if "job_path" in js.keys():
+            job_path = js["job_path"]
+        else:
+            job_path = None
+
+        return cls(
+            date_received=date_received,
+            job_number=job_number,
+            job_type=job_type,
+            total_quantity=total_quantity,
+            job_rate=job_rate,
+            quantity=quantity,
+            date_due=date_due,
+            date_submitted=date_submitted,
+            status=status,
+            amount=amount,
+            amount_paid=amount_paid,
+            job_path=job_path,
         )
