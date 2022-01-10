@@ -16,14 +16,15 @@ from transcriptor.utils import (
     get_media_files,
     get_media_duration,
     get_quantity,
-    SETTINGS,
+    get_settings,
 )
 from tabulate import tabulate
 
+settings = get_settings()
 CLIENTS_FOLDER, WORKS_FOLDER, JOBS_FOLDER  =  (
-    SETTINGS['clients_folder'],
-    SETTINGS['works_folder'],
-    SETTINGS['jobs_folder'],
+    settings['clients_folder'],
+    settings['works_folder'],
+    settings['jobs_folder'],
 )
 
 def add_client(name=None, email=None, clients_folder=CLIENTS_FOLDER):

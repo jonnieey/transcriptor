@@ -11,25 +11,43 @@ from audioread import audio_open
 from magic import from_file
 
 from transcriptor.settings import Settings
+from transcriptor.conf import get_config
 
-def create_default_settings():
-    settings = Settings().generate_default_settings()
-    settings.write_settings_to_file()
-    return settings
+config = get_config()
+
+def create_default_config():
+    conf = Settings(
+            clients_folder = config['clients_folder'],
+            jobs_folder    = config['jobs_folder'],
+            works_folder   = config['works_folder'],
+            date_fmt       = config['date_fmt'],
+            config_folder  = config['config_folder'],
+       )
+
+    save_config_to_file(conf)
+    return conf
+
+def save_config_to_file(conf):
+    config_file = conf.config_folder / 'conf.json'
+    if not conf.config_folder.exists():
+        conf.config_folder.mkdir(parents=True, exist_ok=True)
+    with open(config_file, 'w') as fp:
+        fp.write(conf.to_json())
 
 def read_settings():
-    settings = Settings().read_settings_from_file()
-    return settings
+    config_file = config['config_folder'] / 'conf.json'
+    if config_file.exists() and not config_file.is_dir():
+        with open(config_file, 'r') as fp:
+            conf_json = json.load(fp)
+            return Settings().from_json(conf_json)
 
 def get_settings():
     settings = read_settings()
     if settings is None:
-        settings = create_default_settings()
+        settings = create_default_config()
     return settings.__dict__
 
-SETTINGS = get_settings()
-
-DATE_FMT =  SETTINGS['date_fmt']
+DATE_FMT = get_settings()['date_fmt']
 
 def date_to_string(date_obj):
     if date_obj is None:

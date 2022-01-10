@@ -3,6 +3,7 @@ from datetime import date
 from transcriptor import *
 from transcriptor.api import *
 from transcriptor.methods import *
+
 TODAY = date.today().strftime(DATE_FMT)
 
 @click.group()
