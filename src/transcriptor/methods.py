@@ -1,6 +1,9 @@
 import json
 import sys
 from datetime import date, datetime, timedelta
+from pprint import pprint
+
+from tabulate import tabulate
 
 from transcriptor.client import Client
 from transcriptor.job import Job
@@ -156,3 +159,17 @@ def get_client_jobs(client_name):
             client_json = json.load(fp)
             jobs = client_json["jobs_list"]
             return jobs
+
+
+def get_all_jobs():
+    jobs = []
+    if JOBS_FOLDER.exists():
+        job_files = JOBS_FOLDER.iterdir()
+        for job_file in job_files:
+            client_jobs = {}
+            with open(job_file, "r") as fp:
+                client_json = json.load(fp)
+                client_name = client_json["client"]["name"]
+                client_jobs[client_name] = client_json["jobs_list"]
+            jobs.append(client_jobs)
+    return jobs
