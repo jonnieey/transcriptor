@@ -36,7 +36,7 @@ dependencies = [
 name = "colorama"
 sections = ["default", "dev"]
 version = "0.4.4"
-marker = "sys_platform == 'win32' or platform_system == 'Windows'"
+marker = "platform_system == 'Windows' or sys_platform == 'win32'"
 summary = "Cross-platform colored terminal text."
 
 [[package]]
@@ -119,6 +119,12 @@ version = "3.0.5"
 summary = "Utilities to read single characters and key-strokes"
 
 [[package]]
+name = "tabulate"
+sections = ["default"]
+version = "0.8.9"
+summary = "Pretty-print tabular data"
+
+[[package]]
 name = "toml"
 sections = ["dev"]
 version = "0.10.2"
@@ -132,7 +138,7 @@ summary = "Measures the displayed width of unicode strings in a terminal"
 
 [metadata]
 lock_version = "2"
-content_hash = "sha256:a73d8eda3b3d9ac1a40c2f435f8234bc6eea6af344a0f7f22534ba3439b3cbf7"
+content_hash = "sha256:9fccb6b0940d727b2da6c621fade9fe908bbebf86aa825ee724c36c045515e7b"
 
 [metadata.files]
 "appdirs 1.4.4" = [
@@ -197,6 +203,10 @@ content_hash = "sha256:a73d8eda3b3d9ac1a40c2f435f8234bc6eea6af344a0f7f22534ba343
 "readchar 3.0.5" = [
     {file = "readchar-3.0.5-py3-none-any.whl", hash = "sha256:4c31210edfdf3e706d042c58feba2e8b6d5768b7f37002c5579fc473552f8fbb"},
     {file = "readchar-3.0.5.tar.gz", hash = "sha256:d1f5b71e98c37b7f3b695fba9db978ab84f4f8a0ed879653d83e1d90a4c482c0"},
+]
+"tabulate 0.8.9" = [
+    {file = "tabulate-0.8.9-py3-none-any.whl", hash = "sha256:d7c013fe7abbc5e491394e10fa845f8f32fe54f8dc60c6622c6cf482d25d47e4"},
+    {file = "tabulate-0.8.9.tar.gz", hash = "sha256:eb1d13f25760052e8931f2ef80aaf6045a6cceb47514db8beab24cded16f13a7"},
 ]
 "toml 0.10.2" = [
     {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
