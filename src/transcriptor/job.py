@@ -15,6 +15,7 @@ class Job:
         date_due: date = None,
         date_submitted: date = None,
         status: str = 'Pending',
+        amount = 0.0,
         amount_paid = 0.0,
         job_path = None,
     ) -> None:
@@ -27,6 +28,7 @@ class Job:
         self.status = status
         self.job_rate = job_rate
         self.date_due =  date_due
+        self.amount = 0.0
         self.amount_paid = 0.0
         self.job_path = job_path
 
@@ -115,6 +117,14 @@ class Job:
         self._status = value
 
     @property
+    def amount(self):
+        return self._amount
+
+    @amount.setter
+    def amount(self, value):
+        self._amount = value
+
+    @property
     def amount_paid(self):
         return self._amount_paid
 
@@ -155,14 +165,15 @@ class Job:
         d = {}
 
         d['date_received'] = date_to_string(self._date_received)
+        d['date_due'] = date_to_string(self._date_due)
         d['job_number'] = self._job_number
         d['job_type'] = self._job_type
         d['job_rate'] = self._job_rate
         d['total_quantity'] = self._total_quantity
         d['quantity'] = self._quantity
-        d['date_due'] = date_to_string(self._date_due)
-        d['date_submitted'] = date_to_string(self._date_submitted)
         d['status'] = self._status
+        d['date_submitted'] = date_to_string(self._date_submitted)
+        d['amount'] = self._amount
         d['amount_paid'] = self._amount_paid
         d['job_path'] = str(self._job_path)
 
@@ -173,5 +184,5 @@ class Job:
             self.to_dict(),
             indent=indent,
             ensure_ascii=ensure_ascii,
-            sort_keys=True,
+            # sort_keys=True,
         )
