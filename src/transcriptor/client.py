@@ -1,7 +1,8 @@
 import json
 
+
 class Client:
-    def __init__(self, name : str='', email: str=''):
+    def __init__(self, name: str = "", email: str = ""):
         self.name = name
         self.email = email
 
@@ -22,13 +23,13 @@ class Client:
         self._email = value
 
     def __str__(self):
-        return '%s' % (self._name)
+        return "%s" % (self._name)
 
     def to_dict(self):
         d = {}
 
-        d['name'] = self._name
-        d['email'] = self._email
+        d["name"] = self._name
+        d["email"] = self._email
 
         return d
 
@@ -51,15 +52,14 @@ class Client:
             except Exception:
                 return cls()
 
-        if 'name' in js.keys():
-            name = js['name']
+        if "name" in js.keys():
+            name = js["name"]
         else:
-            name = ''
+            name = ""
 
-        if 'email' in js.keys():
-            email = js['email']
+        if "email" in js.keys():
+            email = js["email"]
         else:
-            email = ''
+            email = ""
 
         return cls(name=name, email=email)
-

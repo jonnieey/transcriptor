@@ -1,9 +1,16 @@
 import json
-
 from pathlib import Path
 
+
 class Settings:
-    def __init__(self, clients_folder=None, jobs_folder=None, works_folder=None, date_fmt=None, config_folder=None):
+    def __init__(
+        self,
+        clients_folder=None,
+        jobs_folder=None,
+        works_folder=None,
+        date_fmt=None,
+        config_folder=None,
+    ):
         self.clients_folder = clients_folder
         self.jobs_folder = jobs_folder
         self.works_folder = works_folder
@@ -12,11 +19,11 @@ class Settings:
 
     def to_dict(self):
         d = {}
-        d['clients_folder'] = str(self.clients_folder)
-        d['jobs_folder']     = str(self.jobs_folder)
-        d['works_folder']    = str(self.works_folder)
-        d['date_fmt']    = str(self.date_fmt)
-        d['config_folder']    = str(self.config_folder)
+        d["clients_folder"] = str(self.clients_folder)
+        d["jobs_folder"] = str(self.jobs_folder)
+        d["works_folder"] = str(self.works_folder)
+        d["date_fmt"] = str(self.date_fmt)
+        d["config_folder"] = str(self.config_folder)
 
         return d
 
@@ -38,28 +45,28 @@ class Settings:
             except Exception:
                 return cls()
 
-        if 'clients_folder' in js.keys():
-            clients_folder = Path(js['clients_folder'])
+        if "clients_folder" in js.keys():
+            clients_folder = Path(js["clients_folder"])
         else:
             clients_folder = None
 
-        if 'jobs_folder' in js.keys():
-            jobs_folder = Path(js['jobs_folder'])
+        if "jobs_folder" in js.keys():
+            jobs_folder = Path(js["jobs_folder"])
         else:
             jobs_folder = None
 
-        if 'works_folder' in js.keys():
-            works_folder = Path(js['works_folder'])
+        if "works_folder" in js.keys():
+            works_folder = Path(js["works_folder"])
         else:
             works_folder = None
 
-        if 'config_folder' in js.keys():
-            config_folder = Path(js['config_folder'])
+        if "config_folder" in js.keys():
+            config_folder = Path(js["config_folder"])
         else:
             config_folder = None
 
-        if 'date_fmt' in js.keys():
-            date_fmt = js['date_fmt']
+        if "date_fmt" in js.keys():
+            date_fmt = js["date_fmt"]
         else:
             date_fmt = None
 

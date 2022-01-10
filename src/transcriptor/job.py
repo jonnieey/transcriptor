@@ -1,23 +1,25 @@
-from datetime import timedelta, date, datetime
 import json
+from datetime import date, datetime, timedelta
+
 from transcriptor import DATE_FMT
 from transcriptor.utils import date_to_string, string_to_date
+
 
 class Job:
     def __init__(
         self,
         date_received: date,
         job_number: str,
-        job_type : str,
-        total_quantity : float,
-        job_rate : float = None,
-        quantity : float= 0.0,
+        job_type: str,
+        total_quantity: float,
+        job_rate: float = None,
+        quantity: float = 0.0,
         date_due: date = None,
         date_submitted: date = None,
-        status: str = 'Pending',
-        amount = 0.0,
-        amount_paid = 0.0,
-        job_path = None,
+        status: str = "Pending",
+        amount=0.0,
+        amount_paid=0.0,
+        job_path=None,
     ) -> None:
         self.date_received = date_received
         self.job_number = job_number
@@ -27,14 +29,14 @@ class Job:
         self.date_submitted = date_submitted
         self.status = status
         self.job_rate = job_rate
-        self.date_due =  date_due
+        self.date_due = date_due
         self.amount = 0.0
         self.amount_paid = 0.0
         self.job_path = job_path
 
         if date_due is None and job_type:
             date_due = self.get_date_due(date_received, job_type)
-            self.date_due =  date_due
+            self.date_due = date_due
 
         elif isinstance(date_due, str):
             date_due = string_to_date(date_due)
@@ -152,30 +154,30 @@ class Job:
         return j
 
     def get_date_due(self, date_received, job_type):
-        job_types = {'Normal': 5, 'Interpreted': 5, 'Expedite': 1}
+        job_types = {"Normal": 5, "Interpreted": 5, "Expedite": 1}
         job_days = job_types[job_type]
         due_date = date_received + timedelta(days=job_days)
         return due_date
 
     def get_job_rate(self, job_type):
-        job_types = {'Normal': 0.4, 'Interpreted': 0.3, 'Expedite': 0.6}
+        job_types = {"Normal": 0.4, "Interpreted": 0.3, "Expedite": 0.6}
         return job_types[job_type]
 
     def to_dict(self):
         d = {}
 
-        d['date_received'] = date_to_string(self._date_received)
-        d['date_due'] = date_to_string(self._date_due)
-        d['job_number'] = self._job_number
-        d['job_type'] = self._job_type
-        d['job_rate'] = self._job_rate
-        d['total_quantity'] = self._total_quantity
-        d['quantity'] = self._quantity
-        d['status'] = self._status
-        d['date_submitted'] = date_to_string(self._date_submitted)
-        d['amount'] = self._amount
-        d['amount_paid'] = self._amount_paid
-        d['job_path'] = str(self._job_path)
+        d["date_received"] = date_to_string(self._date_received)
+        d["date_due"] = date_to_string(self._date_due)
+        d["job_number"] = self._job_number
+        d["job_type"] = self._job_type
+        d["job_rate"] = self._job_rate
+        d["total_quantity"] = self._total_quantity
+        d["quantity"] = self._quantity
+        d["status"] = self._status
+        d["date_submitted"] = date_to_string(self._date_submitted)
+        d["amount"] = self._amount
+        d["amount_paid"] = self._amount_paid
+        d["job_path"] = str(self._job_path)
 
         return d
 

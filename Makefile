@@ -1,0 +1,31 @@
+.DEFAULT_GOAL := help
+
+PY_SRC := src/ tests/
+
+.PHONY: help
+help:  ## Print this help.
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
+
+.PHONY: lint
+lint: lint-black lint-isort  ## Run linting tools on the code.
+
+.PHONY: lint-black
+lint-black:  ## Lint the code using black.
+	pdm run black $(PY_SRC)
+
+.PHONY: lint-isort
+lint-isort:  ## Sort the imports using isort.
+	pdm run isort $(PY_SRC)
+
+.PHONY: tests
+tests: run-tests clean-tests
+
+.PHONY: run-tests
+run-tests:  ## Delete temporary tests files.
+	@echo "RUNNING TESTS"
+	pdm run pytest tests
+
+.PHONY: clean-tests
+clean-tests:  ## Delete temporary tests files.
+	@echo "CLEANING TEST DATA DIRECTORY"
+	@rm -rf tests/data/* 2>/dev/null
