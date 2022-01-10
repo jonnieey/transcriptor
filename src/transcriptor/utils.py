@@ -116,7 +116,7 @@ def get_quantity(q, total_q=0.0):
             return float(q)
     except ValueError:
         try:
-            quantity = Fraction(q) * total_q
+            quantity = round(float(Fraction(q) * total_q), 1)
             return quantity
         except ValueError:
             try:

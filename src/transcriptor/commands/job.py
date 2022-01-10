@@ -29,3 +29,25 @@ def create(file, date_received=None, date_due=None, client=None, **kwargs):
 
     client_obj = get_client_object(client)
     create_job(file, date_received, date_due, client_obj)
+
+@cli.command()
+@click.option('-c', '--client', help="Specify client")
+def list(client=None, **kwargs):
+    """List client's jobs"""
+    if client is None:
+        clients = list_clients()
+        choice = int(input('Select client: '))
+        client = clients[choice].name
+        jobs_table = list_client_jobs(client)
+        print(jobs_table)
+    elif client:
+        jobs_table = list_client_jobs(client)
+        if jobs_table is not None:
+            print(jobs_table)
+        else:
+            clients = list_clients()
+            choice = int(input('Select client: '))
+            client = clients[choice].name
+            jobs_table =list_client_jobs(client)
+            print(jobs_table)
+

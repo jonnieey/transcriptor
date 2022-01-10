@@ -12,7 +12,7 @@ from transcriptor.utils import (
     SETTINGS,
 )
 
-CONFIG_FOLDER, DATE_FMT = SETTINGS['config_folder'], SETTINGS['date_fmt']
+CONFIG_FOLDER, DATE_FMT, JOBS_FOLDER = SETTINGS['config_folder'], SETTINGS['date_fmt'], SETTINGS['jobs_folder']
 
 def create_client(name=None, email=None):
     if name is None or email is None:
@@ -79,7 +79,7 @@ def save_client_job_to_file(client, jobs, job_folder):
         client_jobs_info,
         indent=2,
         ensure_ascii=False,
-        sort_keys=True,
+        # sort_keys=True,
     )
 
     try:
@@ -137,3 +137,14 @@ def get_all_clients(clients_folder):
                 client_json = json.load(fd)
                 clients.append(Client().from_json(client_json))
     return clients
+
+def get_client_jobs(client_name):
+    client_jobs_file = JOBS_FOLDER / client_name
+    if not client_jobs_file.exists():
+        print('Client does not exist')
+        return None
+    else:
+        with open(client_jobs_file, 'r') as fp:
+            client_json = json.load(fp)
+            jobs = client_json['jobs_list']
+            return jobs

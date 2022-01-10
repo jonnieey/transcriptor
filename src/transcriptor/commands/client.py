@@ -1,5 +1,5 @@
 import click
-from transcriptor.api import add_client
+from transcriptor.api import add_client, list_clients
 
 @click.group()
 def cli(**kwargs):
@@ -7,33 +7,16 @@ def cli(**kwargs):
     pass
 
 @cli.command()
-@click.option('-n', '--name', required=True, help="Specify new client's name")
-@click.option('-e', '--email', required=True, help="Specify new client's email")
+@click.option('-n', '--name', help="Specify new client's name")
+@click.option('-e', '--email', help="Specify new client's email")
 def add(name, email):
     """Add client"""
+    if name is None and email is None:
+        name = input("Enter clients name: ")
+        email = input("Enter clients Email: ")
     add_client(name, email)
 
-# import click
-#
-#
-# @click.group()
-# def cli(**kwargs):
-#     print(1)
-#
-#
-# @cli.group()
-# @click.option("--something")
-# @click.option("--else")
-# def what(**kwargs):
-#     print(2)
-#
-#
-# @what.command()
-# @click.option("--chaa")
-# def ever(**kwargs):
-#     print(3)
-#
-#
-# if __name__ == '__main__':
-#     cli()
-#
+@cli.command()
+def list():
+    """List clients"""
+    list_clients()
