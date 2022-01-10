@@ -32,6 +32,7 @@ def test_job_to_dict(test_job):
         'date_due': date_to_string(date_due),
         'date_submitted': None,
         'status': 'Pending',
+        'amount': 0.0,
         'amount_paid': 0.0,
         'job_path' : 'somerandompath',
     }
