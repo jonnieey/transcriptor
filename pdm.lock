@@ -24,8 +24,32 @@ version = "2.1.9"
 summary = "multi-library, cross-platform audio decoding"
 
 [[package]]
+name = "autoflake"
+sections = ["dev"]
+version = "1.4"
+summary = "Removes unused imports and unused variables"
+dependencies = [
+    "pyflakes>=1.1.0",
+]
+
+[[package]]
+name = "black"
+sections = ["dev"]
+version = "21.12b0"
+summary = "The uncompromising code formatter."
+dependencies = [
+    "click>=7.1.2",
+    "platformdirs>=2",
+    "tomli<2.0.0,>=0.2.6",
+    "pathspec<1,>=0.9.0",
+    "typing-extensions>=3.10.0.0",
+    "mypy-extensions>=0.4.3",
+    "typing-extensions!=3.10.0.1; python_version >= \"3.10\"",
+]
+
+[[package]]
 name = "click"
-sections = ["default"]
+sections = ["default", "dev"]
 version = "8.0.3"
 summary = "Composable command line interface toolkit"
 dependencies = [
@@ -46,6 +70,18 @@ version = "1.1.1"
 summary = "iniconfig: brain-dead simple config-ini parsing"
 
 [[package]]
+name = "isort"
+sections = ["dev"]
+version = "5.10.1"
+summary = "A Python utility / library to sort Python imports."
+
+[[package]]
+name = "mypy-extensions"
+sections = ["dev"]
+version = "0.4.3"
+summary = "Experimental type system extensions for programs checked with the mypy typechecker."
+
+[[package]]
 name = "packaging"
 sections = ["dev"]
 version = "21.3"
@@ -53,6 +89,18 @@ summary = "Core utilities for Python packages"
 dependencies = [
     "pyparsing!=3.0.5,>=2.0.2",
 ]
+
+[[package]]
+name = "pathspec"
+sections = ["dev"]
+version = "0.9.0"
+summary = "Utility library for gitignore style pattern matching of file paths."
+
+[[package]]
+name = "platformdirs"
+sections = ["dev"]
+version = "2.4.1"
+summary = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 
 [[package]]
 name = "pluggy"
@@ -74,6 +122,12 @@ name = "py"
 sections = ["dev"]
 version = "1.11.0"
 summary = "library with cross-python path, ini-parsing, io, code, log facilities"
+
+[[package]]
+name = "pyflakes"
+sections = ["dev"]
+version = "2.4.0"
+summary = "passive checker of Python programs"
 
 [[package]]
 name = "pyparsing"
@@ -131,6 +185,19 @@ version = "0.10.2"
 summary = "Python Library for Tom's Obvious, Minimal Language"
 
 [[package]]
+name = "tomli"
+sections = ["dev"]
+version = "1.2.3"
+summary = "A lil' TOML parser"
+
+[[package]]
+name = "typing-extensions"
+sections = ["dev"]
+version = "4.0.1"
+marker = "python_version >= '3.10'"
+summary = "Backported and Experimental Type Hints for Python 3.6+"
+
+[[package]]
 name = "wcwidth"
 sections = ["default"]
 version = "0.2.5"
@@ -138,7 +205,7 @@ summary = "Measures the displayed width of unicode strings in a terminal"
 
 [metadata]
 lock_version = "2"
-content_hash = "sha256:9fccb6b0940d727b2da6c621fade9fe908bbebf86aa825ee724c36c045515e7b"
+content_hash = "sha256:2014d6d361f94ce3faf6a2e9d83a664c8f38d7425189313890bf454cd2584dd6"
 
 [metadata.files]
 "appdirs 1.4.4" = [
@@ -156,6 +223,13 @@ content_hash = "sha256:9fccb6b0940d727b2da6c621fade9fe908bbebf86aa825ee724c36c04
 "audioread 2.1.9" = [
     {file = "audioread-2.1.9.tar.gz", hash = "sha256:a3480e42056c8e80a8192a54f6729a280ef66d27782ee11cbd63e9d4d1523089"},
 ]
+"autoflake 1.4" = [
+    {file = "autoflake-1.4.tar.gz", hash = "sha256:61a353012cff6ab94ca062823d1fb2f692c4acda51c76ff83a8d77915fba51ea"},
+]
+"black 21.12b0" = [
+    {file = "black-21.12b0-py3-none-any.whl", hash = "sha256:a615e69ae185e08fdd73e4715e260e2479c861b5740057fde6e8b4e3b7dd589f"},
+    {file = "black-21.12b0.tar.gz", hash = "sha256:77b80f693a569e2e527958459634f18df9b0ba2625ba4e0c2d5da5be42e6f2b3"},
+]
 "click 8.0.3" = [
     {file = "click-8.0.3-py3-none-any.whl", hash = "sha256:353f466495adaeb40b6b5f592f9f91cb22372351c84caeb068132442a4518ef3"},
     {file = "click-8.0.3.tar.gz", hash = "sha256:410e932b050f5eed773c4cda94de75971c89cdb3155a72a0831139a79e5ecb5b"},
@@ -168,9 +242,25 @@ content_hash = "sha256:9fccb6b0940d727b2da6c621fade9fe908bbebf86aa825ee724c36c04
     {file = "iniconfig-1.1.1-py2.py3-none-any.whl", hash = "sha256:011e24c64b7f47f6ebd835bb12a743f2fbe9a26d4cecaa7f53bc4f35ee9da8b3"},
     {file = "iniconfig-1.1.1.tar.gz", hash = "sha256:bc3af051d7d14b2ee5ef9969666def0cd1a000e121eaea580d4a313df4b37f32"},
 ]
+"isort 5.10.1" = [
+    {file = "isort-5.10.1-py3-none-any.whl", hash = "sha256:6f62d78e2f89b4500b080fe3a81690850cd254227f27f75c3a0c491a1f351ba7"},
+    {file = "isort-5.10.1.tar.gz", hash = "sha256:e8443a5e7a020e9d7f97f1d7d9cd17c88bcb3bc7e218bf9cf5095fe550be2951"},
+]
+"mypy-extensions 0.4.3" = [
+    {file = "mypy_extensions-0.4.3-py2.py3-none-any.whl", hash = "sha256:090fedd75945a69ae91ce1303b5824f428daf5a028d2f6ab8a299250a846f15d"},
+    {file = "mypy_extensions-0.4.3.tar.gz", hash = "sha256:2d82818f5bb3e369420cb3c4060a7970edba416647068eb4c5343488a6c604a8"},
+]
 "packaging 21.3" = [
     {file = "packaging-21.3-py3-none-any.whl", hash = "sha256:ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522"},
     {file = "packaging-21.3.tar.gz", hash = "sha256:dd47c42927d89ab911e606518907cc2d3a1f38bbd026385970643f9c5b8ecfeb"},
+]
+"pathspec 0.9.0" = [
+    {file = "pathspec-0.9.0-py2.py3-none-any.whl", hash = "sha256:7d15c4ddb0b5c802d161efc417ec1a2558ea2653c2e8ad9c19098201dc1c993a"},
+    {file = "pathspec-0.9.0.tar.gz", hash = "sha256:e564499435a2673d586f6b2130bb5b95f04a3ba06f81b8f895b651a3c76aabb1"},
+]
+"platformdirs 2.4.1" = [
+    {file = "platformdirs-2.4.1-py3-none-any.whl", hash = "sha256:1d7385c7db91728b83efd0ca99a5afb296cab9d0ed8313a45ed8ba17967ecfca"},
+    {file = "platformdirs-2.4.1.tar.gz", hash = "sha256:440633ddfebcc36264232365d7840a970e75e1018d15b4327d11f91909045fda"},
 ]
 "pluggy 1.0.0" = [
     {file = "pluggy-1.0.0-py2.py3-none-any.whl", hash = "sha256:74134bbf457f031a36d68416e1509f34bd5ccc019f0bcc952c7b909d06b37bd3"},
@@ -183,6 +273,10 @@ content_hash = "sha256:9fccb6b0940d727b2da6c621fade9fe908bbebf86aa825ee724c36c04
 "py 1.11.0" = [
     {file = "py-1.11.0-py2.py3-none-any.whl", hash = "sha256:607c53218732647dff4acdfcd50cb62615cedf612e72d1724fb1a0cc6405b378"},
     {file = "py-1.11.0.tar.gz", hash = "sha256:51c75c4126074b472f746a24399ad32f6053d1b34b68d2fa41e558e6f4a98719"},
+]
+"pyflakes 2.4.0" = [
+    {file = "pyflakes-2.4.0-py2.py3-none-any.whl", hash = "sha256:3bb3a3f256f4b7968c9c788781e4ff07dce46bdf12339dcda61053375426ee2e"},
+    {file = "pyflakes-2.4.0.tar.gz", hash = "sha256:05a85c2872edf37a4ed30b0cce2f6093e1d0581f8c19d7393122da7e25b2b24c"},
 ]
 "pyparsing 3.0.6" = [
     {file = "pyparsing-3.0.6-py3-none-any.whl", hash = "sha256:04ff808a5b90911829c55c4e26f75fa5ca8a2f5f36aa3a51f68e27033341d3e4"},
@@ -211,6 +305,14 @@ content_hash = "sha256:9fccb6b0940d727b2da6c621fade9fe908bbebf86aa825ee724c36c04
 "toml 0.10.2" = [
     {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
     {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
+]
+"tomli 1.2.3" = [
+    {file = "tomli-1.2.3-py3-none-any.whl", hash = "sha256:e3069e4be3ead9668e21cb9b074cd948f7b3113fd9c8bba083f48247aab8b11c"},
+    {file = "tomli-1.2.3.tar.gz", hash = "sha256:05b6166bff487dc068d322585c7ea4ef78deed501cc124060e0f238e89a9231f"},
+]
+"typing-extensions 4.0.1" = [
+    {file = "typing_extensions-4.0.1-py3-none-any.whl", hash = "sha256:7f001e5ac290a0c0401508864c7ec868be4e701886d5b573a9528ed3973d9d3b"},
+    {file = "typing_extensions-4.0.1.tar.gz", hash = "sha256:4ca091dea149f945ec56afb48dae714f21e8692ef22a395223bcd328961b6a0e"},
 ]
 "wcwidth 0.2.5" = [
     {file = "wcwidth-0.2.5-py2.py3-none-any.whl", hash = "sha256:beb4802a9cebb9144e99086eff703a642a13d6a0052920003a230f3294bbe784"},
