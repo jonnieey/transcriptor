@@ -66,3 +66,14 @@ def list(client=None, **kwargs):
             client = clients[choice].name
             jobs_table = list_client_jobs(client)
             print(jobs_table)
+
+
+@cli.command()
+@click.option("-d", "--date-due", help="Specify date job due fmt: YYYY-MM-DD")
+@click.option("-c", "--client", help="Specify client")
+@click.option("-r", "--date-received", help="Specify date job received fmt: YYYY-MM-DD")
+@click.option("-a", "--amount_paid", help="Specify amount paid")
+@click.option("-j", "--job_number", required=True, help="Specify amount paid")
+def update(**kwargs):
+    d = {k: v for k, v in kwargs.items() if v is not None}
+    update_job(kwargs["job_number"], d)
