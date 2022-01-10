@@ -1,10 +1,8 @@
-import pytest
 
 from datetime import date
-from transcriptor.settings import Settings
-from transcriptor.utils import  SETTINGS, date_to_string, string_to_date, parse_job_number, parse_job_due_date, get_quantity, sec_to_min
+from transcriptor.utils import  get_settings, date_to_string, string_to_date, parse_job_number, parse_job_due_date, get_quantity, sec_to_min
 
-DATE_FMT = SETTINGS['date_fmt']
+DATE_FMT = get_settings()['date_fmt']
 
 def test_date_to_string():
     date_obj = date.today()

@@ -6,13 +6,11 @@ from datetime import datetime, timedelta, date
 from transcriptor.client import Client
 from transcriptor.job import Job
 
-from transcriptor.utils import (
-    parse_job_number,
-    parse_job_due_date,
-    SETTINGS,
-)
+from transcriptor.utils import get_settings
 
-CONFIG_FOLDER, DATE_FMT, JOBS_FOLDER = SETTINGS['config_folder'], SETTINGS['date_fmt'], SETTINGS['jobs_folder']
+settings = get_settings()
+
+CONFIG_FOLDER, DATE_FMT, JOBS_FOLDER = settings['config_folder'], settings['date_fmt'], settings['jobs_folder']
 
 def create_client(name=None, email=None):
     if name is None or email is None:

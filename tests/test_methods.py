@@ -4,7 +4,6 @@ import pytest
 import shutil
 
 from datetime import datetime, timedelta, date
-from pathlib import Path
 
 from transcriptor.client import Client
 from transcriptor.job import Job
@@ -18,13 +17,14 @@ from transcriptor.methods import (
     save_client_job_to_file,
     get_all_clients
 )
-from transcriptor.utils import SETTINGS
+from transcriptor.utils import get_settings
 
+settings = get_settings()
 DATE_FMT, CLIENTS_FOLDER, JOBS_FOLDER, WORKS_FOLDER = (
-    SETTINGS['date_fmt'],
-    SETTINGS['clients_folder'],
-    SETTINGS['jobs_folder'],
-    SETTINGS['works_folder'],
+    settings['date_fmt'],
+    settings['clients_folder'],
+    settings['jobs_folder'],
+    settings['works_folder'],
 )
 
 CLIENT_NAME = 'TestClient'
