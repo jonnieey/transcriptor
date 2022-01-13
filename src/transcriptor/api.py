@@ -9,6 +9,7 @@ from transcriptor.methods import (
     get_all_clients,
     get_all_jobs,
     get_client_jobs,
+    get_totals,
     save_client_job_to_file,
     save_client_to_file,
 )
@@ -133,6 +134,10 @@ def list_client_jobs(client_name):
             jobs.append(raw_job)
         except Exception:
             jobs.append(raw_job)
+    t = {k: None for k, v in jobs[0].items()}
+    t["date_received"] = "TOTALS"
+    t["amount"], t["amount_paid"] = get_totals(jobs)
+    jobs.append(t)
     jobs_table = tabulate(jobs, headers="keys", tablefmt="fancy_grid")
     return jobs_table
 
@@ -154,6 +159,10 @@ def list_all_jobs():
 
     for i in new_all_jobs:
         for client_name, client_jobs in i.items():
+            t = {k: None for k, v in client_jobs[0].items()}
+            t["date_received"] = "TOTALS"
+            t["amount"], t["amount_paid"] = get_totals(client_jobs)
+            client_jobs.append(t)
             print(f"{client_name} JOBS\n")
             print(tabulate(client_jobs, headers="keys", tablefmt="fancy_grid"))
             print()

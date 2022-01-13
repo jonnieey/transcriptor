@@ -27,10 +27,7 @@ def cli(**kwargs):
 @click.option("-c", "--client", help="Specify client")
 def create(file, date_received=None, date_due=None, client=None, **kwargs):
     """Create job"""
-    if date_received == None:
-        date_received = date.today()
-    else:
-        date_received = get_date_received(date_received)
+    date_received = get_date_received(date_received)
 
     if date_due == None:
         date_due = input("Enter date due: ")
@@ -44,9 +41,9 @@ def create(file, date_received=None, date_due=None, client=None, **kwargs):
 @cli.command()
 @click.option("-c", "--client", help="Specify client")
 @click.option("--all", is_flag=True, help="Specify client")
-def list(client=None, **kwargs):
+def list(client=None, all=None, **kwargs):
     """List client's jobs"""
-    if all:
+    if all is True:
         list_all_jobs()
         return
 
@@ -73,6 +70,7 @@ def list(client=None, **kwargs):
 @click.option("-c", "--client", help="Specify client")
 @click.option("-r", "--date-received", help="Specify date job received fmt: YYYY-MM-DD")
 @click.option("-a", "--amount_paid", help="Specify amount paid")
+@click.option("-s", "--status", help="Specify status of job")
 @click.option("-j", "--job_number", required=True, help="Specify amount paid")
 def update(**kwargs):
     d = {k: v for k, v in kwargs.items() if v is not None}

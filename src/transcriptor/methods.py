@@ -172,13 +172,6 @@ def get_all_jobs():
     return jobs
 
 
-def get_updated_job(job, d={}):
-    job_dict = job.to_dict()
-    job_dict.update(d)
-    updated_job = Job.from_json(job_dict)
-    return updated_job
-
-
 def update_job(job_number, d={}):
     for job_file in JOBS_FOLDER.iterdir():
 
@@ -188,11 +181,21 @@ def update_job(job_number, d={}):
 
             for idx, job in enumerate(jobs_list):
                 if job["job_number"] == job_number:
-                    job_obj = Job.from_json(job)
-                    updated_job = get_updated_job(job_obj, d)
+                    job.update(d)
+                    updated_job = Job.from_json(job)
                     jobs_list[idx] = updated_job.to_dict()
                     c_json["jobs_list"] = jobs_list
                     break  # Allow user to select if multiple jobs exists; Only updates the first instance
 
         with open(job_file, "w") as fd:
             json.dump(c_json, fd, indent=2, ensure_ascii=False)
+
+
+def get_totals(l):
+    amount_total = 0
+    paid_amount_total = 0
+    for job in l:
+        amount_total += job["quantity"] * job["job_rate"]
+        paid_amount_total += float(job["amount_paid"])
+
+    return amount_total, paid_amount_total
