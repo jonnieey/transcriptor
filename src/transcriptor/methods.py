@@ -193,7 +193,16 @@ def get_totals(jobs):
     amount_total = 0
     paid_amount_total = 0
     for job in jobs:
-        amount_total += job["quantity"] * job["job_rate"]
-        paid_amount_total += float(job["amount_paid"])
+        if isinstance(job, dict):
+            quantity = job['quantity']
+            rate = job['job_rate']
+            amount_paid = job['amount_paid']
+        elif isinstance(job, Job):
+            quantity = job.quantity
+            rate = job.job_rate
+            amount_paid = job.amount_paid
+
+        amount_total += quantity * rate
+        paid_amount_total +=  float(job.amount_paid)
 
     return amount_total, paid_amount_total
