@@ -11,7 +11,7 @@ from transcriptor.conf import (
     TEST_WORKS_FOLDER,
 )
 from transcriptor.settings import Settings
-from transcriptor.utils import create_default_config, save_config_to_file
+from transcriptor.utils import create_default_config, save_config
 
 
 @pytest.fixture()
@@ -34,7 +34,7 @@ def test_default_settings(default_config):
 
 
 def test_save_config_to_file(default_config):
-    save_config_to_file(default_config)
+    save_config(default_config)
     with open(TEST_CONFIG_FOLDER / "conf.json", "r") as fp:
         config_json = json.load(fp)
     settings = Settings().from_json(config_json)
@@ -44,7 +44,7 @@ def test_save_config_to_file(default_config):
 
 
 def test_read_settings_from_file(default_config):
-    save_config_to_file(default_config)
+    save_config(default_config)
     with open(TEST_CONFIG_FOLDER / "conf.json", "r") as fp:
         config_json = json.load(fp)
     settings = Settings().from_json(config_json)

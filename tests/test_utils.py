@@ -2,15 +2,15 @@ from datetime import date
 
 from transcriptor.utils import (
     date_to_string,
+    get_config,
     get_quantity,
-    get_settings,
     parse_job_due_date,
     parse_job_number,
     sec_to_min,
     string_to_date,
 )
 
-DATE_FMT = get_settings()["date_fmt"]
+DATE_FMT = get_config()["date_fmt"]
 
 
 def test_date_to_string():

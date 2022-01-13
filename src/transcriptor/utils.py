@@ -1,9 +1,7 @@
 import json
 import re
-import zipfile
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from fractions import Fraction
-from math import floor
 from pathlib import Path
 
 from audioread import audio_open
@@ -24,11 +22,11 @@ def create_default_config():
         config_folder=config["config_folder"],
     )
 
-    save_config_to_file(conf)
+    save_config(conf)
     return conf
 
 
-def save_config_to_file(conf):
+def save_config(conf):
     config_file = conf.config_folder / "conf.json"
     if not conf.config_folder.exists():
         conf.config_folder.mkdir(parents=True, exist_ok=True)
@@ -36,7 +34,7 @@ def save_config_to_file(conf):
         fp.write(conf.to_json())
 
 
-def read_settings():
+def read_config():
     config_file = config["config_folder"] / "conf.json"
     if config_file.exists() and not config_file.is_dir():
         with open(config_file, "r") as fp:
@@ -44,14 +42,14 @@ def read_settings():
             return Settings().from_json(conf_json)
 
 
-def get_settings():
-    settings = read_settings()
+def get_config():
+    settings = read_config()
     if settings is None:
         settings = create_default_config()
     return settings.__dict__
 
 
-DATE_FMT = get_settings()["date_fmt"]
+DATE_FMT = get_config()["date_fmt"]
 
 
 def date_to_string(date_obj):
@@ -106,10 +104,6 @@ def format_date(d):
         pass
 
 
-def extract_zip_to(zip_file, destination_folder):
-    zipfile.ZipFile(zip_file).extractall(destination_folder)
-
-
 def get_media_files(task_folder):
     if isinstance(task_folder, str):
         task_folder = Path(task_folder)
@@ -132,13 +126,6 @@ def sec_to_min(seconds):
     return round(int(seconds / 60), 0)
 
 
-def menu_from_list(l, msg=""):
-    s = f"{msg}:\n"
-    for idx, i in enumerate(l):
-        s += " %s. %s\n" % (idx, i)
-    return s
-
-
 def get_quantity(q, total_q=0.0):
     quantity_words = {
         "whole": 1,
@@ -155,11 +142,7 @@ def get_quantity(q, total_q=0.0):
             return quantity
         except ValueError:
             try:
-                quantity = total_q * quantity_words[q]
+                quantity = total_q * quantity_words[q.lower()]
                 return quantity
             except Exception:
                 return None
-
-
-def remove_dict_key(dict, key=""):
-    return dict.pop(key)
