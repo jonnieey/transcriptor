@@ -7,10 +7,10 @@ from transcriptor.utils import date_to_string, string_to_date
 class Job:
     def __init__(
         self,
-        date_received: date,
-        job_number: str,
-        job_type: str,
-        total_quantity: float,
+        date_received: date = None,
+        job_number: str = "",
+        job_type: str = "",
+        total_quantity: float = 0.0,
         job_rate: float = None,
         quantity: float = 0.0,
         date_due: date = None,
@@ -46,12 +46,12 @@ class Job:
             self.job_rate = job_rate
 
     @property
-    def job_type(self) -> str:
-        return self._job_type
+    def date_received(self):
+        return self._date_received
 
-    @job_type.setter
-    def job_type(self, value):
-        self._job_type = value
+    @date_received.setter
+    def date_received(self, value):
+        self._date_received = value
 
     @property
     def job_number(self) -> str:
@@ -60,6 +60,14 @@ class Job:
     @job_number.setter
     def job_number(self, value):
         self._job_number = value
+
+    @property
+    def job_type(self) -> str:
+        return self._job_type
+
+    @job_type.setter
+    def job_type(self, value):
+        self._job_type = value
 
     @property
     def job_rate(self) -> float:
@@ -84,14 +92,6 @@ class Job:
     @total_quantity.setter
     def total_quantity(self, value):
         self._total_quantity = value
-
-    @property
-    def date_received(self):
-        return self._date_received
-
-    @date_received.setter
-    def date_received(self, value):
-        self._date_received = value
 
     @property
     def date_due(self):

@@ -59,6 +59,8 @@ def date_to_string(date_obj):
         return None
     elif isinstance(date_obj, date) or isinstance(date_obj, datetime):
         return date_obj.strftime(DATE_FMT)
+    else:
+        return date_obj
 
 
 def string_to_date(date_str):
