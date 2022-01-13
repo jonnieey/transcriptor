@@ -1,4 +1,3 @@
-import io
 import json
 import shutil
 from datetime import date, datetime, timedelta
@@ -7,18 +6,10 @@ import pytest
 
 from transcriptor.client import Client
 from transcriptor.job import Job
-from transcriptor.methods import (
-    create_client,
-    create_task,
-    get_all_clients,
-    get_date_due,
-    get_date_received,
-    save_client_job_to_file,
-    save_client_to_file,
-)
-from transcriptor.utils import get_settings
+from transcriptor.methods import *
+from transcriptor.utils import get_config
 
-settings = get_settings()
+settings = get_config()
 DATE_FMT, CLIENTS_FOLDER, JOBS_FOLDER, WORKS_FOLDER = (
     settings["date_fmt"],
     settings["clients_folder"],
@@ -50,8 +41,7 @@ def test_job():
 
 
 class Tests:
-    @classmethod
-    def setup_class(cls):
+    def teardown_method(self):
         shutil.rmtree(CLIENTS_FOLDER.parent, ignore_errors=True)
 
     def test_create_client(
@@ -62,7 +52,7 @@ class Tests:
         assert client.name == CLIENT_NAME
 
     def test_save_client_to_file(self, test_client):
-        save_client_to_file(test_client, CLIENTS_FOLDER)
+        save_client(test_client, CLIENTS_FOLDER)
         with open(CLIENTS_FOLDER / test_client.name, "r") as fp:
             client_json = json.load(fp)
         assert client_json["name"] == test_client.name
@@ -82,7 +72,7 @@ class Tests:
         assert isinstance(job, Job)
 
     def test_save_client_job_to_file(self, test_client, test_job):
-        save_client_job_to_file(test_client, [test_job], JOBS_FOLDER)
+        save_job_to_file(test_client, [test_job], JOBS_FOLDER)
         with open(JOBS_FOLDER / test_client.name, "r") as fp:
             client_jobs_json = json.load(fp)
 
@@ -94,7 +84,6 @@ class Tests:
     ):
         date_received = "2021-11-12"
         date_rec = get_date_received(date_received)
-        print(date_rec)
         assert date_rec == datetime.strptime(date_received, DATE_FMT).date()
 
     def test_get_date_received_as_int(
@@ -119,10 +108,49 @@ class Tests:
         assert date_d == TODAY + timedelta(days=abs(date_due))
 
     def test_get_all_clients(self, test_client):
-        save_client_to_file(test_client, CLIENTS_FOLDER)
+        save_client(test_client, CLIENTS_FOLDER)
         client2 = Client("TestClient1", "TestEmail1")
-        save_client_to_file(client2, CLIENTS_FOLDER)
+        save_client(client2, CLIENTS_FOLDER)
 
-        clients = get_all_clients(CLIENTS_FOLDER)
+        clients = get_clients(CLIENTS_FOLDER)
 
         assert len(clients) == 2
+
+    def test_get_jobs_with_client(self, test_client, test_job):
+        save_job_to_file(test_client, [test_job, test_job])
+        jobs = get_jobs(test_client.name)
+        assert len(jobs) == 2
+
+    def test_get_jobs_without_client(self, test_client, test_job):
+        save_job_to_file(test_client, [test_job, test_job])
+        client2 = Client(name="TestClient2", email="TestEmail2")
+        save_job_to_file(client2, [test_job, test_job])
+        jobs = get_jobs()
+        assert len(jobs) == 4
+
+    def test_update_job(self, test_client, test_job):
+        save_job_to_file(test_client, [test_job])
+        update_dict = {
+            'amount': 500,
+            'amount_paid': 400,
+            'status': "Done",
+            'date_submitted': TODAY.strftime(DATE_FMT),
+        }
+        update_job(test_job.job_number, update_dict)
+        with open(JOBS_FOLDER / test_client.name, "r") as fp:
+            client_jobs_json = json.load(fp)
+
+        # TODO add method to get job from job list
+        assert client_jobs_json['jobs_list'][0]["amount"] == 500
+        assert client_jobs_json['jobs_list'][0]["amount_paid"] == 400
+        assert client_jobs_json['jobs_list'][0]["status"] == "Done"
+        assert client_jobs_json['jobs_list'][0]["date_submitted"] == TODAY.strftime(DATE_FMT)
+
+    def test_get_totals(self, test_job):
+        test_job.quantity = 40
+        test_job.amount_paid = 15
+        jobs = [test_job, test_job]
+        amount_total, amount_paid = get_totals(jobs)
+
+        assert amount_total == 32
+        assert amount_paid == 30
