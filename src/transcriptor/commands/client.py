@@ -15,8 +15,8 @@ def cli(**kwargs):
 def add(name, email):
     """Add client"""
     if name is None and email is None:
-        name = input("Enter clients name: ")
-        email = input("Enter clients Email: ")
+        name = click.prompt("Enter clients name")
+        email = click.prompt("Enter clients Email")
     add_client(name, email)
 
 

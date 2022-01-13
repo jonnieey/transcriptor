@@ -4,14 +4,15 @@ from datetime import date, datetime, timedelta
 
 from transcriptor.client import Client
 from transcriptor.job import Job
-from transcriptor.utils import get_settings
+from transcriptor.utils import get_config
 
-settings = get_settings()
+settings = get_config()
 
-CONFIG_FOLDER, DATE_FMT, JOBS_FOLDER = (
+CONFIG_FOLDER, DATE_FMT, JOBS_FOLDER, CLIENTS_FOLDER = (
     settings["config_folder"],
     settings["date_fmt"],
     settings["jobs_folder"],
+    settings["clients_folder"],
 )
 
 
@@ -23,7 +24,7 @@ def create_client(name=None, email=None):
     return client
 
 
-def save_client_to_file(client, clients_folder):
+def save_client(client, clients_folder=CLIENTS_FOLDER):
     if not clients_folder.exists():
         clients_folder.mkdir(parents=True, exist_ok=True)
 
@@ -60,10 +61,10 @@ def create_task(
     return task
 
 
-def save_client_job_to_file(client, jobs, job_folder):
-    if not job_folder.exists():
-        job_folder.mkdir(parents=True, exist_ok=True)
-    client_jobs_file = job_folder / client.name
+def save_job_to_file(client, jobs, jobs_folder=JOBS_FOLDER):
+    if not jobs_folder.exists():
+        jobs_folder.mkdir(parents=True, exist_ok=True)
+    client_jobs_file = jobs_folder / client.name
 
     jobs_list = []
     for job in jobs:
@@ -133,7 +134,7 @@ def get_date_due(date_due=None):
             sys.exit(1)
 
 
-def get_all_clients(clients_folder):
+def get_clients(clients_folder=CLIENTS_FOLDER):
     clients = []
     if not clients_folder.exists():
         return []
@@ -142,34 +143,31 @@ def get_all_clients(clients_folder):
         for client_file in clients_files:
             with open(client_file, "r") as fd:
                 client_json = json.load(fd)
-                clients.append(Client().from_json(client_json))
+                clients.append(Client.from_json(client_json))
     return clients
 
 
-def get_client_jobs(client_name):
-    client_jobs_file = JOBS_FOLDER / client_name
-    if not client_jobs_file.exists():
-        print("Client does not exist")
-        return None
-    else:
-        with open(client_jobs_file, "r") as fp:
-            client_json = json.load(fp)
-            jobs = client_json["jobs_list"]
-            return jobs
-
-
-def get_all_jobs():
-    jobs = []
+def get_jobs(client_name=None):
     if JOBS_FOLDER.exists():
-        job_files = JOBS_FOLDER.iterdir()
-        for job_file in job_files:
-            client_jobs = {}
-            with open(job_file, "r") as fp:
-                client_json = json.load(fp)
-                client_name = client_json["client"]["name"]
-                client_jobs[client_name] = client_json["jobs_list"]
-            jobs.append(client_jobs)
-    return jobs
+        if client_name is not None:
+            client_jobs_file = JOBS_FOLDER / client_name
+            if not client_jobs_file.exists():
+                print("Client does not exist")
+                return None
+            else:
+                with open(client_jobs_file, "r") as fp:
+                    client_json = json.load(fp)
+                    jobs = client_json["jobs_list"]
+                    return jobs
+
+        else:
+            jobs = []
+            job_files = JOBS_FOLDER.iterdir()
+            for job_file in job_files:
+                with open(job_file, "r") as fp:
+                    client_json = json.load(fp)
+                    [jobs.append(job) for job in client_json["jobs_list"]]
+            return jobs
 
 
 def update_job(job_number, d={}):
@@ -191,10 +189,10 @@ def update_job(job_number, d={}):
             json.dump(c_json, fd, indent=2, ensure_ascii=False)
 
 
-def get_totals(l):
+def get_totals(jobs):
     amount_total = 0
     paid_amount_total = 0
-    for job in l:
+    for job in jobs:
         amount_total += job["quantity"] * job["job_rate"]
         paid_amount_total += float(job["amount_paid"])
 

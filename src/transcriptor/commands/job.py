@@ -30,11 +30,16 @@ def create(file, date_received=None, date_due=None, client=None, **kwargs):
     date_received = get_date_received(date_received)
 
     if date_due == None:
-        date_due = input("Enter date due: ")
+        date_due = get_date_due(click.prompt("Enter date due"))
     else:
         date_due = get_date_due(date_due)
 
-    client_obj = get_client_object(client)
+    if client is None:
+        clients_list = list_clients()
+        choice = click.prompt("Select client", type=int)
+        client_obj = clients_list[choice]
+    else:
+        client_obj = get_client_object(client)
     create_job(file, date_received, date_due, client_obj)
 
 
@@ -47,31 +52,20 @@ def list(client=None, all=None, **kwargs):
         list_all_jobs()
         return
 
-    if client is None:
-        clients = list_clients()
-        choice = int(input("Select client: "))
-        client = clients[choice].name
-        jobs_table = list_client_jobs(client)
-        print(jobs_table)
-    elif client:
-        jobs_table = list_client_jobs(client)
-        if jobs_table is not None:
-            print(jobs_table)
-        else:
-            clients = list_clients()
-            choice = int(input("Select client: "))
-            client = clients[choice].name
-            jobs_table = list_client_jobs(client)
-            print(jobs_table)
+    if client is not None:
+        list_client_jobs(client)
+    else:
+        client = click.prompt("Enter client's name")
+        list_client_jobs(client)
 
 
 @cli.command()
-@click.option("-d", "--date-due", help="Specify date job due fmt: YYYY-MM-DD")
+@click.option("-j", "--job_number", required=True, help="Specify amount paid")
 @click.option("-c", "--client", help="Specify client")
 @click.option("-r", "--date-received", help="Specify date job received fmt: YYYY-MM-DD")
-@click.option("-a", "--amount_paid", help="Specify amount paid")
+@click.option("-d", "--date-due", help="Specify date job due fmt: YYYY-MM-DD")
 @click.option("-s", "--status", help="Specify status of job")
-@click.option("-j", "--job_number", required=True, help="Specify amount paid")
+@click.option("-a", "--amount_paid", type=float, help="Specify amount paid")
 def update(**kwargs):
     d = {k: v for k, v in kwargs.items() if v is not None}
     update_job(kwargs["job_number"], d)
