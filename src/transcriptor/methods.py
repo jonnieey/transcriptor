@@ -147,7 +147,7 @@ def get_clients(clients_folder=CLIENTS_FOLDER):
     return clients
 
 
-def get_jobs(client_name=None):
+def get_jobs(client_name=None, per_client=False):
     if JOBS_FOLDER.exists():
         if client_name is not None:
             client_jobs_file = JOBS_FOLDER / client_name
@@ -163,10 +163,18 @@ def get_jobs(client_name=None):
         else:
             jobs = []
             job_files = JOBS_FOLDER.iterdir()
-            for job_file in job_files:
-                with open(job_file, "r") as fp:
-                    client_json = json.load(fp)
-                    [jobs.append(job) for job in client_json["jobs_list"]]
+            if per_client is False:
+                for job_file in job_files:
+                    with open(job_file, "r") as fp:
+                        client_json = json.load(fp)
+                        [jobs.append(job) for job in client_json["jobs_list"]]
+            else:
+                for job_file in job_files:
+                    with open(job_file, "r") as fp:
+                        client_json = json.load(fp)
+                        jobs.append(client_json)
+
+                        # [jobs.append(job) for job in client_json["jobs_list"]]
             return jobs
 
 
@@ -192,17 +200,21 @@ def update_job(job_number, d={}):
 def get_totals(jobs):
     amount_total = 0
     paid_amount_total = 0
+
     for job in jobs:
+
         if isinstance(job, dict):
-            quantity = job['quantity']
-            rate = job['job_rate']
-            amount_paid = job['amount_paid']
+            quantity = job["quantity"]
+            rate = job["job_rate"]
+            amount_paid = job["amount_paid"]
         elif isinstance(job, Job):
             quantity = job.quantity
             rate = job.job_rate
             amount_paid = job.amount_paid
 
-        amount_total += quantity * rate
-        paid_amount_total +=  float(job.amount_paid)
-
+        try:
+            amount_total += quantity * rate
+            paid_amount_total += float(amount_paid)
+        except TypeError as error:
+            print(error)
     return amount_total, paid_amount_total

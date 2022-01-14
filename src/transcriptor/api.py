@@ -62,7 +62,7 @@ def create_job(zip_file, date_received, date_due, client):
     try:
         zipfile.ZipFile(new_zip_file).extractall(job_folder)
     except Exception as error:
-        print(error)
+        click.echo(error)
         sys.exit(1)
 
     tasks = []
@@ -71,7 +71,7 @@ def create_job(zip_file, date_received, date_due, client):
     for media_file in media_files:
         task = {}
 
-        print(media_file)
+        click.echo(media_file)
         work_on_file = ""
         # while work_on_file == "":
         work_on_file = click.prompt("? Work on this file [Y/n]: ")
@@ -80,7 +80,7 @@ def create_job(zip_file, date_received, date_due, client):
             job_type = click.prompt(
                 "Specify job type", type=click.Choice(["Normal", "Interpreted", "Expedite"]), show_choices=True
             )
-            quantity = get_quantity(click.prompt(" Enter quantity of task"), total_q=total_quantity)
+            quantity = get_quantity(click.prompt("Enter quantity of task"), total_q=total_quantity)
             task = create_task(
                 date_received=date_received,
                 job_number=job_number,
@@ -107,7 +107,7 @@ def list_clients():
         tablefmt="fancy_grid",
         showindex=True,
     )
-    print(clients_table)
+    click.echo(clients_table)
     return clients
 
 
@@ -127,25 +127,53 @@ def list_client_jobs(client_name):
 
     jobs.append(totals_headers)
 
-    print(tabulate(jobs, headers="keys", tablefmt="fancy_grid"))
-    print()
+    click.echo(tabulate(jobs, headers="keys", tablefmt="fancy_grid"))
+    click.echo()
 
 
-def list_all_jobs():
-    raw_jobs = get_jobs()
+def list_all_jobs(per_client=False):
+    if per_client:
+        raw_jobs = get_jobs(per_client=per_client)
+    else:
+        raw_jobs = get_jobs()
+
     if raw_jobs is None:
         return
-    jobs = []
 
-    for job in raw_jobs:
-        job.pop("job_path")
-        jobs.append(job)
+    if per_client is False:
+        jobs = []
 
-    totals_headers = {k: None for k in jobs[0]}  # To maintain cell width
-    totals_headers[list(totals_headers.keys())[0]] = "TOTALS"
-    totals_headers[list(totals_headers.keys())[-2]], totals_headers[list(totals_headers.keys())[-1]] = get_totals(jobs)
+        for job in raw_jobs:
+            job.pop("job_path")
+            jobs.append(job)
 
-    jobs.append(totals_headers)
+        totals_headers = {k: None for k in jobs[0]}  # To maintain cell width
+        totals_headers[list(totals_headers.keys())[0]] = "TOTALS"
+        totals_headers[list(totals_headers.keys())[-2]], totals_headers[list(totals_headers.keys())[-1]] = get_totals(
+            jobs
+        )
 
-    print(tabulate(jobs, headers="keys", tablefmt="fancy_grid"))
-    print()
+        jobs.append(totals_headers)
+
+        click.echo(tabulate(jobs, headers="keys", tablefmt="fancy_grid"))
+        click.echo()
+
+    else:
+
+        for _ in raw_jobs:
+            jobs = []
+            for job in _["jobs_list"]:
+                job.pop("job_path")
+                jobs.append(job)
+
+            totals_headers = {k: None for k in jobs[0]}  # To maintain cell width
+            totals_headers[list(totals_headers.keys())[0]] = "TOTALS"
+            (
+                totals_headers[list(totals_headers.keys())[-2]],
+                totals_headers[list(totals_headers.keys())[-1]],
+            ) = get_totals(jobs)
+            jobs.append(totals_headers)
+
+            click.echo(_["client"]["name"])
+            click.echo(tabulate(jobs, headers="keys", tablefmt="fancy_grid"))
+            click.echo()
