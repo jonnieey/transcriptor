@@ -3,7 +3,7 @@ import sys
 import zipfile
 
 import click
-from tabulate import tabulate
+from beautifultable import BeautifulTable
 
 from transcriptor.methods import (
     create_client,
@@ -100,38 +100,50 @@ def create_job(zip_file, date_received, date_due, client):
 
 def list_clients():
     clients = get_clients(CLIENTS_FOLDER)
-    headers = ["Name", "Email"]
-    clients_table = tabulate(
-        sorted([[client.name, client.email] for client in clients]),
-        headers=headers,
-        tablefmt="fancy_grid",
-        showindex=True,
-    )
-    click.echo(clients_table)
+    headers = ["", "Name", "Email"]
+
+    table = BeautifulTable()
+    table.set_style(BeautifulTable.STYLE_BOX)
+    table.columns.header = headers
+    for idx, client in enumerate(clients):
+        table.rows.append([idx, client.name, client.email])
+    click.echo(table)
+
     return clients
 
 
-def list_client_jobs(client_name):
+def list_client_jobs(client_name, show_path=False):
     raw_jobs = get_jobs(client_name)
     if raw_jobs is None:
         return
-    jobs = []
+
+    terminal_size = shutil.get_terminal_size()
+    table = BeautifulTable(maxwidth=terminal_size.columns)
+
+    amount, amount_paid = get_totals(raw_jobs)
+    if show_path is False:
+        totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid]
+        for job in raw_jobs:
+            job.pop("job_path")
+        headers = [x.replace("_", " ").title() for x in list(raw_jobs[0].keys())]
+        table.columns.header = headers
+    else:
+        totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid, None]
+        headers = [x.replace("_", " ").title() for x in list(raw_jobs[0].keys())]
+        table.columns.header = headers
+        table.columns.padding = 0
+
+    table.set_style(BeautifulTable.STYLE_BOX)
 
     for job in raw_jobs:
-        job.pop("job_path")
-        jobs.append(job)
-
-    totals_headers = {k: None for k in jobs[0]}  # To maintain cell width
-    totals_headers[list(totals_headers.keys())[0]] = "TOTALS"
-    totals_headers[list(totals_headers.keys())[-2]], totals_headers[list(totals_headers.keys())[-1]] = get_totals(jobs)
-
-    jobs.append(totals_headers)
-
-    click.echo(tabulate(jobs, headers="keys", tablefmt="fancy_grid"))
-    click.echo()
+        table.rows.append(list(job.values()))
+    table.rows.append(totals_list)
+    click.echo(table)
 
 
-def list_all_jobs(per_client=False):
+def list_all_jobs(per_client=False, show_path=False):
+    terminal_size = shutil.get_terminal_size()
+
     if per_client:
         raw_jobs = get_jobs(per_client=per_client)
     else:
@@ -140,40 +152,45 @@ def list_all_jobs(per_client=False):
     if raw_jobs is None:
         return
 
+    table = BeautifulTable(maxwidth=terminal_size.columns)
+    table.columns.padding = 0
+    table.set_style(BeautifulTable.STYLE_BOX)
+
     if per_client is False:
-        jobs = []
+        amount, amount_paid = get_totals(raw_jobs)
+        if show_path is False:
+            totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid]
+            for job in raw_jobs:
+                job.pop("job_path")
+        else:
+            totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid, None]
+
+        headers = [x.replace("_", " ").title() for x in list(raw_jobs[0].keys())]
+        table.columns.header = headers
 
         for job in raw_jobs:
-            job.pop("job_path")
-            jobs.append(job)
-
-        totals_headers = {k: None for k in jobs[0]}  # To maintain cell width
-        totals_headers[list(totals_headers.keys())[0]] = "TOTALS"
-        totals_headers[list(totals_headers.keys())[-2]], totals_headers[list(totals_headers.keys())[-1]] = get_totals(
-            jobs
-        )
-
-        jobs.append(totals_headers)
-
-        click.echo(tabulate(jobs, headers="keys", tablefmt="fancy_grid"))
-        click.echo()
+            table.rows.append(list(job.values()))
+        table.rows.append(totals_list)
+        click.echo(table)
 
     else:
 
         for _ in raw_jobs:
-            jobs = []
-            for job in _["jobs_list"]:
-                job.pop("job_path")
-                jobs.append(job)
+            amount, amount_paid = get_totals(_["jobs_list"])
 
-            totals_headers = {k: None for k in jobs[0]}  # To maintain cell width
-            totals_headers[list(totals_headers.keys())[0]] = "TOTALS"
-            (
-                totals_headers[list(totals_headers.keys())[-2]],
-                totals_headers[list(totals_headers.keys())[-1]],
-            ) = get_totals(jobs)
-            jobs.append(totals_headers)
+            if show_path is False:
+                totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid]
+                for job in _["jobs_list"]:
+                    job.pop("job_path")
+            else:
+                totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid, None]
+
+            headers = [x.replace("_", " ").title() for x in list(_["jobs_list"][0].keys())]
+            table.columns.header = headers
 
             click.echo(_["client"]["name"])
-            click.echo(tabulate(jobs, headers="keys", tablefmt="fancy_grid"))
-            click.echo()
+            for job in _["jobs_list"]:
+                table.rows.append(list(job.values()))
+            table.rows.append(totals_list)
+            click.echo(table)
+            table.clear()
