@@ -6,14 +6,14 @@ summary = "A small Python module for determining appropriate platform-specific d
 
 [[package]]
 name = "atomicwrites"
-sections = ["dev"]
+sections = ["tests"]
 version = "1.4.0"
 marker = "sys_platform == 'win32'"
 summary = "Atomic file writes."
 
 [[package]]
 name = "attrs"
-sections = ["dev"]
+sections = ["tests"]
 version = "21.3.0"
 summary = "Classes Without Boilerplate"
 
@@ -25,7 +25,7 @@ summary = "multi-library, cross-platform audio decoding"
 
 [[package]]
 name = "autoflake"
-sections = ["dev"]
+sections = ["tests"]
 version = "1.4"
 summary = "Removes unused imports and unused variables"
 dependencies = [
@@ -33,8 +33,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "beautifultable"
+sections = ["default"]
+version = "1.0.1"
+summary = "Print text tables for terminals"
+dependencies = [
+    "wcwidth",
+]
+
+[[package]]
 name = "black"
-sections = ["dev"]
+sections = ["tests"]
 version = "21.12b0"
 summary = "The uncompromising code formatter."
 dependencies = [
@@ -49,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = "click"
-sections = ["default", "dev"]
+sections = ["default", "tests"]
 version = "8.0.3"
 summary = "Composable command line interface toolkit"
 dependencies = [
@@ -58,32 +67,32 @@ dependencies = [
 
 [[package]]
 name = "colorama"
-sections = ["default", "dev"]
+sections = ["default", "tests"]
 version = "0.4.4"
 marker = "platform_system == 'Windows' or sys_platform == 'win32'"
 summary = "Cross-platform colored terminal text."
 
 [[package]]
 name = "iniconfig"
-sections = ["dev"]
+sections = ["tests"]
 version = "1.1.1"
 summary = "iniconfig: brain-dead simple config-ini parsing"
 
 [[package]]
 name = "isort"
-sections = ["dev"]
+sections = ["tests"]
 version = "5.10.1"
 summary = "A Python utility / library to sort Python imports."
 
 [[package]]
 name = "mypy-extensions"
-sections = ["dev"]
+sections = ["tests"]
 version = "0.4.3"
 summary = "Experimental type system extensions for programs checked with the mypy typechecker."
 
 [[package]]
 name = "packaging"
-sections = ["dev"]
+sections = ["tests"]
 version = "21.3"
 summary = "Core utilities for Python packages"
 dependencies = [
@@ -92,19 +101,19 @@ dependencies = [
 
 [[package]]
 name = "pathspec"
-sections = ["dev"]
+sections = ["tests"]
 version = "0.9.0"
 summary = "Utility library for gitignore style pattern matching of file paths."
 
 [[package]]
 name = "platformdirs"
-sections = ["dev"]
+sections = ["tests"]
 version = "2.4.1"
 summary = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 
 [[package]]
 name = "pluggy"
-sections = ["dev"]
+sections = ["tests"]
 version = "1.0.0"
 summary = "plugin and hook calling mechanisms for python"
 
@@ -119,25 +128,25 @@ dependencies = [
 
 [[package]]
 name = "py"
-sections = ["dev"]
+sections = ["tests"]
 version = "1.11.0"
 summary = "library with cross-python path, ini-parsing, io, code, log facilities"
 
 [[package]]
 name = "pyflakes"
-sections = ["dev"]
+sections = ["tests"]
 version = "2.4.0"
 summary = "passive checker of Python programs"
 
 [[package]]
 name = "pyparsing"
-sections = ["dev"]
+sections = ["tests"]
 version = "3.0.6"
 summary = "Python parsing module"
 
 [[package]]
 name = "pytest"
-sections = ["dev"]
+sections = ["tests"]
 version = "6.2.5"
 summary = "pytest: simple powerful testing with Python"
 dependencies = [
@@ -173,26 +182,20 @@ version = "3.0.5"
 summary = "Utilities to read single characters and key-strokes"
 
 [[package]]
-name = "tabulate"
-sections = ["default"]
-version = "0.8.9"
-summary = "Pretty-print tabular data"
-
-[[package]]
 name = "toml"
-sections = ["dev"]
+sections = ["tests"]
 version = "0.10.2"
 summary = "Python Library for Tom's Obvious, Minimal Language"
 
 [[package]]
 name = "tomli"
-sections = ["dev"]
+sections = ["tests"]
 version = "1.2.3"
 summary = "A lil' TOML parser"
 
 [[package]]
 name = "typing-extensions"
-sections = ["dev"]
+sections = ["tests"]
 version = "4.0.1"
 marker = "python_version >= '3.10'"
 summary = "Backported and Experimental Type Hints for Python 3.6+"
@@ -205,7 +208,7 @@ summary = "Measures the displayed width of unicode strings in a terminal"
 
 [metadata]
 lock_version = "2"
-content_hash = "sha256:2014d6d361f94ce3faf6a2e9d83a664c8f38d7425189313890bf454cd2584dd6"
+content_hash = "sha256:2666c74ff9d5e54cddafc78e69fa6f0e3a90d564b5399512be1bff2ed4fb63f7"
 
 [metadata.files]
 "appdirs 1.4.4" = [
@@ -225,6 +228,10 @@ content_hash = "sha256:2014d6d361f94ce3faf6a2e9d83a664c8f38d7425189313890bf454cd
 ]
 "autoflake 1.4" = [
     {file = "autoflake-1.4.tar.gz", hash = "sha256:61a353012cff6ab94ca062823d1fb2f692c4acda51c76ff83a8d77915fba51ea"},
+]
+"beautifultable 1.0.1" = [
+    {file = "beautifultable-1.0.1-py2.py3-none-any.whl", hash = "sha256:8079a7b4179fbb5c0f61d8b3ddd036a1e2b9246d1725b2d2fcde214f9c69f61b"},
+    {file = "beautifultable-1.0.1.tar.gz", hash = "sha256:d2c9ce84f93794d8f158b0c76effba968d08fd2b4acce306911fe78210654dd1"},
 ]
 "black 21.12b0" = [
     {file = "black-21.12b0-py3-none-any.whl", hash = "sha256:a615e69ae185e08fdd73e4715e260e2479c861b5740057fde6e8b4e3b7dd589f"},
@@ -297,10 +304,6 @@ content_hash = "sha256:2014d6d361f94ce3faf6a2e9d83a664c8f38d7425189313890bf454cd
 "readchar 3.0.5" = [
     {file = "readchar-3.0.5-py3-none-any.whl", hash = "sha256:4c31210edfdf3e706d042c58feba2e8b6d5768b7f37002c5579fc473552f8fbb"},
     {file = "readchar-3.0.5.tar.gz", hash = "sha256:d1f5b71e98c37b7f3b695fba9db978ab84f4f8a0ed879653d83e1d90a4c482c0"},
-]
-"tabulate 0.8.9" = [
-    {file = "tabulate-0.8.9-py3-none-any.whl", hash = "sha256:d7c013fe7abbc5e491394e10fa845f8f32fe54f8dc60c6622c6cf482d25d47e4"},
-    {file = "tabulate-0.8.9.tar.gz", hash = "sha256:eb1d13f25760052e8931f2ef80aaf6045a6cceb47514db8beab24cded16f13a7"},
 ]
 "toml 0.10.2" = [
     {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
