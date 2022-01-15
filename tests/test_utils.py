@@ -22,7 +22,10 @@ def test_date_to_string():
 def test_string_to_date():
     today = date.today()
     date_obj = string_to_date(today.strftime(DATE_FMT))
+    obj = string_to_date(today)
+
     assert date_obj == today
+    assert obj is None
 
 
 def test_parse_job_number():

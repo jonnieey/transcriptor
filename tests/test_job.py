@@ -62,3 +62,24 @@ def test_job_from_json():
     }
     job = Job.from_json(job_dict)
     assert job.job_number == job_dict["job_number"]
+
+
+def test_amount_paid_less_than_amount():
+    date_due = date.today() + timedelta(days=5)
+    job_dict = {
+        "date_received": date_to_string(TODAY),
+        "job_number": "56321",
+        "job_type": "Normal",
+        "job_rate": 0.4,
+        "total_quantity": 40,
+        "quantity": 20,
+        "date_due": date_to_string(date_due),
+        "date_submitted": None,
+        "status": "Pending",
+        "amount": 400,
+        "amount_paid": 500,
+        "job_path": "somerandompath",
+    }
+    job = Job.from_json(job_dict)
+    print(job.amount_paid)
+    assert job.amount_paid == 400

@@ -45,9 +45,7 @@ class Tests:
     def teardown_method(self):
         shutil.rmtree(CLIENTS_FOLDER.parent, ignore_errors=True)
 
-    def test_create_client(
-        self,
-    ):
+    def test_create_client(self):
         client = create_client(name=CLIENT_NAME, email=CLIENT_EMAIL)
         assert isinstance(client, Client) is True
         assert client.name == CLIENT_NAME
@@ -58,9 +56,7 @@ class Tests:
             client_json = json.load(fp)
         assert client_json["name"] == test_client.name
 
-    def test_create_task(
-        self,
-    ):
+    def test_create_task(self):
         job = create_task(
             date_received=TODAY,
             job_number="511113",
@@ -80,30 +76,27 @@ class Tests:
         assert client_jobs_json["client"] == test_client.to_dict()
         assert client_jobs_json["jobs_list"] == [test_job.to_dict()]
 
-    def test_get_date_received_as_date_string(
-        self,
-    ):
+    def test_get_date_received_as_date_string(self):
         date_received = "2021-11-12"
         date_rec = get_date_received(date_received)
         assert date_rec == datetime.strptime(date_received, DATE_FMT).date()
 
-    def test_get_date_received_as_int(
-        self,
-    ):
-        date_received = -2
-        date_rec = get_date_received(date_received)
-        assert date_rec == TODAY + timedelta(days=date_received)
+    def test_get_date_received_as_positive_int(self):
+        date_received_positive = 2
+        date_rec_positive = get_date_received(date_received_positive)
+        assert date_rec_positive == TODAY + timedelta(days=-abs(date_received_positive))
 
-    def test_get_date_due_as_date_string(
-        self,
-    ):
+    def test_get_date_received_as_negative_int(self):
+        date_received_negative = -2
+        date_rec_negative = get_date_received(date_received_negative)
+        assert date_rec_negative == TODAY + timedelta(days=date_received_negative)
+
+    def test_get_date_due_as_date_string(self):
         date_due = "2021-11-15"
         date_d = get_date_due(date_due)
         assert date_d == datetime.strptime(date_due, DATE_FMT).date()
 
-    def test_get_date_due_as_int(
-        self,
-    ):
+    def test_get_date_due_as_int(self):
         date_due = -2  # Convert to abs
         date_d = get_date_due(date_due)
         assert date_d == TODAY + timedelta(days=abs(date_due))
@@ -131,12 +124,7 @@ class Tests:
 
     def test_update_job(self, test_client, test_job):
         save_job_to_file(test_client, [test_job])
-        update_dict = {
-            "amount": 500,
-            "amount_paid": 400,
-            "status": "Done",
-            "date_submitted": TODAY.strftime(DATE_FMT),
-        }
+        update_dict = {"amount": 500, "amount_paid": 400, "status": "Done", "date_submitted": TODAY.strftime(DATE_FMT)}
         update_job(test_job.job_number, update_dict)
         with open(JOBS_FOLDER / test_client.name, "r") as fp:
             client_jobs_json = json.load(fp)
