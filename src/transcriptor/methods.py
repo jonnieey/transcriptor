@@ -259,8 +259,10 @@ def generate_invoice(client, jobs, amount):
 
 def filter_jobs_by_date(key, date_from, date_to, jobs):
     try:
-        date_from = string_to_date(date_from)
-        date_to = string_to_date(date_to)
+        if isinstance(date_from, str):
+            date_from = string_to_date(date_from)
+        elif isinstance(date_to, str):
+            date_to = string_to_date(date_to)
     except ValueError as error:
         print(error)
         return
@@ -268,6 +270,8 @@ def filter_jobs_by_date(key, date_from, date_to, jobs):
     filtered_jobs = []
 
     for job in jobs:
+        if isinstance(job, Job):
+            job = job.to_dict()
         date_key = string_to_date(job[key])
 
         if date_key is None:
