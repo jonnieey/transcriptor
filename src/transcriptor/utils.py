@@ -20,6 +20,7 @@ def create_default_config():
         works_folder=config["works_folder"],
         date_fmt=config["date_fmt"],
         config_folder=config["config_folder"],
+        invoices_folder=config["invoices_folder"],
     )
 
     save_config(conf)
@@ -62,7 +63,13 @@ def date_to_string(date_obj):
 
 
 def string_to_date(date_str):
-    return datetime.strptime(date_str, DATE_FMT).date()
+    try:
+        d = datetime.strptime(date_str, DATE_FMT).date()
+        return d
+    except TypeError as error:
+        return None
+    except ValueError as error:
+        return None
 
 
 def parse_job_number(zip_file):
@@ -146,3 +153,8 @@ def get_quantity(q, total_q=0.0):
                 return quantity
             except Exception:
                 return None
+
+
+def get_transcriber_info():
+    # placeholder for the function
+    return {"name": "Anderson", "area": "Nairobi", "country": "Kenya"}

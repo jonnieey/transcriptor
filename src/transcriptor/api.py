@@ -8,6 +8,9 @@ from beautifultable import BeautifulTable
 from transcriptor.methods import (
     create_client,
     create_task,
+    filter_jobs_by_date,
+    generate_invoice_docx,
+    generate_invoice_pdf,
     get_clients,
     get_jobs,
     get_totals,
@@ -194,3 +197,14 @@ def list_all_jobs(per_client=False, show_path=False):
             table.rows.append(totals_list)
             click.echo(table)
             table.clear()
+
+
+def create_invoice(client_name, date_from=None, date_to=None, as_docx=False):
+    client = get_client_object(client_name)
+    raw_jobs = get_jobs(client_name)
+    jobs = filter_jobs_by_date(key="date_submitted", date_from=date_from, date_to=date_to, jobs=raw_jobs)
+    amount, _ = get_totals(jobs)
+    if as_docx:
+        generate_invoice_docx(client, jobs, amount)
+    else:
+        generate_invoice_pdf(client, jobs, amount)

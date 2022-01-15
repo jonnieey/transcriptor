@@ -1,18 +1,25 @@
 import json
+import random
 import sys
 from datetime import date, datetime, timedelta
+from pathlib import Path
+
+import jinja2
+import pdfkit
+from docxtpl import DocxTemplate
 
 from transcriptor.client import Client
 from transcriptor.job import Job
-from transcriptor.utils import get_config
+from transcriptor.utils import get_config, get_transcriber_info, string_to_date
 
 settings = get_config()
 
-CONFIG_FOLDER, DATE_FMT, JOBS_FOLDER, CLIENTS_FOLDER = (
+CONFIG_FOLDER, JOBS_FOLDER, CLIENTS_FOLDER, DATE_FMT, INVOICES_FOLDER = (
     settings["config_folder"],
-    settings["date_fmt"],
     settings["jobs_folder"],
     settings["clients_folder"],
+    settings["date_fmt"],
+    settings["invoices_folder"],
 )
 
 
@@ -218,3 +225,94 @@ def get_totals(jobs):
         except TypeError as error:
             print(error)
     return amount_total, paid_amount_total
+
+
+def filter_jobs_by_date(key, date_from, date_to, jobs):
+    try:
+        if isinstance(date_from, str):
+            date_from = string_to_date(date_from)
+        if isinstance(date_to, str):
+            date_to = string_to_date(date_to)
+    except ValueError as error:
+        print(error)
+        return
+
+    filtered_jobs = []
+
+    for job in jobs:
+        if isinstance(job, Job):
+            job = job.to_dict()
+        date_key = string_to_date(job[key])
+
+        if date_key is None:
+            continue
+
+        if (date_key >= date_from) and (date_key <= date_to):
+            filtered_jobs.append(job)
+    return filtered_jobs
+
+
+def generate_invoice_docx(client, jobs, amount):
+    doc = DocxTemplate(Path(__file__).parent / "invoice_template.docx")
+
+    data = {
+        "invoice_number": random.randint(1, 100),
+        "created": date.today().strftime(DATE_FMT),
+        "due": (date.today() + timedelta(days=2)).strftime(DATE_FMT),
+    }
+    # implement get_transcriber_info function
+    personal_data = get_transcriber_info()
+
+    context = {
+        "client": client,
+        "jobs": jobs,
+        "amount": amount,
+        "data": data,
+        "personal_data": personal_data,
+    }
+
+    doc.render(context)
+
+    invoice_file_name = "%s-%s_invoice.docx" % (
+        date.today().strftime(DATE_FMT),
+        client.name,
+    )
+
+    if not INVOICES_FOLDER.exists():
+        INVOICES_FOLDER.mkdir(parents=True, exist_ok=True)
+
+    doc.save(INVOICES_FOLDER / invoice_file_name)
+
+
+def generate_invoice_pdf(client, jobs, amount):
+    data = {
+        "invoice_number": random.randint(1, 100),
+        "created": date.today().strftime(DATE_FMT),
+        "due": (date.today() + timedelta(days=2)).strftime(DATE_FMT),
+    }
+    # implement get_transcriber_info function
+    personal_data = get_transcriber_info()
+
+    context = {
+        "client": client,
+        "jobs": jobs,
+        "amount": amount,
+        "data": data,
+        "personal_data": personal_data,
+    }
+
+    template_loader = jinja2.FileSystemLoader(searchpath="./")
+    template_env = jinja2.Environment(loader=template_loader)
+    template_file = "invoice_template.html"
+    template = template_env.get_template(template_file)
+    output_text = template.render(context)
+
+    invoice_file_name = "%s-%s_invoice.pdf" % (
+        date.today().strftime(DATE_FMT),
+        client.name,
+    )
+
+    if not INVOICES_FOLDER.exists():
+        INVOICES_FOLDER.mkdir(parents=True, exist_ok=True)
+
+    pdfkit.from_string(output_text, INVOICES_FOLDER / invoice_file_name)

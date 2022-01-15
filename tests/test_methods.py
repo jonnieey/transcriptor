@@ -1,3 +1,4 @@
+import copy
 import json
 import shutil
 from datetime import date, datetime, timedelta
@@ -154,3 +155,33 @@ class Tests:
 
         assert amount_total == 32
         assert amount_paid == 30
+
+    def test_filter_jobs_by_date(self, test_job):
+        job1 = copy.copy(test_job)
+        job1.date_received = TODAY - timedelta(days=20)
+        job1.date_due = TODAY - timedelta(days=15)
+        job1.date_submitted = TODAY - timedelta(days=14)
+
+        job2 = copy.copy(test_job)
+        job2.date_received = TODAY - timedelta(days=10)
+        job2.date_due = TODAY - timedelta(days=5)
+        job2.date_submitted = TODAY - timedelta(days=6)
+
+        job3 = copy.copy(test_job)
+        job3.date_received = TODAY - timedelta(days=4)
+        job3.date_due = TODAY - timedelta(days=3)
+        job3.date_submitted = TODAY - timedelta(days=3)
+
+        jobs = [job for job in (job1, job2, job3)]
+
+        ten_days = TODAY - timedelta(days=10)
+        three_days = TODAY - timedelta(days=3)
+        thirty_days = TODAY - timedelta(days=30)
+
+        less_than_three_days = filter_jobs_by_date("date_received", three_days, TODAY, jobs)
+        less_than_ten_days = filter_jobs_by_date("date_due", ten_days, TODAY, jobs)
+        more_than_ten_days = filter_jobs_by_date("date_submitted", thirty_days, ten_days, jobs)
+
+        assert len(less_than_three_days) == 0
+        assert len(less_than_ten_days) == 2
+        assert len(more_than_ten_days) == 1
