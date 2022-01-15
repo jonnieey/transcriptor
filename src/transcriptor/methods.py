@@ -114,7 +114,7 @@ def get_date_received(date_received=None):
         date_received = int(date_received)
         if date_received > 0:
             date_received *= -1
-        date_rec = date.today() + timedelta(days=int(date_received))
+        date_rec = date.today() + timedelta(days=date_received)
         return date_rec
 
     except ValueError:
@@ -122,8 +122,7 @@ def get_date_received(date_received=None):
             date_rec = datetime.strptime(date_received, DATE_FMT).date()
             return date_rec
         except ValueError:
-            print("Enter valid date [Year-month-day] format")
-            sys.exit(1)
+            return None
 
 
 def get_date_due(date_due=None):
@@ -157,15 +156,18 @@ def get_clients(clients_folder=CLIENTS_FOLDER):
 def get_jobs(client_name=None, per_client=False):
     if JOBS_FOLDER.exists():
         if client_name is not None:
-            client_jobs_file = JOBS_FOLDER / client_name
-            if not client_jobs_file.exists():
-                print("Client does not exist")
-                return None
-            else:
-                with open(client_jobs_file, "r") as fp:
-                    client_json = json.load(fp)
-                    jobs = client_json["jobs_list"]
-                    return jobs
+            jobs = []
+            client_jobs_files = JOBS_FOLDER.iterdir()
+            for client_job_file in client_jobs_files:
+                if client_name.lower() not in client_job_file.name.lower():
+                    continue
+
+                else:
+                    with open(client_job_file, "r") as fp:
+                        client_json = json.load(fp)
+                        jobs = client_json["jobs_list"]
+                        break
+            return jobs
 
         else:
             jobs = []
@@ -224,7 +226,7 @@ def get_totals(jobs):
             paid_amount_total += float(amount_paid)
         except TypeError as error:
             print(error)
-    return amount_total, paid_amount_total
+    return round(amount_total, 2), round(paid_amount_total, 2)
 
 
 def filter_jobs_by_date(key, date_from, date_to, jobs):

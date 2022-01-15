@@ -2,11 +2,17 @@ from datetime import date
 
 import click
 
-from transcriptor import *
-from transcriptor.api import *
-from transcriptor.methods import *
+from transcriptor.api import create_job, get_client_object, list_all_jobs, list_client_jobs
+from transcriptor.methods import DATE_FMT, get_date_due, get_date_received, update_job
 
 TODAY = date.today().strftime(DATE_FMT)
+
+
+def check_client(ctx, params, value):
+    if get_client_object(value) is None:
+        raise click.UsageError("Client %s does not exist" % (value))
+    else:
+        return value
 
 
 @click.group()
@@ -21,18 +27,18 @@ def cli(**kwargs):
     "-r",
     "--date-received",
     default=TODAY,
+    required=True,
+    prompt="Enter date job received",
     help="Specify date job received fmt: YYYY-MM-DD",
 )
-@click.option("-d", "--date-due", help="Specify date job due fmt: YYYY-MM-DD")
-@click.option("-c", "--client", help="Specify client", prompt=True)
+@click.option(
+    "-d", "--date-due", required=True, help="Specify date job due fmt: YYYY-MM-DD", prompt="Enter date job due"
+)
+@click.option("-c", "--client", help="Specify client name", prompt="Enter client's name", callback=check_client)
 def create(file, date_received=None, date_due=None, client=None, **kwargs):
     """Create job"""
     date_received = get_date_received(date_received)
-
-    if date_due == None:
-        date_due = get_date_due(click.prompt("Enter date due"))
-    else:
-        date_due = get_date_due(date_due)
+    date_due = get_date_due(date_due)
 
     client_obj = get_client_object(client)
     create_job(file, date_received, date_due, client_obj)
@@ -56,14 +62,44 @@ def list(client=None, all=None, per_client=None, show_path=None, **kwargs):
         list_client_jobs(client, show_path=show_path)
 
 
+def check_date_received(ctx, params, value):
+    if value == None:
+        return value
+
+    if value == "":
+        raise click.BadParameter("Enter valid argument [YYYY-MM-DD, or int]")
+
+    d = get_date_received(value)
+    if d is None:
+        raise click.BadParameter("Enter valid argument [YYYY-MM-DD, or int]")
+    else:
+        return str(d)
+
+
+def check_date_due(ctx, params, value):
+    if value == None:
+        return value
+
+    if value == "":
+        raise click.BadParameter("Enter valid argument [YYYY-MM-DD, or int]")
+
+    d = get_date_due(value)
+    if d is None:
+        raise click.BadParameter("Enter valid argument [YYYY-MM-DD, or int]")
+    else:
+        return str(d)
+
+
 @cli.command()
 @click.option("-j", "--job_number", required=True, help="Specify job number")
 @click.option("-c", "--client", help="Specify client")
-@click.option("-r", "--date-received", help="Specify date job received fmt: YYYY-MM-DD")
-@click.option("-d", "--date-due", help="Specify date job due fmt: YYYY-MM-DD")
+@click.option("-r", "--date-received", help="Specify date job received fmt: YYYY-MM-DD", callback=check_date_received)
+@click.option("-d", "--date-due", help="Specify date job due fmt: YYYY-MM-DD", callback=check_date_due)
+@click.option("-b", "--date-submitted", help="Specify date job submitted fmt: YYYY-MM-DD")
 @click.option("-s", "--status", help="Specify status of job")
 @click.option("-a", "--amount_paid", type=float, help="Specify amount paid")
 def update(**kwargs):
     """Update job"""
     d = {k: v for k, v in kwargs.items() if v is not None}
+    print(d)
     update_job(kwargs["job_number"], d)

@@ -34,12 +34,7 @@ class Client:
         return d
 
     def to_json(self, indent=2, ensure_ascii=False):
-        return json.dumps(
-            self.to_dict(),
-            indent=indent,
-            ensure_ascii=ensure_ascii,
-            sort_keys=True,
-        )
+        return json.dumps(self.to_dict(), indent=indent, ensure_ascii=ensure_ascii, sort_keys=True)
 
     @classmethod
     def from_json(cls, js=None):

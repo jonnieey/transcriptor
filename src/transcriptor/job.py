@@ -30,8 +30,11 @@ class Job:
         self.job_rate = job_rate
         self.date_due = date_due
         self.amount = amount
-        self.amount_paid = amount_paid
         self.job_path = job_path
+        self.amount_paid = amount_paid
+
+        if amount_paid > self.amount:
+            self.amount_paid = self.amount
 
         if date_due is None and job_type:
             date_due = self.get_date_due(date_received, job_type)

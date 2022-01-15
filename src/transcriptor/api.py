@@ -43,7 +43,7 @@ def get_client_object(client_name):
     clients = get_clients(CLIENTS_FOLDER)
 
     for client_obj in clients:
-        if client_name == client_obj.name:
+        if client_name.lower() in client_obj.name.lower():
             client = client_obj
             return client
         else:
@@ -75,13 +75,15 @@ def create_job(zip_file, date_received, date_due, client):
         task = {}
 
         click.echo(media_file)
-        work_on_file = ""
-        # while work_on_file == "":
-        work_on_file = click.prompt("? Work on this file [Y/n]: ")
+        work_on_file = click.prompt(
+            "Work on this file", type=click.Choice(["Y", "N"], case_sensitive=False), show_choices=True
+        )
         if work_on_file.lower() == "y":
             total_quantity = get_media_duration(media_file)
             job_type = click.prompt(
-                "Specify job type", type=click.Choice(["Normal", "Interpreted", "Expedite"]), show_choices=True
+                "Specify job type",
+                type=click.Choice(["Normal", "Interpreted", "Expedite"], case_sensitive=False),
+                show_choices=True,
             )
             quantity = get_quantity(click.prompt("Enter quantity of task"), total_q=total_quantity)
             task = create_task(
