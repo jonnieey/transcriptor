@@ -12,10 +12,7 @@ def test_client():
 
 
 def test_client_to_dict(test_client):
-    client_dict = {
-        "name": "TestClient",
-        "email": "TestEmail",
-    }
+    client_dict = {"name": "TestClient", "email": "TestEmail"}
 
     assert test_client.to_dict() == client_dict
 

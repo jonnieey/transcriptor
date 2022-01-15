@@ -66,9 +66,7 @@ def string_to_date(date_str):
     try:
         d = datetime.strptime(date_str, DATE_FMT).date()
         return d
-    except TypeError as error:
-        return None
-    except ValueError as error:
+    except (TypeError, ValueError):
         return None
 
 
@@ -134,11 +132,7 @@ def sec_to_min(seconds):
 
 
 def get_quantity(q, total_q=0.0):
-    quantity_words = {
-        "whole": 1,
-        "half": 0.5,
-        "quarter": 0.25,
-    }
+    quantity_words = {"whole": 1, "half": 0.5, "quarter": 0.25}
 
     try:
         if isinstance(float(q), float):
