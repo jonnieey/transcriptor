@@ -18,6 +18,7 @@ def cli(**kwargs):
 @click.option("-c", "--client", required=True, help="Specify client", prompt=True)
 @click.option("-f", "--date-from", required=True, help="Specify date from", prompt="Include jobs from [YYYY-MM-DD]")
 @click.option("-t", "--date-to", default=TODAY, help="Specify date to", prompt="Include jobs to  ")
-def create(client=None, date_from=None, date_to=None, **kwargs):
+@click.option("-d", "--as-docx", is_flag=True, help="Create invoice as docx")
+def create(client=None, date_from=None, date_to=None, as_docx=None, **kwargs):
     """Create client invoice"""
-    create_invoice(client_name=client, date_from=date_from, date_to=date_to)
+    create_invoice(client_name=client, date_from=date_from, date_to=date_to, as_docx=as_docx)

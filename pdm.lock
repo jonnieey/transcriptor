@@ -152,6 +152,12 @@ version = "0.9.0"
 summary = "Utility library for gitignore style pattern matching of file paths."
 
 [[package]]
+name = "pdfkit"
+sections = ["default"]
+version = "1.0.0"
+summary = "Wkhtmltopdf python wrapper to convert html to pdf using the webkit rendering engine and qt"
+
+[[package]]
 name = "platformdirs"
 sections = ["tests"]
 version = "2.4.1"
@@ -275,7 +281,7 @@ summary = "Measures the displayed width of unicode strings in a terminal"
 
 [metadata]
 lock_version = "2"
-content_hash = "sha256:d7e34998aa6ae9389053f46c7d20808488be89124521ab1742d802cf46bc1c60"
+content_hash = "sha256:c47b1742c8c9e06b1ce14b9c8d2a87a712922cdf4ec6915e54ac2984d6f644f2"
 
 [metadata.files]
 "appdirs 1.4.4" = [
@@ -475,6 +481,11 @@ content_hash = "sha256:d7e34998aa6ae9389053f46c7d20808488be89124521ab1742d802cf4
 "pathspec 0.9.0" = [
     {file = "pathspec-0.9.0-py2.py3-none-any.whl", hash = "sha256:7d15c4ddb0b5c802d161efc417ec1a2558ea2653c2e8ad9c19098201dc1c993a"},
     {file = "pathspec-0.9.0.tar.gz", hash = "sha256:e564499435a2673d586f6b2130bb5b95f04a3ba06f81b8f895b651a3c76aabb1"},
+]
+"pdfkit 1.0.0" = [
+    {file = "pdfkit-1.0.0-py2-none-any.whl", hash = "sha256:cc122e5aed594198ff7aaa566f2950d2163763576ab891c161bb1f6c630f5a8e"},
+    {file = "pdfkit-1.0.0-py3-none-any.whl", hash = "sha256:a7a4ca0d978e44fa8310c4909f087052430a6e8e0b1dd7ceef657f139789f96f"},
+    {file = "pdfkit-1.0.0.tar.gz", hash = "sha256:992f821e1e18fc8a0e701ecae24b51a2d598296a180caee0a24c0af181da02a9"},
 ]
 "platformdirs 2.4.1" = [
     {file = "platformdirs-2.4.1-py3-none-any.whl", hash = "sha256:1d7385c7db91728b83efd0ca99a5afb296cab9d0ed8313a45ed8ba17967ecfca"},
