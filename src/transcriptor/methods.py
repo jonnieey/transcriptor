@@ -1,18 +1,24 @@
 import json
+import random
 import sys
 from datetime import date, datetime, timedelta
+from pathlib import Path
+
+from docxtpl import DocxTemplate
 
 from transcriptor.client import Client
 from transcriptor.job import Job
-from transcriptor.utils import get_config
+from transcriptor.utils import get_config, get_transcriber_info
 
 settings = get_config()
 
-CONFIG_FOLDER, DATE_FMT, JOBS_FOLDER, CLIENTS_FOLDER = (
+CONFIG_FOLDER, DATE_FMT, JOBS_FOLDER, CLIENTS_FOLDER, DATE_FMT, INVOICES_FOLDER = (
     settings["config_folder"],
     settings["date_fmt"],
     settings["jobs_folder"],
     settings["clients_folder"],
+    settings["date_fmt"],
+    settings["invoices_folder"],
 )
 
 
@@ -218,3 +224,35 @@ def get_totals(jobs):
         except TypeError as error:
             print(error)
     return amount_total, paid_amount_total
+
+
+def generate_invoice(client, jobs, amount):
+    doc = DocxTemplate(Path(__file__).parent / "invoice_template.docx")
+
+    data = {
+        "invoice_number": random.randint(1, 100),
+        "created": date.today().strftime(DATE_FMT),
+        "due": (date.today() + timedelta(days=2)).strftime(DATE_FMT),
+    }
+    # implement get_transcriber_info function
+    personal_data = get_transcriber_info()
+
+    context = {
+        "client": client,
+        "jobs": jobs,
+        "amount": amount,
+        "data": data,
+        "personal_data": personal_data,
+    }
+
+    doc.render(context)
+
+    invoice_file_name = "%s-%s_invoice.docx" % (
+        date.today().strftime(DATE_FMT),
+        client.name,
+    )
+
+    if not INVOICES_FOLDER.exists():
+        INVOICES_FOLDER.mkdir(parents=True, exist_ok=True)
+
+    doc.save(INVOICES_FOLDER / invoice_file_name)

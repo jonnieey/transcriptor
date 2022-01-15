@@ -20,6 +20,7 @@ def create_default_config():
         works_folder=config["works_folder"],
         date_fmt=config["date_fmt"],
         config_folder=config["config_folder"],
+        invoices_folder=config["invoices_folder"],
     )
 
     save_config(conf)
@@ -146,3 +147,8 @@ def get_quantity(q, total_q=0.0):
                 return quantity
             except Exception:
                 return None
+
+
+def get_transcriber_info():
+    # placeholder for the function
+    return {"name": "Anderson", "area": "Nairobi", "country": "Kenya"}

@@ -12,8 +12,8 @@ dependencies = [
     "readchar~=3.0",
     "questionary~=1.10",
     "click~=8.0",
-    
     "beautifultable~=1.0",
+    "docxtpl~=0.15",
 ]
 requires-python = ">=3.9"
 dynamic = ["classifiers"]
