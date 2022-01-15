@@ -63,7 +63,13 @@ def date_to_string(date_obj):
 
 
 def string_to_date(date_str):
-    return datetime.strptime(date_str, DATE_FMT).date()
+    try:
+        d = datetime.strptime(date_str, DATE_FMT).date()
+        return d
+    except TypeError as error:
+        return None
+    except ValueError as error:
+        return None
 
 
 def parse_job_number(zip_file):

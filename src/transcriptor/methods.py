@@ -8,13 +8,12 @@ from docxtpl import DocxTemplate
 
 from transcriptor.client import Client
 from transcriptor.job import Job
-from transcriptor.utils import get_config, get_transcriber_info
+from transcriptor.utils import get_config, get_transcriber_info, string_to_date
 
 settings = get_config()
 
-CONFIG_FOLDER, DATE_FMT, JOBS_FOLDER, CLIENTS_FOLDER, DATE_FMT, INVOICES_FOLDER = (
+CONFIG_FOLDER, JOBS_FOLDER, CLIENTS_FOLDER, DATE_FMT, INVOICES_FOLDER = (
     settings["config_folder"],
-    settings["date_fmt"],
     settings["jobs_folder"],
     settings["clients_folder"],
     settings["date_fmt"],
@@ -256,3 +255,24 @@ def generate_invoice(client, jobs, amount):
         INVOICES_FOLDER.mkdir(parents=True, exist_ok=True)
 
     doc.save(INVOICES_FOLDER / invoice_file_name)
+
+
+def filter_jobs_by_date(key, date_from, date_to, jobs):
+    try:
+        date_from = string_to_date(date_from)
+        date_to = string_to_date(date_to)
+    except ValueError as error:
+        print(error)
+        return
+
+    filtered_jobs = []
+
+    for job in jobs:
+        date_key = string_to_date(job[key])
+
+        if date_key is None:
+            continue
+
+        if (date_key >= date_from) and (date_key <= date_to):
+            filtered_jobs.append(job)
+    return filtered_jobs
