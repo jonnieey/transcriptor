@@ -11,6 +11,7 @@ TODAY = date.today().strftime(DATE_FMT)
 def check_client(ctx, params, value):
     if get_client_object(value) is None:
         raise click.UsageError("Client %s does not exist" % (value))
+        sys.exit("Client %s does not exist" % (value))
     else:
         return value
 
@@ -23,6 +24,7 @@ def cli(**kwargs):
 
 @cli.command()
 @click.argument("file", type=click.Path(exists=True))
+@click.option("-c", "--client", help="Specify client name", prompt="Enter client's name", callback=check_client)
 @click.option(
     "-r",
     "--date-received",
@@ -34,7 +36,6 @@ def cli(**kwargs):
 @click.option(
     "-d", "--date-due", required=True, help="Specify date job due fmt: YYYY-MM-DD", prompt="Enter date job due"
 )
-@click.option("-c", "--client", help="Specify client name", prompt="Enter client's name", callback=check_client)
 def create(file, date_received=None, date_due=None, client=None, **kwargs):
     """Create job"""
     date_received = get_date_received(date_received)

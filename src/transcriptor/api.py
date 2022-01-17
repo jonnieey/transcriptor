@@ -55,7 +55,7 @@ def get_client_object(client_name: str) -> Client:
         else:
             continue
 
-    raise Exception("Client does not exist")
+    sys.exit("Client does not exist")
 
 
 def create_job(zip_file: Path, date_received: str, date_due: str, client: Client) -> None:
@@ -73,8 +73,7 @@ def create_job(zip_file: Path, date_received: str, date_due: str, client: Client
     try:
         zipfile.ZipFile(new_zip_file).extractall(job_folder)
     except Exception as error:
-        click.echo(error)
-        sys.exit(1)
+        sys.exit(error)
 
     tasks = []
 
@@ -128,7 +127,7 @@ def list_client_jobs(client_name: str, show_path=False) -> None:
     raw_jobs = get_jobs(client_name)
 
     if not raw_jobs:
-        raise Exception("No Jobs available")
+        sys.exit("No Jobs available")
 
     terminal_size = shutil.get_terminal_size()
     table = BeautifulTable(maxwidth=terminal_size.columns)
@@ -167,12 +166,12 @@ def list_all_jobs(per_client: bool = False, show_path: bool = False) -> None:
     if per_client:
         client_raw_jobs = get_jobs_per_client()
         if not client_raw_jobs:
-            raise Exception("No Jobs available")
+            sys.exit("No Jobs available")
     else:
         raw_jobs = get_jobs()
 
         if not raw_jobs:
-            raise Exception("No Jobs available")
+            sys.exit("No Jobs available")
 
     table = BeautifulTable(maxwidth=terminal_size.columns)
     table.columns.padding = 0

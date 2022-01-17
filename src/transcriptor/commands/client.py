@@ -10,7 +10,7 @@ def validate_email(ctx, params, value):
     if match is None:
         raise click.BadParameter("Enter a valid email address")
     else:
-        return value
+        return value.lower()
 
 
 @click.group()
