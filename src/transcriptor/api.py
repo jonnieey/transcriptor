@@ -1,10 +1,15 @@
 import shutil
 import sys
 import zipfile
+from datetime import date
+from pathlib import Path
+from typing import Any, Union
 
 import click
 from beautifultable import BeautifulTable
 
+from transcriptor.client import Client
+from transcriptor.job import Job
 from transcriptor.methods import (
     create_client,
     create_task,
@@ -13,20 +18,21 @@ from transcriptor.methods import (
     generate_invoice_pdf,
     get_clients,
     get_jobs,
+    get_jobs_per_client,
     get_totals,
     save_client,
     save_job_to_file,
 )
 from transcriptor.utils import (
-    get_config,
     get_media_duration,
     get_media_files,
     get_quantity,
+    get_settings,
     parse_job_due_date,
     parse_job_number,
 )
 
-settings = get_config()
+settings = get_settings()
 CLIENTS_FOLDER, WORKS_FOLDER, JOBS_FOLDER = (
     settings["clients_folder"],
     settings["works_folder"],
@@ -34,12 +40,12 @@ CLIENTS_FOLDER, WORKS_FOLDER, JOBS_FOLDER = (
 )
 
 
-def add_client(name=None, email=None, clients_folder=CLIENTS_FOLDER):
+def add_client(name: str, email: str, clients_folder: Path = CLIENTS_FOLDER) -> None:
     client = create_client(name=name, email=email)
     save_client(client=client, clients_folder=clients_folder)
 
 
-def get_client_object(client_name):
+def get_client_object(client_name: str) -> Client:
     clients = get_clients(CLIENTS_FOLDER)
 
     for client_obj in clients:
@@ -49,8 +55,10 @@ def get_client_object(client_name):
         else:
             continue
 
+    raise Exception("Client does not exist")
 
-def create_job(zip_file, date_received, date_due, client):
+
+def create_job(zip_file: Path, date_received: str, date_due: str, client: Client) -> None:
     job_number = parse_job_number(zip_file)
     if date_due is None:
         date_due = parse_job_due_date(zip_file)
@@ -72,7 +80,6 @@ def create_job(zip_file, date_received, date_due, client):
 
     media_files = get_media_files(job_folder)
     for media_file in media_files:
-        task = {}
 
         click.echo(media_file)
         work_on_file = click.prompt(
@@ -85,7 +92,7 @@ def create_job(zip_file, date_received, date_due, client):
                 type=click.Choice(["Normal", "Interpreted", "Expedite"], case_sensitive=False),
                 show_choices=True,
             )
-            quantity = get_quantity(click.prompt("Enter quantity of task"), total_q=total_quantity)
+            quantity = get_quantity(click.prompt("Enter quantity of task"), total_quantity=total_quantity)
             task = create_task(
                 date_received=date_received,
                 job_number=job_number,
@@ -103,7 +110,7 @@ def create_job(zip_file, date_received, date_due, client):
     save_job_to_file(client, tasks, JOBS_FOLDER)
 
 
-def list_clients():
+def list_clients() -> list[Client]:
     clients = get_clients(CLIENTS_FOLDER)
     headers = ["", "Name", "Email"]
 
@@ -117,91 +124,118 @@ def list_clients():
     return clients
 
 
-def list_client_jobs(client_name, show_path=False):
+def list_client_jobs(client_name: str, show_path=False) -> None:
     raw_jobs = get_jobs(client_name)
-    if raw_jobs is None:
-        return
+
+    if not raw_jobs:
+        raise Exception("No Jobs available")
 
     terminal_size = shutil.get_terminal_size()
     table = BeautifulTable(maxwidth=terminal_size.columns)
+    table.set_style(BeautifulTable.STYLE_BOX)
+
+    jobs = []
 
     amount, amount_paid = get_totals(raw_jobs)
+
     if show_path is False:
         totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid]
         for job in raw_jobs:
-            job.pop("job_path")
-        headers = [x.replace("_", " ").title() for x in list(raw_jobs[0].keys())]
+            job_dict = job.to_dict()
+            job_dict.pop("job_path")
+            jobs.append(job_dict)
+
+        headers = [x.replace("_", " ").title() for x in jobs[0]]
         table.columns.header = headers
+
     else:
         totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid, None]
-        headers = [x.replace("_", " ").title() for x in list(raw_jobs[0].keys())]
+        jobs.extend([j.to_dict() for j in raw_jobs])
+        headers = [x.replace("_", " ").title() for x in jobs[0]]
         table.columns.header = headers
         table.columns.padding = 0
 
-    table.set_style(BeautifulTable.STYLE_BOX)
-
-    for job in raw_jobs:
-        table.rows.append(list(job.values()))
+    for j in jobs:
+        table.rows.append(list(j.values()))
     table.rows.append(totals_list)
     click.echo(table)
 
 
-def list_all_jobs(per_client=False, show_path=False):
+def list_all_jobs(per_client: bool = False, show_path: bool = False) -> None:
     terminal_size = shutil.get_terminal_size()
 
     if per_client:
-        raw_jobs = get_jobs(per_client=per_client)
+        client_raw_jobs = get_jobs_per_client()
+        if not client_raw_jobs:
+            raise Exception("No Jobs available")
     else:
         raw_jobs = get_jobs()
 
-    if raw_jobs is None:
-        return
+        if not raw_jobs:
+            raise Exception("No Jobs available")
 
     table = BeautifulTable(maxwidth=terminal_size.columns)
     table.columns.padding = 0
     table.set_style(BeautifulTable.STYLE_BOX)
 
+    jobs = []
+
     if per_client is False:
         amount, amount_paid = get_totals(raw_jobs)
         if show_path is False:
             totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid]
+
             for job in raw_jobs:
-                job.pop("job_path")
+                job_dict = job.to_dict()
+                job_dict.pop("job_path")
+                jobs.append(job_dict)
+
+            headers = [x.replace("_", " ").title() for x in jobs[0]]
+            table.columns.header = headers
+
         else:
             totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid, None]
+            jobs.extend([j.to_dict() for j in raw_jobs])
+            headers = [x.replace("_", " ").title() for x in jobs[0]]
+            table.columns.header = headers
+            table.columns.padding = 0
 
-        headers = [x.replace("_", " ").title() for x in list(raw_jobs[0].keys())]
-        table.columns.header = headers
-
-        for job in raw_jobs:
-            table.rows.append(list(job.values()))
+        for j in jobs:
+            table.rows.append(list(j.values()))
         table.rows.append(totals_list)
         click.echo(table)
 
     else:
 
-        for _ in raw_jobs:
-            amount, amount_paid = get_totals(_["jobs_list"])
+        jobs = []
+        for client_job_dict in client_raw_jobs:
+            amount, amount_paid = get_totals(client_job_dict["jobs_list"])
 
             if show_path is False:
                 totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid]
-                for job in _["jobs_list"]:
-                    job.pop("job_path")
+                for job in client_job_dict["jobs_list"]:
+                    job_dict = job.to_dict()
+                    job_dict.pop("job_path")
+                    jobs.append(job_dict)
             else:
                 totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid, None]
+                jobs.extend([j.to_dict() for j in client_job_dict["jobs_list"]])
 
-            headers = [x.replace("_", " ").title() for x in list(_["jobs_list"][0].keys())]
+            headers = [x.replace("_", " ").title() for x in jobs[0].keys()]
             table.columns.header = headers
 
-            click.echo(_["client"]["name"])
-            for job in _["jobs_list"]:
-                table.rows.append(list(job.values()))
+            click.echo(client_job_dict["client"]["name"])
+
+            for j in jobs:
+                table.rows.append(list(j.values()))
             table.rows.append(totals_list)
             click.echo(table)
             table.clear()
 
 
-def create_invoice(client_name, date_from=None, date_to=None, as_docx=False):
+def create_invoice(
+    client_name: str, date_from: Union[str, date], date_to: Union[str, date], as_docx: bool = False
+) -> None:
     client = get_client_object(client_name)
     raw_jobs = get_jobs(client_name)
     jobs = filter_jobs_by_date(key="date_submitted", date_from=date_from, date_to=date_to, jobs=raw_jobs)

@@ -1,8 +1,8 @@
 import json
 import random
-import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any, Optional, Tuple, Union
 
 import jinja2
 import pdfkit
@@ -10,9 +10,9 @@ from docxtpl import DocxTemplate
 
 from transcriptor.client import Client
 from transcriptor.job import Job
-from transcriptor.utils import get_config, get_transcriber_info, string_to_date
+from transcriptor.utils import get_settings, get_transcriber_info, string_to_date
 
-settings = get_config()
+settings = get_settings()
 
 CONFIG_FOLDER, JOBS_FOLDER, CLIENTS_FOLDER, DATE_FMT, INVOICES_FOLDER = (
     settings["config_folder"],
@@ -23,15 +23,13 @@ CONFIG_FOLDER, JOBS_FOLDER, CLIENTS_FOLDER, DATE_FMT, INVOICES_FOLDER = (
 )
 
 
-def create_client(name=None, email=None):
-    if name is None or email is None:
-        return None
+def create_client(name: str, email: str) -> Client:
 
     client = Client(name, email)
     return client
 
 
-def save_client(client, clients_folder=CLIENTS_FOLDER):
+def save_client(client: Client, clients_folder: Path = CLIENTS_FOLDER) -> int:
     if not clients_folder.exists():
         clients_folder.mkdir(parents=True, exist_ok=True)
 
@@ -41,21 +39,21 @@ def save_client(client, clients_folder=CLIENTS_FOLDER):
     try:
         with open(client_file, "w") as fp:
             fp.write(client_json)
-        return True
+        return 0
     except Exception as error:
         print(error)
-        return False
+        return 1
 
 
 def create_task(
-    date_due,
-    date_received,
-    job_number,
-    job_type,
-    quantity,
-    total_quantity,
-    job_path,
-):
+    date_due: Union[date, str],
+    date_received: Union[date, str],
+    job_number: str,
+    job_type: str,
+    quantity: float,
+    total_quantity: float,
+    job_path: Path,
+) -> Job:
     task = Job(
         date_due=date_due,
         date_received=date_received,
@@ -68,7 +66,12 @@ def create_task(
     return task
 
 
-def save_job_to_file(client, jobs, jobs_folder=JOBS_FOLDER):
+def save_job_to_file(
+    client: Client,
+    jobs: list[Job],
+    jobs_folder: Path = JOBS_FOLDER,
+) -> int:
+
     if not jobs_folder.exists():
         jobs_folder.mkdir(parents=True, exist_ok=True)
     client_jobs_file = jobs_folder / client.name
@@ -97,50 +100,39 @@ def save_job_to_file(client, jobs, jobs_folder=JOBS_FOLDER):
     try:
         with open(client_jobs_file, "w") as fp:
             fp.write(job_json)
-        return True
+        return 0
     except Exception as error:
         print(error)
-        return False
+        return 1
 
 
-def get_date_received(date_received=None):
-    if date_received is None:
-        return None
-
-    elif date_received == "":
-        return date.today()
+def get_date_received(date_received: str) -> date:
 
     try:
-        date_received = int(date_received)
-        if date_received > 0:
-            date_received *= -1
-        date_rec = date.today() + timedelta(days=date_received)
+        if isinstance(int(date_received), int):
+            date_r = int(date_received)
+            if date_r > 0:
+                date_r *= -1
+            date_rec = date.today() + timedelta(days=date_r)
         return date_rec
 
     except ValueError:
-        try:
-            date_rec = datetime.strptime(date_received, DATE_FMT).date()
-            return date_rec
-        except ValueError:
-            return None
+        date_rec = datetime.strptime(date_received, DATE_FMT).date()
+        return date_rec
 
 
-def get_date_due(date_due=None):
+def get_date_due(date_due: str) -> date:
     try:
-        date_due = abs(int(date_due))
-        date_d = date.today() + timedelta(days=date_due)
+        if isinstance(int(date_due), int):
+            date_d = date.today() + timedelta(days=abs(int(date_due)))
         return date_d
 
     except ValueError:
-        try:
-            date_d = datetime.strptime(date_due, DATE_FMT).date()
-            return date_d
-        except ValueError:
-            print("Enter valid date [Year-month-day] format")
-            sys.exit(1)
+        date_d = datetime.strptime(date_due, DATE_FMT).date()
+        return date_d
 
 
-def get_clients(clients_folder=CLIENTS_FOLDER):
+def get_clients(clients_folder: Path = CLIENTS_FOLDER) -> list[Client]:
     clients = []
     if not clients_folder.exists():
         return []
@@ -153,10 +145,11 @@ def get_clients(clients_folder=CLIENTS_FOLDER):
     return clients
 
 
-def get_jobs(client_name=None, per_client=False):
+def get_jobs(client_name: Optional[str] = None) -> list[Job]:
+    jobs = []
+
     if JOBS_FOLDER.exists():
-        if client_name is not None:
-            jobs = []
+        if client_name:
             client_jobs_files = JOBS_FOLDER.iterdir()
             for client_job_file in client_jobs_files:
                 if client_name.lower() not in client_job_file.name.lower():
@@ -165,29 +158,34 @@ def get_jobs(client_name=None, per_client=False):
                 else:
                     with open(client_job_file, "r") as fp:
                         client_json = json.load(fp)
-                        jobs = client_json["jobs_list"]
+                        jobs.extend([Job.from_json(j) for j in client_json["jobs_list"]])
                         break
-            return jobs
-
         else:
-            jobs = []
             job_files = JOBS_FOLDER.iterdir()
-            if per_client is False:
-                for job_file in job_files:
-                    with open(job_file, "r") as fp:
-                        client_json = json.load(fp)
-                        [jobs.append(job) for job in client_json["jobs_list"]]
-            else:
-                for job_file in job_files:
-                    with open(job_file, "r") as fp:
-                        client_json = json.load(fp)
-                        jobs.append(client_json)
+            for job_file in job_files:
+                with open(job_file, "r") as fp:
+                    client_json = json.load(fp)
+                    jobs.extend([Job.from_json(job) for job in client_json["jobs_list"]])
 
-                        # [jobs.append(job) for job in client_json["jobs_list"]]
-            return jobs
+    return jobs
 
 
-def update_job(job_number, d={}):
+def get_jobs_per_client() -> list[dict[Any, Any]]:
+    jobs = []
+    if JOBS_FOLDER.exists():
+        job_files = JOBS_FOLDER.iterdir()
+        for job_file in job_files:
+            j = {}
+            with open(job_file, "r") as fp:
+                client_json = json.load(fp)
+            j["client"] = client_json["client"]
+            j["jobs_list"] = [Job.from_json(j) for j in client_json["jobs_list"]]
+            jobs.append(j)
+    return jobs
+
+
+def update_job(job_number: str, d: dict = {}) -> int:
+    updated = 1
     for job_file in JOBS_FOLDER.iterdir():
 
         with open(job_file, "r") as fd:
@@ -200,22 +198,24 @@ def update_job(job_number, d={}):
                     updated_job = Job.from_json(job)
                     jobs_list[idx] = updated_job.to_dict()
                     c_json["jobs_list"] = jobs_list
+                    updated = 0
                     break  # Allow user to select if multiple jobs exists; Only updates the first instance
 
         with open(job_file, "w") as fd:
             json.dump(c_json, fd, indent=2, ensure_ascii=False)
+    return updated
 
 
-def get_totals(jobs):
-    amount_total = 0
-    paid_amount_total = 0
+def get_totals(jobs: list[Job]) -> Tuple[float, float]:
+    amount_total: float = 0.0
+    paid_amount_total: float = 0.0
 
     for job in jobs:
 
         if isinstance(job, dict):
-            quantity = job["quantity"]
-            rate = job["job_rate"]
-            amount_paid = job["amount_paid"]
+            quantity = job["quantity"]  # Clean this
+            rate = job["job_rate"]  # Clean this
+            amount_paid = job["amount_paid"]  # Clean this
         elif isinstance(job, Job):
             quantity = job.quantity
             rate = job.job_rate
@@ -226,35 +226,31 @@ def get_totals(jobs):
             paid_amount_total += float(amount_paid)
         except TypeError as error:
             print(error)
-    return round(amount_total, 2), round(paid_amount_total, 2)
+    return (round(amount_total, 2), round(paid_amount_total, 2))
 
 
-def filter_jobs_by_date(key, date_from, date_to, jobs):
-    try:
-        if isinstance(date_from, str):
-            date_from = string_to_date(date_from)
-        if isinstance(date_to, str):
-            date_to = string_to_date(date_to)
-    except ValueError as error:
-        print(error)
-        return
+def filter_jobs_by_date(key: str, date_from: Union[date, str], date_to: Union[date, str], jobs: list[Job]) -> list[Job]:
 
     filtered_jobs = []
 
+    if isinstance(date_from, str):
+        date_from = string_to_date(date_from)
+    if isinstance(date_to, str):
+        date_to = string_to_date(date_to)
+
     for job in jobs:
-        if isinstance(job, Job):
-            job = job.to_dict()
-        date_key = string_to_date(job[key])
+        date_key = string_to_date(job.to_dict()[key])
 
         if date_key is None:
             continue
 
-        if (date_key >= date_from) and (date_key <= date_to):
-            filtered_jobs.append(job)
+        if isinstance(date_key, date) and isinstance(date_from, date) and isinstance(date_to, date):
+            if (date_key >= date_from) and (date_key <= date_to):
+                filtered_jobs.append(job)
     return filtered_jobs
 
 
-def generate_invoice_docx(client, jobs, amount):
+def generate_invoice_docx(client: Client, jobs: list[Job], amount: float) -> None:
     doc = DocxTemplate(Path(__file__).parent / "invoice_template.docx")
 
     data = {
@@ -286,7 +282,7 @@ def generate_invoice_docx(client, jobs, amount):
     doc.save(INVOICES_FOLDER / invoice_file_name)
 
 
-def generate_invoice_pdf(client, jobs, amount):
+def generate_invoice_pdf(client: Client, jobs: list[Job], amount: float) -> None:
     data = {
         "invoice_number": random.randint(1, 100),
         "created": date.today().strftime(DATE_FMT),

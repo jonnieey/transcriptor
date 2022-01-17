@@ -25,7 +25,7 @@ def test_client_to_json(test_client):
 
 def test_client_from_json(test_client):
     client_json = test_client.to_json()
-    client_obj = Client().from_json(client_json)
+    client_obj = Client.from_json(client_json)
 
     assert isinstance(client_obj, Client)
     assert client_obj.name == CLIENT_NAME

@@ -29,3 +29,11 @@ run-tests:  ## Delete temporary tests files.
 clean-tests:  ## Delete temporary tests files.
 	@echo "CLEANING TEST DATA DIRECTORY"
 	@rm -rf tests/data/* 2>/dev/null
+
+.PHONY: checks
+checks: check-types
+
+.PHONY: check-types
+check-types: ## Check types
+	pdm run mypy $(PY_SRC)
+

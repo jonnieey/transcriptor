@@ -1,16 +1,17 @@
 from datetime import date
+from pathlib import Path
 
 from transcriptor.utils import (
     date_to_string,
-    get_config,
     get_quantity,
+    get_settings,
     parse_job_due_date,
     parse_job_number,
     sec_to_min,
     string_to_date,
 )
 
-DATE_FMT = get_config()["date_fmt"]
+DATE_FMT = get_settings()["date_fmt"]
 
 
 def test_date_to_string():
@@ -22,10 +23,8 @@ def test_date_to_string():
 def test_string_to_date():
     today = date.today()
     date_obj = string_to_date(today.strftime(DATE_FMT))
-    obj = string_to_date(today)
 
     assert date_obj == today
-    assert obj is None
 
 
 def test_parse_job_number():
@@ -36,7 +35,7 @@ def test_parse_job_number():
 
 def test_parse_job_due_date():
     zip = "2021-11-12-514779_DUE_11.15_(EXAMPLE)/514779 DUE 11.15 (EXAMPLE).zip"
-    date_due = parse_job_due_date(zip)
+    date_due = parse_job_due_date(Path(zip))
     d = "%s-11-15" % (date.today().year)
     assert date_due == d
 
@@ -48,8 +47,8 @@ def test_sec_to_min():
 
 
 def test_get_quantity_as_int():
-    inp = "23"
-    q = get_quantity(inp, total_q=46)
+    quantity = "23"
+    q = get_quantity(quantity=quantity, total_quantity=46)
     assert q == 23
 
 

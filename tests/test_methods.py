@@ -8,9 +8,9 @@ import pytest
 from transcriptor.client import Client
 from transcriptor.job import Job
 from transcriptor.methods import *
-from transcriptor.utils import get_config
+from transcriptor.utils import get_settings
 
-settings = get_config()
+settings = get_settings()
 DATE_FMT, CLIENTS_FOLDER, JOBS_FOLDER, WORKS_FOLDER = (
     settings["date_fmt"],
     settings["clients_folder"],
@@ -139,6 +139,7 @@ class Tests:
         test_job.quantity = 40
         test_job.amount_paid = 15
         jobs = [test_job, test_job]
+        print([job.to_dict() for job in jobs])
         amount_total, amount_paid = get_totals(jobs)
 
         assert amount_total == 32

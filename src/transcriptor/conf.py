@@ -40,7 +40,13 @@ app_config_test = {
 }
 
 
-def get_config():
+def get_config() -> dict:
+    """
+    Get default environment configurations.
+
+    Returns:
+        Dictonary with environment configurations.
+    """
     if os.environ.get("TRANSCRIPTOR_TEST", None) == "1":
         return app_config_test
     else:

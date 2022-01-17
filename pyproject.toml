@@ -15,6 +15,7 @@ dependencies = [
     "beautifultable~=1.0",
     "docxtpl~=0.15",
     "pdfkit~=1.0",
+    "mypy~=0.931",
 ]
 requires-python = ">=3.9"
 dynamic = ["classifiers"]
@@ -49,3 +50,9 @@ force_single_line = false
 balanced_wrapping = true
 include_trailing_comma = true
 
+[tool.mypy]
+python_version = "3.9"
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
