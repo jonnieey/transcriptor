@@ -6,6 +6,9 @@ PY_SRC := src/ tests/
 help:  ## Print this help.
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
 
+.PHONY: all
+all: lint tests checks
+
 .PHONY: lint
 lint: lint-black lint-isort  ## Run linting tools on the code.
 
@@ -21,7 +24,7 @@ lint-isort:  ## Sort the imports using isort.
 tests: run-tests clean-tests
 
 .PHONY: run-tests
-run-tests:  ## Delete temporary tests files.
+run-tests:  ## Run tests using pytest
 	@echo "RUNNING TESTS"
 	pdm run pytest tests
 
