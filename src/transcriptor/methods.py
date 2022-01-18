@@ -124,7 +124,7 @@ def get_date_received(date_received: str) -> date:
 def get_date_due(date_due: str) -> date:
     try:
         if isinstance(int(date_due), int):
-            date_d = date.today() + timedelta(days=abs(int(date_due)))
+            date_d = date.today() + timedelta(days=int(date_due))
         return date_d
 
     except ValueError:

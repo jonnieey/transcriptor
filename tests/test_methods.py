@@ -99,7 +99,7 @@ class Tests:
     def test_get_date_due_as_int(self):
         date_due = -2  # Convert to abs
         date_d = get_date_due(date_due)
-        assert date_d == TODAY + timedelta(days=abs(date_due))
+        assert date_d == TODAY + timedelta(days=date_due)
 
     def test_get_all_clients(self, test_client):
         save_client(test_client, CLIENTS_FOLDER)

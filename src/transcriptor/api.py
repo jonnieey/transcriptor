@@ -41,8 +41,17 @@ CLIENTS_FOLDER, WORKS_FOLDER, JOBS_FOLDER = (
 
 
 def add_client(name: str, email: str, clients_folder: Path = CLIENTS_FOLDER) -> None:
-    client = create_client(name=name, email=email)
-    save_client(client=client, clients_folder=clients_folder)
+    new_client = create_client(name=name, email=email)
+    clients = get_clients(CLIENTS_FOLDER)
+    if clients:
+        for client in clients:
+            if client == new_client:
+                sys.exit("Client already exists")
+            else:
+                continue
+        save_client(client=new_client, clients_folder=clients_folder)
+    else:
+        save_client(client=new_client, clients_folder=clients_folder)
 
 
 def get_client_object(client_name: str) -> Client:
