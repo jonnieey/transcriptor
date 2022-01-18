@@ -1,11 +1,28 @@
 import json
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 
 class Client:
     def __init__(self, name: str = "", email: str = "") -> None:
         self.name = name
         self.email = email
+
+    def __eq__(self, other: object) -> bool:
+
+        equal = False
+
+        if isinstance(other, Client):
+            if self.to_dict() == other.to_dict():
+                equal = True
+            else:
+                equal = False
+        elif isinstance(other, dict):
+            if self.to_dict() == other:
+                equal = True
+            else:
+                equal = False
+
+        return equal
 
     @property
     def name(self) -> str:

@@ -20,6 +20,23 @@ class Settings:
         self.config_folder = config_folder
         self.invoices_folder = invoices_folder
 
+    def __eq__(self, other: object) -> bool:
+
+        equal = False
+
+        if isinstance(other, Settings):
+            if self.to_dict() == other.to_dict():
+                equal = True
+            else:
+                equal = False
+        elif isinstance(other, dict):
+            if self.to_dict() == other:
+                equal = True
+            else:
+                equal = False
+
+        return equal
+
     def to_dict(self) -> dict:
         d: dict[Any, Any] = {}
         d["clients_folder"] = str(self.clients_folder)

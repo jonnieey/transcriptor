@@ -48,6 +48,23 @@ class Job:
             job_rate = self.get_job_rate(job_type)
             self.job_rate: float = job_rate
 
+    def __eq__(self, other: object) -> bool:
+
+        equal = False
+
+        if isinstance(other, Job):
+            if self.to_dict() == other.to_dict():
+                equal = True
+            else:
+                equal = False
+        elif isinstance(other, dict):
+            if self.to_dict() == other:
+                equal = True
+            else:
+                equal = False
+
+        return equal
+
     @property
     def date_received(self) -> Union[str, date]:
         return self._date_received
