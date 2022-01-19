@@ -39,6 +39,7 @@ def test_job_to_dict(test_job):
         "amount": 0.0,
         "amount_paid": 0.0,
         "job_path": "somerandompath",
+        "note": "",
     }
 
     assert test_job.to_dict() == job_dict
@@ -81,5 +82,4 @@ def test_amount_paid_less_than_amount():
         "job_path": "somerandompath",
     }
     job = Job.from_json(job_dict)
-    print(job.amount_paid)
     assert job.amount_paid == 400

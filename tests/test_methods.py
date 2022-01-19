@@ -65,6 +65,7 @@ class Tests:
             total_quantity=180,
             date_due=TODAY + timedelta(days=5),
             job_path=WORKS_FOLDER / "TestDir",
+            note="",
         )
         assert isinstance(job, Job)
 
