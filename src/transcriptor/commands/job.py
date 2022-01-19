@@ -24,7 +24,13 @@ def cli(**kwargs):
 
 @cli.command()
 @click.argument("file", type=click.Path(exists=True))
-@click.option("-c", "--client", help="Specify client name", prompt="Enter client's name", callback=check_client)
+@click.option(
+    "-c",
+    "--client",
+    prompt="Enter client's name",
+    callback=check_client,
+    help="Specify client name",
+)
 @click.option(
     "-r",
     "--date-received",
@@ -34,15 +40,26 @@ def cli(**kwargs):
     help="Specify date job received fmt: YYYY-MM-DD",
 )
 @click.option(
-    "-d", "--date-due", required=True, help="Specify date job due fmt: YYYY-MM-DD", prompt="Enter date job due"
+    "-d",
+    "--date-due",
+    required=True,
+    prompt="Enter date job due",
+    help="Specify date job due fmt: YYYY-MM-DD",
 )
-def create(file, date_received=None, date_due=None, client=None, **kwargs):
+@click.option(
+    "-n",
+    "--note",
+    prompt="Enter notes on job",
+    default="",
+    help="Notes on job",
+)
+def create(file, date_received=None, date_due=None, client=None, note=None, **kwargs):
     """Create job"""
     date_received = get_date_received(date_received)
     date_due = get_date_due(date_due)
 
     client_obj = get_client_object(client)
-    create_job(file, date_received, date_due, client_obj)
+    create_job(file, date_received, date_due, client_obj, note)
 
 
 @cli.command()

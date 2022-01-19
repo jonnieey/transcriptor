@@ -21,6 +21,7 @@ class Job:
         amount: float = 0.0,
         job_path: Union[str, Path] = "",
         amount_paid: float = 0.0,
+        note: str = "",
     ) -> None:
         self.date_received = date_received if isinstance(date_received, date) else string_to_date(date_received)
         self.job_number = job_number
@@ -34,6 +35,7 @@ class Job:
         self.date_due = date_due if isinstance(date_due, date) else string_to_date(date_due)
         self.amount = amount
         self.amount_paid = amount_paid
+        self.note = note
 
         if not amount and job_rate and quantity:
             self.amount: float = job_rate * quantity
@@ -161,6 +163,14 @@ class Job:
     def job_path(self, value: Path) -> None:
         self._job_path = value
 
+    @property
+    def note(self) -> Union[str, Path]:
+        return self._note
+
+    @note.setter
+    def note(self, value: Path) -> None:
+        self._note = value
+
     def __str__(self) -> str:
         j = "%s %s %s %s %s %s" % (
             self.job_number,
@@ -209,6 +219,7 @@ class Job:
         d["amount"] = self._amount
         d["amount_paid"] = self._amount_paid
         d["job_path"] = str(self._job_path)
+        d["note"] = str(self._note)
 
         return d
 
@@ -243,6 +254,7 @@ class Job:
         amount: float = 0.0 if not "amount" in js.keys() else js["amount"]
         amount_paid: float = 0.0 if not "amount_paid" in js.keys() else js["amount_paid"]
         job_path: Union[str, Path] = "" if not "job_path" in js.keys() else js["job_path"]
+        note: str = "" if not "note" in js.keys() else js["note"]
 
         return cls(
             date_received=date_received,
@@ -257,4 +269,5 @@ class Job:
             amount=amount,
             amount_paid=amount_paid,
             job_path=job_path,
+            note=note,
         )

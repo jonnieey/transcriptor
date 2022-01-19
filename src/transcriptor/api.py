@@ -67,7 +67,7 @@ def get_client_object(client_name: str) -> Client:
     sys.exit("Client does not exist")
 
 
-def create_job(zip_file: Path, date_received: str, date_due: str, client: Client) -> None:
+def create_job(zip_file: Path, date_received: str, date_due: str, client: Client, note: str = "") -> None:
     job_number = parse_job_number(zip_file)
     if date_due is None:
         date_due = parse_job_due_date(zip_file)
@@ -109,8 +109,9 @@ def create_job(zip_file: Path, date_received: str, date_due: str, client: Client
                 quantity=quantity,
                 date_due=date_due,
                 job_path=job_folder,
+                note=note,
             )
-            task.amount = task.job_rate * task.quantity
+            task.amount = round(task.job_rate * task.quantity, 2)
             tasks.append(task)
         else:
             continue
@@ -147,7 +148,7 @@ def list_client_jobs(client_name: str, show_path=False) -> None:
     amount, amount_paid = get_totals(raw_jobs)
 
     if show_path is False:
-        totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid]
+        totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid, None]
         for job in raw_jobs:
             job_dict = job.to_dict()
             job_dict.pop("job_path")
@@ -157,7 +158,7 @@ def list_client_jobs(client_name: str, show_path=False) -> None:
         table.columns.header = headers
 
     else:
-        totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid, None]
+        totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid, None, None]
         jobs.extend([j.to_dict() for j in raw_jobs])
         headers = [x.replace("_", " ").title() for x in jobs[0]]
         table.columns.header = headers
@@ -191,7 +192,7 @@ def list_all_jobs(per_client: bool = False, show_path: bool = False) -> None:
     if per_client is False:
         amount, amount_paid = get_totals(raw_jobs)
         if show_path is False:
-            totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid]
+            totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid, None]
 
             for job in raw_jobs:
                 job_dict = job.to_dict()
@@ -202,7 +203,7 @@ def list_all_jobs(per_client: bool = False, show_path: bool = False) -> None:
             table.columns.header = headers
 
         else:
-            totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid, None]
+            totals_list = ["TOTALS", None, None, None, None, None, None, None, None, amount, amount_paid, None, None]
             jobs.extend([j.to_dict() for j in raw_jobs])
             headers = [x.replace("_", " ").title() for x in jobs[0]]
             table.columns.header = headers
