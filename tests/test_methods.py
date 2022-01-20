@@ -125,14 +125,19 @@ class Tests:
 
     def test_update_job(self, test_client, test_job):
         save_job_to_file(test_client, [test_job])
-        update_dict = {"amount": 500, "amount_paid": 400, "status": "Done", "date_submitted": TODAY.strftime(DATE_FMT)}
+        update_dict = {
+            "quantity": 20,
+            "amount_paid": 10.0,
+            "status": "Done",
+            "date_submitted": TODAY.strftime(DATE_FMT),
+        }
         update_job(test_job.job_number, update_dict)
         with open(JOBS_FOLDER / test_client.name, "r") as fp:
             client_jobs_json = json.load(fp)
 
         # TODO add method to get job from job list
-        assert client_jobs_json["jobs_list"][0]["amount"] == 500
-        assert client_jobs_json["jobs_list"][0]["amount_paid"] == 400
+        assert client_jobs_json["jobs_list"][0]["amount"] == 8.0
+        assert client_jobs_json["jobs_list"][0]["amount_paid"] == 8.0
         assert client_jobs_json["jobs_list"][0]["status"] == "Done"
         assert client_jobs_json["jobs_list"][0]["date_submitted"] == TODAY.strftime(DATE_FMT)
 

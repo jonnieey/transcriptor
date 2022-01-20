@@ -77,9 +77,10 @@ def test_amount_paid_less_than_amount():
         "date_due": date_to_string(date_due),
         "date_submitted": "",
         "status": "Pending",
-        "amount": 400,
-        "amount_paid": 500,
+        # "amount": 8.0,
+        "amount_paid": 10.0,
         "job_path": "somerandompath",
     }
     job = Job.from_json(job_dict)
-    assert job.amount_paid == 400
+    job.amount = 344  # try to change amount
+    assert job.amount == 8.0

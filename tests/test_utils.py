@@ -41,9 +41,9 @@ def test_parse_job_due_date():
 
 
 def test_sec_to_min():
-    seconds = 3600
+    seconds = 3630
     min = sec_to_min(seconds)
-    assert min == 60
+    assert min == 60.5
 
 
 def test_get_quantity_as_int():
