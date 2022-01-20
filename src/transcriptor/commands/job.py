@@ -109,13 +109,14 @@ def check_date_due(ctx, params, value):
 
 
 @cli.command()
-@click.option("-j", "--job_number", required=True, help="Specify job number")
+@click.argument("job_number", required=True)
 @click.option("-c", "--client", help="Specify client")
 @click.option("-r", "--date-received", help="Specify date job received fmt: YYYY-MM-DD", callback=check_date_received)
 @click.option("-d", "--date-due", help="Specify date job due fmt: YYYY-MM-DD", callback=check_date_due)
-@click.option("-b", "--date-submitted", help="Specify date job submitted fmt: YYYY-MM-DD")
-@click.option("-s", "--status", help="Specify status of job")
+@click.option("-b", "--date-submitted", help="Specify date job submitted fmt: YYYY-MM-DD", callback=check_date_received)
+@click.option("-s", "--status", type=click.Choice(["Pending", "Done"]), help="Specify status of job")
 @click.option("-a", "--amount_paid", type=float, help="Specify amount paid")
+@click.option("-q", "--quantity", type=float, help="Specify quantity")
 def update(**kwargs):
     """Update job"""
     d = {k: v for k, v in kwargs.items() if v is not None}

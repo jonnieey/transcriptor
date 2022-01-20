@@ -100,7 +100,9 @@ def create_job(zip_file: Path, date_received: str, date_due: str, client: Client
                 type=click.Choice(["Normal", "Interpreted", "Expedite"], case_sensitive=False),
                 show_choices=True,
             )
-            quantity = get_quantity(click.prompt("Enter quantity of task"), total_quantity=total_quantity)
+            quantity = get_quantity(
+                click.prompt("Enter quantity of task", default=total_quantity), total_quantity=total_quantity
+            )
             task = create_task(
                 date_received=date_received,
                 job_number=job_number,

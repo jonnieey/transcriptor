@@ -134,7 +134,8 @@ def get_media_duration(media_file: Path) -> float:
 
 
 def sec_to_min(seconds: float) -> float:
-    return round(int(seconds / 60), 0)
+    min = (seconds // 60) + (seconds % 60) / 60
+    return round(float(min), 1)
 
 
 def get_quantity(quantity: Union[str, int, float], total_quantity: float) -> float:
@@ -142,14 +143,14 @@ def get_quantity(quantity: Union[str, int, float], total_quantity: float) -> flo
 
     try:
         if isinstance(float(quantity), float):
-            q = float(quantity)
+            q = round(float(quantity), 1)
     except ValueError:
         try:
             if isinstance(quantity, str):
                 q = round(float(Fraction(quantity) * total_quantity), 1)
         except ValueError:
             if isinstance(quantity, str):
-                q = total_quantity * quantity_words[quantity.lower()]
+                q = round(float(total_quantity * quantity_words[quantity.lower()]), 1)
 
     return q
 

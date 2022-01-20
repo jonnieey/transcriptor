@@ -18,7 +18,6 @@ class Job:
         date_due: Union[str, date] = "",
         date_submitted: Union[str, date] = "",
         status: str = "Pending",
-        amount: float = 0.0,
         job_path: Union[str, Path] = "",
         amount_paid: float = 0.0,
         note: str = "",
@@ -33,15 +32,13 @@ class Job:
         self.job_path = job_path
         self.job_rate = job_rate
         self.date_due = date_due if isinstance(date_due, date) else string_to_date(date_due)
-        self.amount = amount
         self.amount_paid = amount_paid
         self.note = note
-
-        if not amount and job_rate and quantity:
-            self.amount: float = job_rate * quantity
+        self.amount: float = job_rate * quantity
 
         if amount_paid > self.amount:
             self.amount_paid: float = self.amount
+
         if not date_due and job_type:
             date_due = self.get_date_due(date_received, job_type)
             self.date_due: date = date_due
@@ -145,7 +142,7 @@ class Job:
 
     @amount.setter
     def amount(self, value: float) -> None:
-        self._amount = value
+        self._amount = self.job_rate * self.quantity
 
     @property
     def amount_paid(self) -> float:
@@ -251,7 +248,7 @@ class Job:
         quantity: float = 0.0 if not "quantity" in js.keys() else js["quantity"]
         status: str = "" if not "status" in js.keys() else js["status"]
         date_submitted: date = "" if not "date_submitted" in js.keys() else js["date_submitted"]
-        amount: float = 0.0 if not "amount" in js.keys() else js["amount"]
+        # amount: float = 0.0 if not "amount" in js.keys() else js["amount"]
         amount_paid: float = 0.0 if not "amount_paid" in js.keys() else js["amount_paid"]
         job_path: Union[str, Path] = "" if not "job_path" in js.keys() else js["job_path"]
         note: str = "" if not "note" in js.keys() else js["note"]
@@ -266,7 +263,7 @@ class Job:
             date_due=date_due,
             date_submitted=date_submitted,
             status=status,
-            amount=amount,
+            # amount=amount,
             amount_paid=amount_paid,
             job_path=job_path,
             note=note,
