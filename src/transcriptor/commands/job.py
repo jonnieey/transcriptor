@@ -1,3 +1,5 @@
+import sys
+from copy import copy
 from datetime import date
 
 import click
@@ -109,7 +111,7 @@ def check_date_due(ctx, params, value):
 
 
 @cli.command()
-@click.argument("job_number", required=True)
+@click.argument("job_number", required=True, nargs=-1)
 @click.option("-c", "--client", help="Specify client")
 @click.option("-r", "--date-received", help="Specify date job received fmt: YYYY-MM-DD", callback=check_date_received)
 @click.option("-d", "--date-due", help="Specify date job due fmt: YYYY-MM-DD", callback=check_date_due)
@@ -119,6 +121,20 @@ def check_date_due(ctx, params, value):
 @click.option("-q", "--quantity", type=float, help="Specify quantity")
 def update(**kwargs):
     """Update job"""
-    d = {k: v for k, v in kwargs.items() if v is not None}
-    print(d)
-    update_job(kwargs["job_number"], d)
+    multiple = copy(kwargs)
+    u = [
+        kwargs["client"],
+        kwargs["date_received"],
+        kwargs["date_due"],
+        kwargs["date_submitted"],
+        kwargs["quantity"],
+    ]
+    if len(kwargs["job_number"]) > 1:
+        if any(u):
+            raise click.BadParameter("Invalid options, use status or amount paid for multiple updates")
+        else:
+            for j in kwargs["job_number"]:
+                d = {k: v for k, v in kwargs.items() if v is not None}
+                d.pop("job_number")
+                d["job_number"] = j
+                update_job(j, d)
