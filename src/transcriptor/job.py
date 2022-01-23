@@ -22,16 +22,26 @@ class Job:
         amount_paid: float = 0.0,
         note: str = "",
     ) -> None:
-        self.date_received = date_received if isinstance(date_received, date) else string_to_date(date_received)
+        self.date_received = (
+            date_received
+            if isinstance(date_received, date)
+            else string_to_date(date_received)
+        )
         self.job_number = job_number
         self.job_type = job_type
         self.total_quantity = total_quantity
         self.quantity = quantity
-        self.date_submitted = date_submitted if isinstance(date_submitted, date) else string_to_date(date_submitted)
+        self.date_submitted = (
+            date_submitted
+            if isinstance(date_submitted, date)
+            else string_to_date(date_submitted)
+        )
         self.status = status
         self.job_path = job_path
         self.job_rate = job_rate
-        self.date_due = date_due if isinstance(date_due, date) else string_to_date(date_due)
+        self.date_due = (
+            date_due if isinstance(date_due, date) else string_to_date(date_due)
+        )
         self.amount_paid = amount_paid
         self.note = note
         self.amount: float = job_rate * quantity
@@ -239,18 +249,28 @@ class Job:
             except Exception:
                 return cls()
 
-        date_received: date = "" if not "date_received" in js.keys() else js["date_received"]
+        date_received: date = (
+            "" if not "date_received" in js.keys() else js["date_received"]
+        )
         date_due: date = "" if not "date_due" in js.keys() else js["date_due"]
         job_number: str = "" if not "job_number" in js.keys() else js["job_number"]
         job_type: str = "" if not "job_type" in js.keys() else js["job_type"]
         job_rate: float = 0.0 if not "job_rate" in js.keys() else js["job_rate"]
-        total_quantity: float = 0.0 if not "total_quantity" in js.keys() else js["total_quantity"]
+        total_quantity: float = (
+            0.0 if not "total_quantity" in js.keys() else js["total_quantity"]
+        )
         quantity: float = 0.0 if not "quantity" in js.keys() else js["quantity"]
         status: str = "" if not "status" in js.keys() else js["status"]
-        date_submitted: date = "" if not "date_submitted" in js.keys() else js["date_submitted"]
+        date_submitted: date = (
+            "" if not "date_submitted" in js.keys() else js["date_submitted"]
+        )
         # amount: float = 0.0 if not "amount" in js.keys() else js["amount"]
-        amount_paid: float = 0.0 if not "amount_paid" in js.keys() else js["amount_paid"]
-        job_path: Union[str, Path] = "" if not "job_path" in js.keys() else js["job_path"]
+        amount_paid: float = (
+            0.0 if not "amount_paid" in js.keys() else js["amount_paid"]
+        )
+        job_path: Union[str, Path] = (
+            "" if not "job_path" in js.keys() else js["job_path"]
+        )
         note: str = "" if not "note" in js.keys() else js["note"]
 
         return cls(

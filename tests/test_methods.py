@@ -139,7 +139,9 @@ class Tests:
         assert client_jobs_json["jobs_list"][0]["amount"] == 8.0
         assert client_jobs_json["jobs_list"][0]["amount_paid"] == 8.0
         assert client_jobs_json["jobs_list"][0]["status"] == "Done"
-        assert client_jobs_json["jobs_list"][0]["date_submitted"] == TODAY.strftime(DATE_FMT)
+        assert client_jobs_json["jobs_list"][0]["date_submitted"] == TODAY.strftime(
+            DATE_FMT
+        )
 
     def test_get_totals(self, test_job):
         test_job.quantity = 40
@@ -173,9 +175,13 @@ class Tests:
         three_days = TODAY - timedelta(days=3)
         thirty_days = TODAY - timedelta(days=30)
 
-        less_than_three_days = filter_jobs_by_date("date_received", three_days, TODAY, jobs)
+        less_than_three_days = filter_jobs_by_date(
+            "date_received", three_days, TODAY, jobs
+        )
         less_than_ten_days = filter_jobs_by_date("date_due", ten_days, TODAY, jobs)
-        more_than_ten_days = filter_jobs_by_date("date_submitted", thirty_days, ten_days, jobs)
+        more_than_ten_days = filter_jobs_by_date(
+            "date_submitted", thirty_days, ten_days, jobs
+        )
 
         assert len(less_than_three_days) == 0
         assert len(less_than_ten_days) == 2

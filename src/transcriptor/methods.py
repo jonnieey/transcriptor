@@ -160,14 +160,18 @@ def get_jobs(client_name: Optional[str] = None) -> list[Job]:
                 else:
                     with open(client_job_file, "r") as fp:
                         client_json = json.load(fp)
-                        jobs.extend([Job.from_json(j) for j in client_json["jobs_list"]])
+                        jobs.extend(
+                            [Job.from_json(j) for j in client_json["jobs_list"]]
+                        )
                         break
         else:
             job_files = JOBS_FOLDER.iterdir()
             for job_file in job_files:
                 with open(job_file, "r") as fp:
                     client_json = json.load(fp)
-                    jobs.extend([Job.from_json(job) for job in client_json["jobs_list"]])
+                    jobs.extend(
+                        [Job.from_json(job) for job in client_json["jobs_list"]]
+                    )
 
     return jobs
 
@@ -231,7 +235,9 @@ def get_totals(jobs: list[Job]) -> Tuple[float, float]:
     return (round(amount_total, 2), round(paid_amount_total, 2))
 
 
-def filter_jobs_by_date(key: str, date_from: Union[date, str], date_to: Union[date, str], jobs: list[Job]) -> list[Job]:
+def filter_jobs_by_date(
+    key: str, date_from: Union[date, str], date_to: Union[date, str], jobs: list[Job]
+) -> list[Job]:
 
     filtered_jobs = []
 
@@ -246,7 +252,11 @@ def filter_jobs_by_date(key: str, date_from: Union[date, str], date_to: Union[da
         if date_key is None:
             continue
 
-        if isinstance(date_key, date) and isinstance(date_from, date) and isinstance(date_to, date):
+        if (
+            isinstance(date_key, date)
+            and isinstance(date_from, date)
+            and isinstance(date_to, date)
+        ):
             if (date_key >= date_from) and (date_key <= date_to):
                 filtered_jobs.append(job)
     return filtered_jobs

@@ -20,8 +20,17 @@ def cli(**kwargs):
 
 
 @cli.command()
-@click.option("-n", "--name", required=True, prompt=True, help="Specify new client's name")
-@click.option("-e", "--email", required=True, prompt=True, help="Specify new client's email", callback=validate_email)
+@click.option(
+    "-n", "--name", required=True, prompt=True, help="Specify new client's name"
+)
+@click.option(
+    "-e",
+    "--email",
+    required=True,
+    prompt=True,
+    help="Specify new client's email",
+    callback=validate_email,
+)
 def add(name, email, **kwargs):
     """Add client"""
     add_client(name, email)

@@ -38,4 +38,6 @@ def create(client=None, from_=None, to=None, as_docx=None, **kwargs):
     """Create client invoice"""
     date_from = from_.date()
     date_to = to.date()
-    create_invoice(client_name=client, date_from=date_from, date_to=date_to, as_docx=as_docx)
+    create_invoice(
+        client_name=client, date_from=date_from, date_to=date_to, as_docx=as_docx
+    )

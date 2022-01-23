@@ -4,7 +4,12 @@ from datetime import date
 
 import click
 
-from transcriptor.api import create_job, get_client_object, list_all_jobs, list_client_jobs
+from transcriptor.api import (
+    create_job,
+    get_client_object,
+    list_all_jobs,
+    list_client_jobs,
+)
 from transcriptor.methods import DATE_FMT, get_date_due, get_date_received, update_job
 
 TODAY = date.today().strftime(DATE_FMT)
@@ -113,10 +118,30 @@ def check_date_due(ctx, params, value):
 @cli.command()
 @click.argument("job_number", required=True, nargs=-1)
 @click.option("-c", "--client", help="Specify client")
-@click.option("-r", "--date-received", help="Specify date job received fmt: YYYY-MM-DD", callback=check_date_received)
-@click.option("-d", "--date-due", help="Specify date job due fmt: YYYY-MM-DD", callback=check_date_due)
-@click.option("-b", "--date-submitted", help="Specify date job submitted fmt: YYYY-MM-DD", callback=check_date_received)
-@click.option("-s", "--status", type=click.Choice(["Pending", "Done"]), help="Specify status of job")
+@click.option(
+    "-r",
+    "--date-received",
+    help="Specify date job received fmt: YYYY-MM-DD",
+    callback=check_date_received,
+)
+@click.option(
+    "-d",
+    "--date-due",
+    help="Specify date job due fmt: YYYY-MM-DD",
+    callback=check_date_due,
+)
+@click.option(
+    "-b",
+    "--date-submitted",
+    help="Specify date job submitted fmt: YYYY-MM-DD",
+    callback=check_date_received,
+)
+@click.option(
+    "-s",
+    "--status",
+    type=click.Choice(["Pending", "Done"]),
+    help="Specify status of job",
+)
 @click.option("-a", "--amount_paid", type=float, help="Specify amount paid")
 @click.option("-q", "--quantity", type=float, help="Specify quantity")
 def update(**kwargs):
@@ -131,7 +156,9 @@ def update(**kwargs):
     ]
     if len(kwargs["job_number"]) > 1:
         if any(u):
-            raise click.BadParameter("Invalid options, use status or amount paid for multiple updates")
+            raise click.BadParameter(
+                "Invalid options, use status or amount paid for multiple updates"
+            )
         else:
             for j in kwargs["job_number"]:
                 d = {k: v for k, v in kwargs.items() if v is not None}

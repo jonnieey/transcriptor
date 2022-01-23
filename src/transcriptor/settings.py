@@ -49,7 +49,9 @@ class Settings:
         return d
 
     def to_json(self, indent=2, ensure_ascii=False) -> str:
-        return json.dumps(self.to_dict(), indent=indent, ensure_ascii=ensure_ascii, sort_keys=True)
+        return json.dumps(
+            self.to_dict(), indent=indent, ensure_ascii=ensure_ascii, sort_keys=True
+        )
 
     @classmethod
     def from_json(cls, js: Optional[dict] = None):
@@ -61,11 +63,21 @@ class Settings:
             except Exception:
                 return cls()
 
-        clients_folder: Union[str, Path] = "" if not "clients_folder" in js.keys() else Path(js["clients_folder"])
-        jobs_folder: Union[str, Path] = "" if not "jobs_folder" in js.keys() else Path(js["jobs_folder"])
-        works_folder: Union[str, Path] = "" if not "works_folder" in js.keys() else Path(js["works_folder"])
-        config_folder: Union[str, Path] = "" if not "config_folder" in js.keys() else Path(js["config_folder"])
-        invoices_folder: Union[str, Path] = "" if not "invoices_folder" in js.keys() else Path(js["invoices_folder"])
+        clients_folder: Union[str, Path] = (
+            "" if not "clients_folder" in js.keys() else Path(js["clients_folder"])
+        )
+        jobs_folder: Union[str, Path] = (
+            "" if not "jobs_folder" in js.keys() else Path(js["jobs_folder"])
+        )
+        works_folder: Union[str, Path] = (
+            "" if not "works_folder" in js.keys() else Path(js["works_folder"])
+        )
+        config_folder: Union[str, Path] = (
+            "" if not "config_folder" in js.keys() else Path(js["config_folder"])
+        )
+        invoices_folder: Union[str, Path] = (
+            "" if not "invoices_folder" in js.keys() else Path(js["invoices_folder"])
+        )
         date_fmt: str = "" if not "date_fmt" in js.keys() else js["date_fmt"]
 
         return cls(
