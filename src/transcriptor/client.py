@@ -1,11 +1,12 @@
 import json
+from dataclasses import dataclass
 from typing import Any, Optional, Union
 
 
+@dataclass
 class Client:
-    def __init__(self, name: str = "", email: str = "") -> None:
-        self.name = name
-        self.email = email
+    name: str = ""
+    email: str = ""
 
     def __eq__(self, other: object) -> bool:
 
@@ -24,30 +25,14 @@ class Client:
 
         return equal
 
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @name.setter
-    def name(self, value: str) -> None:
-        self._name = value
-
-    @property
-    def email(self) -> str:
-        return self._email
-
-    @email.setter
-    def email(self, value: str) -> None:
-        self._email = value
-
     def __str__(self) -> str:
-        return "%s" % (self._name)
+        return "%s" % (self.name)
 
     def to_dict(self) -> dict:
         d: dict[Any, Any] = {}
 
-        d["name"] = self._name
-        d["email"] = self._email
+        d["name"] = self.name
+        d["email"] = self.email
 
         return d
 

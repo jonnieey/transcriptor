@@ -1,24 +1,17 @@
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional, Union
 
 
+@dataclass
 class Settings:
-    def __init__(
-        self,
-        clients_folder: Union[str, Path] = "",
-        jobs_folder: Union[str, Path] = "",
-        works_folder: Union[str, Path] = "",
-        config_folder: Union[str, Path] = "",
-        invoices_folder: Union[str, Path] = "",
-        date_fmt: str = "",
-    ):
-        self.clients_folder = clients_folder
-        self.jobs_folder = jobs_folder
-        self.works_folder = works_folder
-        self.date_fmt = date_fmt
-        self.config_folder = config_folder
-        self.invoices_folder = invoices_folder
+    clients_folder: Union[str, Path] = ""
+    jobs_folder: Union[str, Path] = ""
+    works_folder: Union[str, Path] = ""
+    config_folder: Union[str, Path] = ""
+    invoices_folder: Union[str, Path] = ""
+    date_fmt: str = ""
 
     def __eq__(self, other: object) -> bool:
 
@@ -88,3 +81,11 @@ class Settings:
             config_folder=config_folder,
             invoices_folder=invoices_folder,
         )
+
+    def load(self, config_path: Path):
+        with open(config_path, "r") as fd:
+            return self.from_json(json.load(fd))
+
+    def save(self, config_path: Path):
+        with open(config_path, "w") as fd:
+            fd.write(self.to_json(self))

@@ -3,13 +3,13 @@ import sys
 import zipfile
 from datetime import date
 from pathlib import Path
-from typing import Any, Union
+from typing import Union
 
 import click
 from beautifultable import BeautifulTable
 
 from transcriptor.client import Client
-from transcriptor.job import Job
+from transcriptor.conf import get_config
 from transcriptor.methods import (
     create_client,
     create_task,
@@ -22,21 +22,20 @@ from transcriptor.methods import (
     get_totals,
     save_client,
     save_job_to_file,
+    settings,
 )
 from transcriptor.utils import (
     get_media_duration,
     get_media_files,
     get_quantity,
-    get_settings,
     parse_job_due_date,
     parse_job_number,
 )
 
-settings = get_settings()
 CLIENTS_FOLDER, WORKS_FOLDER, JOBS_FOLDER = (
-    settings["clients_folder"],
-    settings["works_folder"],
-    settings["jobs_folder"],
+    settings.clients_folder,
+    settings.works_folder,
+    settings.jobs_folder,
 )
 
 

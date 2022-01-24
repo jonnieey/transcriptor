@@ -30,15 +30,15 @@ def test_job_to_dict(test_job):
         "date_received": date_to_string(TODAY),
         "job_number": "56321",
         "job_type": "Normal",
-        "job_rate": 0.4,
         "total_quantity": 40,
+        "job_rate": 0.4,
         "quantity": 20,
         "date_due": date_to_string(date_due),
         "date_submitted": "",
         "status": "Pending",
-        "amount": 0.0,
         "amount_paid": 0.0,
         "job_path": "somerandompath",
+        "amount": 0,
         "note": "",
     }
 
@@ -57,7 +57,6 @@ def test_job_from_json():
         "date_due": date_to_string(date_due),
         "date_submitted": "",
         "status": "Pending",
-        "amount": 0.0,
         "amount_paid": 0.0,
         "job_path": "somerandompath",
     }
@@ -77,7 +76,6 @@ def test_amount_paid_less_than_amount():
         "date_due": date_to_string(date_due),
         "date_submitted": "",
         "status": "Pending",
-        # "amount": 8.0,
         "amount_paid": 10.0,
         "job_path": "somerandompath",
     }

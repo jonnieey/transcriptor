@@ -11,16 +11,6 @@ CONFIG_FOLDER = Path(user_config_dir("transcriptor"))
 INVOICES_FOLDER = BASE_DIR / "invoices"
 DATE_FMT = "%Y-%m-%d"
 
-app_config = {
-    "base_dir": BASE_DIR,
-    "clients_folder": CLIENTS_FOLDER,
-    "jobs_folder": JOBS_FOLDER,
-    "works_folder": WORKS_FOLDER,
-    "config_folder": CONFIG_FOLDER,
-    "invoices_folder": INVOICES_FOLDER,
-    "date_fmt": DATE_FMT,
-}
-
 TEST_BASE_DIR = Path(__file__).parent.parent.parent / "tests" / "data"
 TEST_CLIENTS_FOLDER = TEST_BASE_DIR / "clients"
 TEST_JOBS_FOLDER = TEST_BASE_DIR / "jobs"
@@ -29,15 +19,32 @@ TEST_CONFIG_FOLDER = TEST_BASE_DIR / ".config" / "transcriptor"
 TEST_INVOICES_FOLDER = TEST_BASE_DIR / "invoices"
 TEST_DATE_FMT = "%Y-%m-%d"
 
-app_config_test = {
-    "base_dir": TEST_BASE_DIR,
-    "clients_folder": TEST_CLIENTS_FOLDER,
-    "jobs_folder": TEST_JOBS_FOLDER,
-    "works_folder": TEST_WORKS_FOLDER,
-    "config_folder": TEST_CONFIG_FOLDER,
-    "invoices_folder": TEST_INVOICES_FOLDER,
-    "date_fmt": TEST_DATE_FMT,
-}
+paths = [
+    "clients_folder",
+    "jobs_folder",
+    "works_folder",
+    "config_folder",
+    "invoices_folder",
+    "date_fmt",
+]
+
+app_paths = [
+    CLIENTS_FOLDER,
+    JOBS_FOLDER,
+    WORKS_FOLDER,
+    CONFIG_FOLDER,
+    INVOICES_FOLDER,
+    DATE_FMT,
+]
+
+tests_paths = [
+    TEST_CLIENTS_FOLDER,
+    TEST_JOBS_FOLDER,
+    TEST_WORKS_FOLDER,
+    TEST_CONFIG_FOLDER,
+    TEST_INVOICES_FOLDER,
+    TEST_DATE_FMT,
+]
 
 
 def get_config() -> dict:
@@ -48,6 +55,6 @@ def get_config() -> dict:
         Dictonary with environment configurations.
     """
     if os.environ.get("TRANSCRIPTOR_TEST", None) == "1":
-        return app_config_test
+        return dict(zip(paths, tests_paths))
     else:
-        return app_config
+        return dict(zip(paths, app_paths))

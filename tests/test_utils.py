@@ -1,17 +1,20 @@
 from datetime import date
 from pathlib import Path
 
+from transcriptor.conf import get_config
+from transcriptor.settings import Settings
 from transcriptor.utils import (
     date_to_string,
     get_quantity,
-    get_settings,
     parse_job_due_date,
     parse_job_number,
     sec_to_min,
     string_to_date,
 )
 
-DATE_FMT = get_settings()["date_fmt"]
+settings = Settings(**get_config())
+
+DATE_FMT = settings.date_fmt
 
 
 def test_date_to_string():

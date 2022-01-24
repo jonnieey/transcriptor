@@ -1,5 +1,4 @@
 import sys
-from copy import copy
 from datetime import date
 
 import click
@@ -146,7 +145,6 @@ def check_date_due(ctx, params, value):
 @click.option("-q", "--quantity", type=float, help="Specify quantity")
 def update(**kwargs):
     """Update job"""
-    multiple = copy(kwargs)
     u = [
         kwargs["client"],
         kwargs["date_received"],
@@ -159,9 +157,8 @@ def update(**kwargs):
             raise click.BadParameter(
                 "Invalid options, use status or amount paid for multiple updates"
             )
-        else:
-            for j in kwargs["job_number"]:
-                d = {k: v for k, v in kwargs.items() if v is not None}
-                d.pop("job_number")
-                d["job_number"] = j
-                update_job(j, d)
+    for j in kwargs["job_number"]:
+        d = {k: v for k, v in kwargs.items() if v is not None}
+        d.pop("job_number")
+        d["job_number"] = j
+        update_job(j, d)

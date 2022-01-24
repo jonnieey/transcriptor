@@ -6,16 +6,18 @@ from datetime import date, datetime, timedelta
 import pytest
 
 from transcriptor.client import Client
+from transcriptor.conf import get_config
 from transcriptor.job import Job
 from transcriptor.methods import *
-from transcriptor.utils import get_settings
 
-settings = get_settings()
+settings = Settings(**get_config())
+
+
 DATE_FMT, CLIENTS_FOLDER, JOBS_FOLDER, WORKS_FOLDER = (
-    settings["date_fmt"],
-    settings["clients_folder"],
-    settings["jobs_folder"],
-    settings["works_folder"],
+    settings.date_fmt,
+    settings.clients_folder,
+    settings.jobs_folder,
+    settings.works_folder,
 )
 
 CLIENT_NAME = "TestClient"

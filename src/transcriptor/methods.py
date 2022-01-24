@@ -9,17 +9,35 @@ import pdfkit
 from docxtpl import DocxTemplate
 
 from transcriptor.client import Client
+from transcriptor.conf import get_config
 from transcriptor.job import Job
-from transcriptor.utils import get_settings, get_transcriber_info, string_to_date
+from transcriptor.settings import Settings
+from transcriptor.utils import get_transcriber_info, string_to_date
 
-settings = get_settings()
+CONFIG_FOLDER = get_config()["config_folder"]
+
+
+def default_settings() -> Settings:
+    settings = Settings(**get_config())
+    return settings
+
+
+def get_settings(config_file: Path) -> dict:
+    settings = Settings().load(config_file)
+    return settings.__dict__ if settings else default_settings().__dict__
+
+
+try:
+    settings = Settings().load(CONFIG_FOLDER / "conf.json")
+except FileNotFoundError:
+    settings = default_settings()
 
 CONFIG_FOLDER, JOBS_FOLDER, CLIENTS_FOLDER, DATE_FMT, INVOICES_FOLDER = (
-    settings["config_folder"],
-    settings["jobs_folder"],
-    settings["clients_folder"],
-    settings["date_fmt"],
-    settings["invoices_folder"],
+    settings.config_folder,
+    settings.jobs_folder,
+    settings.clients_folder,
+    settings.date_fmt,
+    settings.invoices_folder,
 )
 
 
@@ -41,7 +59,6 @@ def save_client(client: Client, clients_folder: Path = CLIENTS_FOLDER) -> int:
             fp.write(client_json)
         return 0
     except Exception as error:
-        print(error)
         return 1
 
 
@@ -104,7 +121,6 @@ def save_job_to_file(
             fp.write(job_json)
         return 0
     except Exception as error:
-        print(error)
         return 1
 
 
@@ -231,7 +247,7 @@ def get_totals(jobs: list[Job]) -> Tuple[float, float]:
             amount_total += quantity * rate
             paid_amount_total += float(amount_paid)
         except TypeError as error:
-            print(error)
+            pass
     return (round(amount_total, 2), round(paid_amount_total, 2))
 
 
