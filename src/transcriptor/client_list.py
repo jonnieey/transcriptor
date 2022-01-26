@@ -12,10 +12,10 @@ class ClientList:
         self.jobs_list = [Job.from_json(j) for j in self.jobs_list]
 
     def amount(self):
-        return round(sum([d.amount for d in self.jobs_list]), 2)
+        return round(sum([d.amount for d in self.jobs_list]), 0)
 
     def amount_paid(self):
-        return round(sum([d.amount_paid for d in self.jobs_list]), 2)
+        return round(sum([d.amount_paid for d in self.jobs_list]), 0)
 
     def jobs(self):
         return self.jobs_list
@@ -32,10 +32,10 @@ class ClientLists:
         self.length = len(self.clients_jobs)
 
     def amount(self):
-        return round(sum([d.amount() for d in self.clients_jobs]), 2)
+        return round(sum([d.amount() for d in self.clients_jobs]), 0)
 
     def amount_paid(self):
-        return round(sum([d.amount_paid() for d in self.clients_jobs]), 2)
+        return round(sum([d.amount_paid() for d in self.clients_jobs]), 0)
 
     def jobs(self):
         jobs = []

@@ -126,7 +126,7 @@ def create_job(
                 job_path=job_folder,
                 note=note,
             )
-            task.amount = round(task.job_rate * task.quantity, 2)
+            task.amount = round(task.job_rate * task.quantity, 0)
             tasks.append(task)
         else:
             continue

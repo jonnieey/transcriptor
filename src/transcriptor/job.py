@@ -32,7 +32,7 @@ class Job:
             if self.date_due
             else self.get_date_due(self.date_received, self.job_type)
         )
-        self.amount: float = self.job_rate * self.quantity
+        self.amount: float = round((self.job_rate * self.quantity), 0)
         self.amount_paid = (
             self.amount_paid if (self.amount_paid < self.amount) else self.amount
         )
