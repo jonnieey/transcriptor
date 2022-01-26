@@ -2,13 +2,14 @@ import json
 import random
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union
+from typing import Optional, Union
 
 import jinja2
 import pdfkit
 from docxtpl import DocxTemplate
 
 from transcriptor.client import Client
+from transcriptor.client_list import ClientList, ClientLists
 from transcriptor.conf import get_config
 from transcriptor.job import Job
 from transcriptor.settings import Settings
@@ -42,7 +43,6 @@ CONFIG_FOLDER, JOBS_FOLDER, CLIENTS_FOLDER, DATE_FMT, INVOICES_FOLDER = (
 
 
 def create_client(name: str, email: str) -> Client:
-
     client = Client(name, email)
     return client
 
@@ -58,7 +58,7 @@ def save_client(client: Client, clients_folder: Path = CLIENTS_FOLDER) -> int:
         with open(client_file, "w") as fp:
             fp.write(client_json)
         return 0
-    except Exception as error:
+    except Exception:
         return 1
 
 
@@ -113,7 +113,6 @@ def save_job_to_file(
         client_jobs_info,
         indent=2,
         ensure_ascii=False,
-        # sort_keys=True,
     )
 
     try:
@@ -163,12 +162,12 @@ def get_clients(clients_folder: Path = CLIENTS_FOLDER) -> list[Client]:
     return clients
 
 
-def get_jobs(client_name: Optional[str] = None) -> list[Job]:
+def get_jobs(client_name: Optional[str] = None) -> ClientLists:
     jobs = []
 
-    if JOBS_FOLDER.exists():
+    if Path(JOBS_FOLDER).exists():
         if client_name:
-            client_jobs_files = JOBS_FOLDER.iterdir()
+            client_jobs_files = Path(JOBS_FOLDER).iterdir()
             for client_job_file in client_jobs_files:
                 if client_name.lower() not in client_job_file.name.lower():
                     continue
@@ -176,39 +175,32 @@ def get_jobs(client_name: Optional[str] = None) -> list[Job]:
                 else:
                     with open(client_job_file, "r") as fp:
                         client_json = json.load(fp)
-                        jobs.extend(
-                            [Job.from_json(j) for j in client_json["jobs_list"]]
-                        )
-                        break
+                    jobs.append(ClientList(**client_json))
+                    break
         else:
-            job_files = JOBS_FOLDER.iterdir()
+            job_files = Path(JOBS_FOLDER).iterdir()
             for job_file in job_files:
                 with open(job_file, "r") as fp:
                     client_json = json.load(fp)
-                    jobs.extend(
-                        [Job.from_json(job) for job in client_json["jobs_list"]]
-                    )
+                jobs.append(ClientList(**client_json))
 
-    return jobs
+    return ClientLists(jobs)
 
 
-def get_jobs_per_client() -> list[dict[Any, Any]]:
+def get_jobs_per_client() -> ClientLists:
     jobs = []
-    if JOBS_FOLDER.exists():
-        job_files = JOBS_FOLDER.iterdir()
+    if Path(JOBS_FOLDER).exists():
+        job_files = Path(JOBS_FOLDER).iterdir()
         for job_file in job_files:
-            j = {}
             with open(job_file, "r") as fp:
                 client_json = json.load(fp)
-            j["client"] = client_json["client"]
-            j["jobs_list"] = [Job.from_json(j) for j in client_json["jobs_list"]]
-            jobs.append(j)
-    return jobs
+            jobs.append(ClientList(**client_json))
+    return ClientLists(jobs)
 
 
 def update_job(job_number: str, d: dict = {}) -> int:
     updated = 1
-    for job_file in JOBS_FOLDER.iterdir():
+    for job_file in Path(JOBS_FOLDER).iterdir():
 
         with open(job_file, "r") as fd:
             c_json = json.load(fd)
@@ -228,31 +220,11 @@ def update_job(job_number: str, d: dict = {}) -> int:
     return updated
 
 
-def get_totals(jobs: list[Job]) -> Tuple[float, float]:
-    amount_total: float = 0.0
-    paid_amount_total: float = 0.0
-
-    for job in jobs:
-
-        if isinstance(job, dict):
-            quantity = job["quantity"]  # Clean this
-            rate = job["job_rate"]  # Clean this
-            amount_paid = job["amount_paid"]  # Clean this
-        elif isinstance(job, Job):
-            quantity = job.quantity
-            rate = job.job_rate
-            amount_paid = job.amount_paid
-
-        try:
-            amount_total += quantity * rate
-            paid_amount_total += float(amount_paid)
-        except TypeError as error:
-            pass
-    return (round(amount_total, 2), round(paid_amount_total, 2))
-
-
 def filter_jobs_by_date(
-    key: str, date_from: Union[date, str], date_to: Union[date, str], jobs: list[Job]
+    key: str,
+    date_from: Union[date, str],
+    date_to: Union[date, str],
+    jobs: list[Job],
 ) -> list[Job]:
 
     filtered_jobs = []
@@ -304,10 +276,10 @@ def generate_invoice_docx(client: Client, jobs: list[Job], amount: float) -> Non
         client.name,
     )
 
-    if not INVOICES_FOLDER.exists():
-        INVOICES_FOLDER.mkdir(parents=True, exist_ok=True)
+    if not Path(INVOICES_FOLDER).exists():
+        Path(INVOICES_FOLDER).mkdir(parents=True, exist_ok=True)
 
-    doc.save(INVOICES_FOLDER / invoice_file_name)
+    doc.save(Path(INVOICES_FOLDER) / invoice_file_name)
 
 
 def generate_invoice_pdf(client: Client, jobs: list[Job], amount: float) -> None:
@@ -338,7 +310,7 @@ def generate_invoice_pdf(client: Client, jobs: list[Job], amount: float) -> None
         client.name,
     )
 
-    if not INVOICES_FOLDER.exists():
-        INVOICES_FOLDER.mkdir(parents=True, exist_ok=True)
+    if not Path(INVOICES_FOLDER).exists():
+        Path(INVOICES_FOLDER).mkdir(parents=True, exist_ok=True)
 
-    pdfkit.from_string(output_text, INVOICES_FOLDER / invoice_file_name)
+    pdfkit.from_string(output_text, Path(INVOICES_FOLDER) / invoice_file_name)

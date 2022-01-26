@@ -1,6 +1,7 @@
 import shutil
 import sys
 import zipfile
+from collections import namedtuple
 from datetime import date
 from pathlib import Path
 from typing import Union
@@ -9,7 +10,7 @@ import click
 from beautifultable import BeautifulTable
 
 from transcriptor.client import Client
-from transcriptor.conf import get_config
+from transcriptor.client_list import ClientList
 from transcriptor.methods import (
     create_client,
     create_task,
@@ -18,8 +19,6 @@ from transcriptor.methods import (
     generate_invoice_pdf,
     get_clients,
     get_jobs,
-    get_jobs_per_client,
-    get_totals,
     save_client,
     save_job_to_file,
     settings,
@@ -135,18 +134,61 @@ def create_job(
     save_job_to_file(client, tasks, JOBS_FOLDER)
 
 
-def list_clients() -> list[Client]:
+def list_clients() -> None:
     clients = get_clients(CLIENTS_FOLDER)
     headers = ["", "Name", "Email"]
 
     table = BeautifulTable()
     table.set_style(BeautifulTable.STYLE_BOX)
     table.columns.header = headers
-    for idx, client in enumerate(clients):
-        table.rows.append([idx, client.name, client.email])
+
+    [
+        table.rows.append([idx + 1, client.name, client.email])
+        for idx, client in enumerate(clients)
+    ]
     click.echo(table)
 
-    return clients
+
+def print_table(headers, jobs, amount, amount_paid, show_path=False):
+    terminal_size = shutil.get_terminal_size()
+    table = BeautifulTable(maxwidth=terminal_size.columns)
+    table.set_style(BeautifulTable.STYLE_BOX)
+
+    table.columns.header = [header.replace("_", " ").title() for header in headers]
+    Footer = namedtuple(
+        "Footer",
+        [
+            "TOTALS",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h",
+            "i",
+            "amount",
+            "amount_paid",
+            "k",
+            "l",
+        ],
+        defaults=[None] * 13,
+    )
+
+    for job in jobs:
+        table.rows.append(list(job.to_dict().values()))
+
+    footer = Footer(TOTALS="TOTALS", amount=amount, amount_paid=amount_paid)
+    table.rows.append(footer)
+
+    if not show_path:
+        table.columns.pop("Job Path")
+    else:
+        table.columns.padding = 0
+    click.echo(table)
+    table.clear()
+    click.echo()
+    click.echo()
 
 
 def list_client_jobs(client_name: str, show_path=False) -> None:
@@ -155,186 +197,33 @@ def list_client_jobs(client_name: str, show_path=False) -> None:
     if not raw_jobs:
         sys.exit("No Jobs available")
 
-    terminal_size = shutil.get_terminal_size()
-    table = BeautifulTable(maxwidth=terminal_size.columns)
-    table.set_style(BeautifulTable.STYLE_BOX)
-
-    jobs = []
-
-    amount, amount_paid = get_totals(raw_jobs)
-
-    if show_path is False:
-        totals_list = [
-            "TOTALS",
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            amount,
-            amount_paid,
-            None,
-        ]
-        for job in raw_jobs:
-            job_dict = job.to_dict()
-            job_dict.pop("job_path")
-            jobs.append(job_dict)
-
-        headers = [x.replace("_", " ").title() for x in jobs[0]]
-        table.columns.header = headers
-
-    else:
-        totals_list = [
-            "TOTALS",
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            amount,
-            amount_paid,
-            None,
-            None,
-        ]
-        jobs.extend([j.to_dict() for j in raw_jobs])
-        headers = [x.replace("_", " ").title() for x in jobs[0]]
-        table.columns.header = headers
-        table.columns.padding = 0
-
-    for j in jobs:
-        table.rows.append(list(j.values()))
-    table.rows.append(totals_list)
-    click.echo(table)
+    headers = raw_jobs.headers()
+    amount = raw_jobs.amount()
+    amount_paid = raw_jobs.amount_paid()
+    jobs = raw_jobs.jobs()
+    print_table(headers, jobs, amount, amount_paid, show_path=show_path)
 
 
 def list_all_jobs(per_client: bool = False, show_path: bool = False) -> None:
-    terminal_size = shutil.get_terminal_size()
+    raw_jobs = get_jobs()
+    if not raw_jobs:
+        sys.exit("No Jobs available")
 
+    headers = raw_jobs.headers()
     if per_client:
-        client_raw_jobs = get_jobs_per_client()
-        if not client_raw_jobs:
-            sys.exit("No Jobs available")
+        for client_job in raw_jobs:
+            amount = client_job.amount()
+            amount_paid = client_job.amount_paid()
+            client, jobs = client_job.client, client_job.jobs()
+            click.echo("%s  :   %s" % (client["name"].upper(), client["email"]))
+            click.echo()
+
+            print_table(headers, jobs, amount, amount_paid, show_path=show_path)
     else:
-        raw_jobs = get_jobs()
-
-        if not raw_jobs:
-            sys.exit("No Jobs available")
-
-    table = BeautifulTable(maxwidth=terminal_size.columns)
-    table.columns.padding = 0
-    table.set_style(BeautifulTable.STYLE_BOX)
-
-    jobs = []
-
-    if per_client is False:
-        amount, amount_paid = get_totals(raw_jobs)
-        if show_path is False:
-            totals_list = [
-                "TOTALS",
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                amount,
-                amount_paid,
-                None,
-            ]
-
-            for job in raw_jobs:
-                job_dict = job.to_dict()
-                job_dict.pop("job_path")
-                jobs.append(job_dict)
-
-            headers = [x.replace("_", " ").title() for x in jobs[0]]
-            table.columns.header = headers
-
-        else:
-            totals_list = [
-                "TOTALS",
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                amount,
-                amount_paid,
-                None,
-                None,
-            ]
-            jobs.extend([j.to_dict() for j in raw_jobs])
-            headers = [x.replace("_", " ").title() for x in jobs[0]]
-            table.columns.header = headers
-            table.columns.padding = 0
-
-        for j in jobs:
-            table.rows.append(list(j.values()))
-        table.rows.append(totals_list)
-        click.echo(table)
-
-    else:
-
-        jobs = []
-        for client_job_dict in client_raw_jobs:
-            amount, amount_paid = get_totals(client_job_dict["jobs_list"])
-
-            if show_path is False:
-                totals_list = [
-                    "TOTALS",
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    amount,
-                    amount_paid,
-                ]
-                for job in client_job_dict["jobs_list"]:
-                    job_dict = job.to_dict()
-                    job_dict.pop("job_path")
-                    jobs.append(job_dict)
-            else:
-                totals_list = [
-                    "TOTALS",
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    amount,
-                    amount_paid,
-                    None,
-                ]
-                jobs.extend([j.to_dict() for j in client_job_dict["jobs_list"]])
-
-            headers = [x.replace("_", " ").title() for x in jobs[0].keys()]
-            table.columns.header = headers
-
-            click.echo(client_job_dict["client"]["name"])
-
-            for j in jobs:
-                table.rows.append(list(j.values()))
-            table.rows.append(totals_list)
-            click.echo(table)
-            table.clear()
+        amount = raw_jobs.amount()
+        amount_paid = raw_jobs.amount_paid()
+        jobs = raw_jobs.jobs()
+        print_table(headers, jobs, amount, amount_paid, show_path=show_path)
 
 
 def create_invoice(
@@ -349,9 +238,12 @@ def create_invoice(
         key="date_submitted",
         date_from=date_from,
         date_to=date_to,
-        jobs=raw_jobs,
+        jobs=raw_jobs.jobs(),
     )
-    amount, _ = get_totals(jobs)
+    new_client_jobs = ClientList(
+        client=client.to_dict(), jobs_list=[j.to_dict() for j in jobs]
+    )
+    amount = new_client_jobs.amount()
     if as_docx:
         generate_invoice_docx(client, jobs, amount)
     else:

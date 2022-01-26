@@ -116,14 +116,15 @@ class Tests:
     def test_get_jobs_with_client(self, test_client, test_job):
         save_job_to_file(test_client, [test_job, test_job])
         jobs = get_jobs(test_client.name)
-        assert len(jobs) == 2
+        assert len(jobs.jobs()) == 2
 
     def test_get_jobs_without_client(self, test_client, test_job):
         save_job_to_file(test_client, [test_job, test_job])
         client2 = Client(name="TestClient2", email="TestEmail2")
         save_job_to_file(client2, [test_job, test_job])
         jobs = get_jobs()
-        assert len(jobs) == 4
+
+        assert len(jobs.jobs()) == 4
 
     def test_update_job(self, test_client, test_job):
         save_job_to_file(test_client, [test_job])
@@ -144,16 +145,6 @@ class Tests:
         assert client_jobs_json["jobs_list"][0]["date_submitted"] == TODAY.strftime(
             DATE_FMT
         )
-
-    def test_get_totals(self, test_job):
-        test_job.quantity = 40
-        test_job.amount_paid = 15
-        jobs = [test_job, test_job]
-        print([job.to_dict() for job in jobs])
-        amount_total, amount_paid = get_totals(jobs)
-
-        assert amount_total == 32
-        assert amount_paid == 30
 
     def test_filter_jobs_by_date(self, test_job):
         job1 = copy.copy(test_job)
