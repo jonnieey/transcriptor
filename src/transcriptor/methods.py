@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional, Union
 
+import click
 import jinja2
 import pdfkit
 from docxtpl import DocxTemplate
@@ -12,8 +13,9 @@ from transcriptor.client import Client
 from transcriptor.client_list import ClientList, ClientLists
 from transcriptor.conf import get_config
 from transcriptor.job import Job
+from transcriptor.profile import Profile
 from transcriptor.settings import Settings
-from transcriptor.utils import get_transcriber_info, string_to_date
+from transcriptor.utils import string_to_date
 
 CONFIG_FOLDER = get_config()["config_folder"]
 
@@ -40,6 +42,39 @@ CONFIG_FOLDER, JOBS_FOLDER, CLIENTS_FOLDER, DATE_FMT, INVOICES_FOLDER = (
     settings.date_fmt,
     settings.invoices_folder,
 )
+
+
+def get_profile(profile_file: Path = CONFIG_FOLDER / "profile.json") -> dict:
+    try:
+        profile = Profile.load(profile_file)
+    except FileNotFoundError:
+        profile = create_profile_interactively(profile_file)
+
+    return profile.__dict__
+
+
+def check_value(value: str) -> Optional[str]:
+    if not value.strip():
+        raise click.UsageError("Cannot be empty")
+    return value
+
+
+def create_profile_interactively(profile_path: Path) -> Profile:
+    first_name = click.prompt("Enter your first name", value_proc=check_value)
+    last_name = click.prompt("Enter your last name", value_proc=check_value)
+    country = click.prompt("Enter your country", default="")
+    area = click.prompt("Enter your area", default="")
+
+    user_profile = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "area": area,
+        "country": country,
+    }
+    profile = Profile(**user_profile)
+    profile.save(CONFIG_FOLDER / "profile.json")
+
+    return profile
 
 
 def create_client(name: str, email: str) -> Client:
@@ -259,7 +294,7 @@ def generate_invoice_docx(client: Client, jobs: list[Job], amount: float) -> Non
         "due": (date.today() + timedelta(days=2)).strftime(DATE_FMT),
     }
     # implement get_transcriber_info function
-    personal_data = get_transcriber_info()
+    personal_data = get_profile()
 
     context = {
         "client": client,
@@ -289,7 +324,7 @@ def generate_invoice_pdf(client: Client, jobs: list[Job], amount: float) -> None
         "due": (date.today() + timedelta(days=2)).strftime(DATE_FMT),
     }
     # implement get_transcriber_info function
-    personal_data = get_transcriber_info()
+    personal_data = get_profile()
 
     context = {
         "client": client,

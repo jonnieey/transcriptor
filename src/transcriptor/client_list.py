@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from transcriptor.client import Client
 from transcriptor.job import Job
 
 
@@ -10,6 +11,7 @@ class ClientList:
 
     def __post_init__(self):
         self.jobs_list = [Job.from_json(j) for j in self.jobs_list]
+        self.client = Client(**self.client)
 
     def amount(self):
         return round(sum([d.amount for d in self.jobs_list]), 0)

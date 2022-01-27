@@ -134,8 +134,7 @@ def create_job(
     save_job_to_file(client, tasks, JOBS_FOLDER)
 
 
-def list_clients() -> None:
-    clients = get_clients(CLIENTS_FOLDER)
+def print_clients(clients: list[Client]) -> None:
     headers = ["", "Name", "Email"]
 
     table = BeautifulTable()
@@ -185,6 +184,7 @@ def print_table(headers, jobs, amount, amount_paid, show_path=False):
         table.columns.pop("Job Path")
     else:
         table.columns.padding = 0
+    table.rows.sort("Date Received")
     click.echo(table)
     table.clear()
     click.echo()
@@ -215,7 +215,7 @@ def list_all_jobs(per_client: bool = False, show_path: bool = False) -> None:
             amount = client_job.amount()
             amount_paid = client_job.amount_paid()
             client, jobs = client_job.client, client_job.jobs()
-            click.echo("%s  :   %s" % (client["name"].upper(), client["email"]))
+            click.echo("%s  :   %s" % (client.name.upper(), client.email))
             click.echo()
 
             print_table(headers, jobs, amount, amount_paid, show_path=show_path)

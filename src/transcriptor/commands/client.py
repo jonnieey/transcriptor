@@ -2,7 +2,8 @@ import re
 
 import click
 
-from transcriptor.api import add_client, list_clients
+from transcriptor.api import add_client, print_clients
+from transcriptor.methods import get_clients
 
 
 def validate_email(ctx, params, value):
@@ -36,7 +37,10 @@ def add(name, email, **kwargs):
     add_client(name, email)
 
 
+clients = get_clients()
+
+
 @cli.command()
 def list():
     """List clients"""
-    list_clients()
+    print_clients(clients)
