@@ -10,6 +10,7 @@ from transcriptor.api import (
     list_client_jobs,
 )
 from transcriptor.methods import DATE_FMT, get_date_due, get_date_received, update_job
+from transcriptor.utils import parse_job_due_date
 
 TODAY = date.today().strftime(DATE_FMT)
 
@@ -28,8 +29,14 @@ def cli(**kwargs):
     pass
 
 
+def fetch_date_due() -> str:
+    return parse_job_due_date(click.get_current_context().params["file"])
+
+
 @cli.command()
-@click.argument("file", type=click.Path(exists=True))
+@click.option(
+    "-f", "--file", type=click.Path(exists=True), required=True, is_eager=True
+)
 @click.option(
     "-c",
     "--client",
@@ -50,6 +57,8 @@ def cli(**kwargs):
     "--date-due",
     required=True,
     prompt="Enter date job due",
+    is_eager=True,
+    default=fetch_date_due,
     help="Specify date job due fmt: YYYY-MM-DD",
 )
 @click.option(

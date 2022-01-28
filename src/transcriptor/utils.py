@@ -48,7 +48,7 @@ def parse_job_due_date(zip_file: Path) -> str:
         zip_file = Path(zip_file)
     job_name = zip_file.stem  # remove .zip extension
     date_due_pattern: Pattern = re.compile(
-        r"(?:(?<=DUE)|(?<=BACK))\s(\d{2}\.\d{2})", re.I
+        r"(?:(?<=DUE)|(?<=BACK))\s(\d{1,2}\.\d{1,2})", re.I
     )
 
     date_due_matches: Optional[Match] = date_due_pattern.search(job_name)
