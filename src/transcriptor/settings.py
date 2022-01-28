@@ -88,4 +88,4 @@ class Settings:
 
     def save(self, config_path: Path):
         with open(config_path, "w") as fd:
-            fd.write(self.to_json(self))
+            fd.write(self.to_json())

@@ -1,10 +1,10 @@
 import json
 import random
+import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional, Union
 
-import click
 import jinja2
 import pdfkit
 from docxtpl import DocxTemplate
@@ -25,15 +25,21 @@ def default_settings() -> Settings:
     return settings
 
 
-def get_settings(config_file: Path) -> dict:
-    settings = Settings().load(config_file)
-    return settings.__dict__ if settings else default_settings().__dict__
+def get_settings(config_file: Path) -> Settings:
+    try:
+        settings = Settings().load(config_file)
+    except Exception:
+        try:
+            config_file.parent.mkdir(parents=True, exist_ok=True)
+            settings = default_settings()
+            settings.save(config_file)
+        except Exception:
+            sys.exit("cannot create %s" % (config_file))
+    return settings
 
 
-try:
-    settings = Settings().load(CONFIG_FOLDER / "conf.json")
-except FileNotFoundError:
-    settings = default_settings()
+settings = get_settings(CONFIG_FOLDER / "conf.json")
+
 
 CONFIG_FOLDER, JOBS_FOLDER, CLIENTS_FOLDER, DATE_FMT, INVOICES_FOLDER = (
     settings.config_folder,
@@ -42,39 +48,6 @@ CONFIG_FOLDER, JOBS_FOLDER, CLIENTS_FOLDER, DATE_FMT, INVOICES_FOLDER = (
     settings.date_fmt,
     settings.invoices_folder,
 )
-
-
-def get_profile(profile_file: Path = CONFIG_FOLDER / "profile.json") -> dict:
-    try:
-        profile = Profile.load(profile_file)
-    except FileNotFoundError:
-        profile = create_profile_interactively(profile_file)
-
-    return profile.__dict__
-
-
-def check_value(value: str) -> Optional[str]:
-    if not value.strip():
-        raise click.UsageError("Cannot be empty")
-    return value
-
-
-def create_profile_interactively(profile_path: Path) -> Profile:
-    first_name = click.prompt("Enter your first name", value_proc=check_value)
-    last_name = click.prompt("Enter your last name", value_proc=check_value)
-    country = click.prompt("Enter your country", default="")
-    area = click.prompt("Enter your area", default="")
-
-    user_profile = {
-        "first_name": first_name,
-        "last_name": last_name,
-        "area": area,
-        "country": country,
-    }
-    profile = Profile(**user_profile)
-    profile.save(CONFIG_FOLDER / "profile.json")
-
-    return profile
 
 
 def create_client(name: str, email: str) -> Client:
@@ -285,7 +258,9 @@ def filter_jobs_by_date(
     return filtered_jobs
 
 
-def generate_invoice_docx(client: Client, jobs: list[Job], amount: float) -> None:
+def generate_invoice_docx(
+    client: Client, jobs: list[Job], amount: float, user_profile: Profile
+) -> None:
     doc = DocxTemplate(Path(__file__).parent / "invoice_template.docx")
 
     data = {
@@ -294,7 +269,7 @@ def generate_invoice_docx(client: Client, jobs: list[Job], amount: float) -> Non
         "due": (date.today() + timedelta(days=2)).strftime(DATE_FMT),
     }
     # implement get_transcriber_info function
-    personal_data = get_profile()
+    personal_data = user_profile.__dict__
 
     context = {
         "client": client,
@@ -317,14 +292,16 @@ def generate_invoice_docx(client: Client, jobs: list[Job], amount: float) -> Non
     doc.save(Path(INVOICES_FOLDER) / invoice_file_name)
 
 
-def generate_invoice_pdf(client: Client, jobs: list[Job], amount: float) -> None:
+def generate_invoice_pdf(
+    client: Client, jobs: list[Job], amount: float, user_profile: Profile
+) -> None:
     data = {
         "invoice_number": random.randint(1, 100),
         "created": date.today().strftime(DATE_FMT),
         "due": (date.today() + timedelta(days=2)).strftime(DATE_FMT),
     }
     # implement get_transcriber_info function
-    personal_data = get_profile()
+    personal_data = user_profile.__dict__
 
     context = {
         "client": client,
