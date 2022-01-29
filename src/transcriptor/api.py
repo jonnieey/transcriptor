@@ -4,13 +4,14 @@ import zipfile
 from collections import namedtuple
 from datetime import date
 from pathlib import Path
-from typing import Optional, Union
+from typing import NamedTuple, Optional, Union
 
 import click
 from beautifultable import BeautifulTable
 
 from transcriptor.client import Client
 from transcriptor.client_list import ClientList
+from transcriptor.job import Job
 from transcriptor.methods import (
     create_client,
     create_task,
@@ -153,7 +154,14 @@ def print_clients(clients: list[Client]) -> None:
     click.echo(table)
 
 
-def print_table(headers, jobs, amount, amount_paid, show_path=False):
+def print_table(
+    headers: list[str],
+    jobs: list[Job],
+    amount: float,
+    amount_paid: float,
+    show_path=False,
+    filter_by="",
+):
     terminal_size = shutil.get_terminal_size()
     table = BeautifulTable(maxwidth=terminal_size.columns)
     table.set_style(BeautifulTable.STYLE_BOX)
@@ -176,7 +184,21 @@ def print_table(headers, jobs, amount, amount_paid, show_path=False):
             "k",
             "l",
         ],
-        defaults=[None] * 13,
+        defaults=[
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ],
     )
 
     for job in jobs:
@@ -185,18 +207,30 @@ def print_table(headers, jobs, amount, amount_paid, show_path=False):
     footer = Footer(TOTALS="TOTALS", amount=amount, amount_paid=amount_paid)
     table.rows.append(footer)
 
+    if filter_by.strip():
+        # Implement other filters
+        table = table.rows.filter(lambda x: x["Status"] == filter_by)
+        amount, amount_paid = sum(table.columns["Amount"]), sum(
+            table.columns["Amount Paid"]
+        )
+        footer = Footer(TOTALS="TOTALS", amount=amount, amount_paid=amount_paid)
+        table.rows.append(footer)
+
     if not show_path:
         table.columns.pop("Job Path")
     else:
         table.columns.padding = 0
     table.rows.sort("Date Received")
+
     click.echo(table)
     table.clear()
     click.echo()
     click.echo()
 
 
-def list_client_jobs(client_name: str, show_path=False) -> None:
+def list_client_jobs(
+    client_name: str, show_path=False, filter_by: Optional[str] = ""
+) -> None:
     raw_jobs = get_jobs(client_name)
 
     if not raw_jobs:
@@ -206,10 +240,14 @@ def list_client_jobs(client_name: str, show_path=False) -> None:
     amount = raw_jobs.amount()
     amount_paid = raw_jobs.amount_paid()
     jobs = raw_jobs.jobs()
-    print_table(headers, jobs, amount, amount_paid, show_path=show_path)
+    print_table(
+        headers, jobs, amount, amount_paid, show_path=show_path, filter_by=filter_by
+    )
 
 
-def list_all_jobs(per_client: bool = False, show_path: bool = False) -> None:
+def list_all_jobs(
+    per_client: bool = False, show_path: bool = False, filter_by: Optional[str] = ""
+) -> None:
     raw_jobs = get_jobs()
     if not raw_jobs:
         sys.exit("No Jobs available")
@@ -223,12 +261,21 @@ def list_all_jobs(per_client: bool = False, show_path: bool = False) -> None:
             click.echo("%s  :   %s" % (client.name.upper(), client.email))
             click.echo()
 
-            print_table(headers, jobs, amount, amount_paid, show_path=show_path)
+            print_table(
+                headers,
+                jobs,
+                amount,
+                amount_paid,
+                show_path=show_path,
+                filter_by=filter_by,
+            )
     else:
         amount = raw_jobs.amount()
         amount_paid = raw_jobs.amount_paid()
         jobs = raw_jobs.jobs()
-        print_table(headers, jobs, amount, amount_paid, show_path=show_path)
+        print_table(
+            headers, jobs, amount, amount_paid, show_path=show_path, filter_by=filter_by
+        )
 
 
 def get_profile(profile_file: Optional[Path] = None) -> Profile:

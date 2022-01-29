@@ -82,17 +82,26 @@ def create(file, date_received=None, date_due=None, client=None, note=None, **kw
 @click.option("-a", "--all", is_flag=True, help="Specify client")
 @click.option("-s", "--per-client", is_flag=True, help="List job per client")
 @click.option("-p", "--show-path", is_flag=True, help="List job per client")
-def list(client=None, all=None, per_client=None, show_path=None, **kwargs):
+@click.option(
+    "-f",
+    "--filter-by",
+    type=click.Choice(["Pending", "Done", ""]),
+    default="",
+    help="Filter by word",
+)
+def list(
+    client=None, all=None, per_client=None, show_path=None, filter_by=None, **kwargs
+):
     """List client's jobs"""
     if all is True:
-        list_all_jobs(per_client=per_client, show_path=show_path)
+        list_all_jobs(per_client=per_client, show_path=show_path, filter_by=filter_by)
         return
 
     if client is not None:
-        list_client_jobs(client, show_path=show_path)
+        list_client_jobs(client, show_path=show_path, filter_by=filter_by)
     else:
         client = click.prompt("Enter client's name")
-        list_client_jobs(client, show_path=show_path)
+        list_client_jobs(client, show_path=show_path, filter_by=filter_by)
 
 
 def check_date_received(ctx, params, value):
