@@ -28,9 +28,8 @@ def string_to_date(date_str: str, date_fmt: str = "%Y-%m-%d") -> Union[str, date
         return datetime.strptime(date_str, date_fmt).date()
 
 
-def parse_job_number(zip_file: Union[str, Path]) -> str:
-    if isinstance(zip_file, str):
-        zip_file = Path(zip_file)
+def parse_job_number(zip_file: Optional[Path]) -> str:
+    assert zip_file is not None
     job_name = zip_file.stem  # remove .zip extension
     job_number_pattern: Pattern = re.compile(r"(\d{6,8})")
 
@@ -44,8 +43,7 @@ def parse_job_number(zip_file: Union[str, Path]) -> str:
 
 
 def parse_job_due_date(zip_file: Path) -> str:
-    if isinstance(zip_file, str):
-        zip_file = Path(zip_file)
+    assert zip_file is not None
     job_name = zip_file.stem  # remove .zip extension
     date_due_pattern: Pattern = re.compile(
         r"(?:(?<=DUE)|(?<=BACK))\s(\d{1,2}\.\d{1,2})", re.I
@@ -69,10 +67,8 @@ def format_date(d: str, date_fmt: str = "%Y-%m-%d") -> str:
         return ""
 
 
-def get_media_files(task_folder: Path) -> list[Path]:
-    if isinstance(task_folder, str):
-        task_folder = Path(task_folder)
-
+def get_media_files(task_folder: Optional[Path]) -> list[Path]:
+    assert task_folder is not None
     media_files = []
 
     files = [f for f in task_folder.iterdir()]
@@ -107,9 +103,3 @@ def get_quantity(quantity: Union[str, int, float], total_quantity: float) -> flo
                 q = round(float(total_quantity * quantity_words[quantity.lower()]), 0)
 
     return q
-
-
-# TODO implement function
-def get_transcriber_info() -> dict:
-    # placeholder for the function
-    return {"name": "Anderson", "area": "Nairobi", "country": "Kenya"}

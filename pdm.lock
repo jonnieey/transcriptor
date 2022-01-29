@@ -327,8 +327,6 @@ content_hash = "sha256:4daebfd481cf64b190d60063258fcbd1026d245feccbb4ce8849b6bdb
 "colorama 0.4.4" = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
     {file = "colorama-0.4.4.tar.gz", hash = "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b"},
-]
-"docxcompose 1.3.4" = [
     {file = "docxcompose-1.3.4.tar.gz", hash = "sha256:b1a40d4f95751565822350174971012875f82a32b83a9d1be098edd965047029"},
 ]
 "docxtpl 0.15.2" = [

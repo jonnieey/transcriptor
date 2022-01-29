@@ -18,6 +18,7 @@ from transcriptor.settings import Settings
 from transcriptor.utils import string_to_date
 
 CONFIG_FOLDER = get_config()["config_folder"]
+default_config_file = CONFIG_FOLDER / "conf.json"
 
 
 def default_settings() -> Settings:
@@ -25,7 +26,8 @@ def default_settings() -> Settings:
     return settings
 
 
-def get_settings(config_file: Path) -> Settings:
+def get_settings(config_file: Optional[Path] = default_config_file) -> Settings:
+    assert config_file is not None
     try:
         settings = Settings().load(config_file)
     except Exception:
@@ -55,7 +57,8 @@ def create_client(name: str, email: str) -> Client:
     return client
 
 
-def save_client(client: Client, clients_folder: Path = CLIENTS_FOLDER) -> int:
+def save_client(client: Client, clients_folder: Optional[Path] = CLIENTS_FOLDER) -> int:
+    assert clients_folder is not None
     if not clients_folder.exists():
         clients_folder.mkdir(parents=True, exist_ok=True)
 
@@ -77,7 +80,7 @@ def create_task(
     job_type: str,
     quantity: float,
     total_quantity: float,
-    job_path: Path,
+    job_path: Optional[Path],
     note: str,
 ) -> Job:
     task = Job(
@@ -96,9 +99,10 @@ def create_task(
 def save_job_to_file(
     client: Client,
     jobs: list[Job],
-    jobs_folder: Path = JOBS_FOLDER,
+    jobs_folder: Optional[Path] = JOBS_FOLDER,
 ) -> int:
 
+    assert jobs_folder is not None
     if not jobs_folder.exists():
         jobs_folder.mkdir(parents=True, exist_ok=True)
     client_jobs_file = jobs_folder / client.name
@@ -157,8 +161,9 @@ def get_date_due(date_due: str) -> date:
         return date_d
 
 
-def get_clients(clients_folder: Path = CLIENTS_FOLDER) -> list[Client]:
+def get_clients(clients_folder: Optional[Path] = CLIENTS_FOLDER) -> list[Client]:
     clients = []
+    assert clients_folder is not None
     if not clients_folder.exists():
         return []
     else:
@@ -172,10 +177,12 @@ def get_clients(clients_folder: Path = CLIENTS_FOLDER) -> list[Client]:
 
 def get_jobs(client_name: Optional[str] = None) -> ClientLists:
     jobs = []
+    jobs_folder = JOBS_FOLDER
 
-    if Path(JOBS_FOLDER).exists():
+    assert jobs_folder is not None
+    if jobs_folder.exists():
         if client_name:
-            client_jobs_files = Path(JOBS_FOLDER).iterdir()
+            client_jobs_files = jobs_folder.iterdir()
             for client_job_file in client_jobs_files:
                 if client_name.lower() not in client_job_file.name.lower():
                     continue
@@ -186,7 +193,7 @@ def get_jobs(client_name: Optional[str] = None) -> ClientLists:
                     jobs.append(ClientList(**client_json))
                     break
         else:
-            job_files = Path(JOBS_FOLDER).iterdir()
+            job_files = jobs_folder.iterdir()
             for job_file in job_files:
                 with open(job_file, "r") as fp:
                     client_json = json.load(fp)
@@ -197,8 +204,10 @@ def get_jobs(client_name: Optional[str] = None) -> ClientLists:
 
 def get_jobs_per_client() -> ClientLists:
     jobs = []
-    if Path(JOBS_FOLDER).exists():
-        job_files = Path(JOBS_FOLDER).iterdir()
+    jobs_folder = JOBS_FOLDER
+    assert jobs_folder is not None
+    if jobs_folder.exists():
+        job_files = jobs_folder.iterdir()
         for job_file in job_files:
             with open(job_file, "r") as fp:
                 client_json = json.load(fp)
@@ -208,7 +217,9 @@ def get_jobs_per_client() -> ClientLists:
 
 def update_job(job_number: str, d: dict = {}) -> int:
     updated = 1
-    for job_file in Path(JOBS_FOLDER).iterdir():
+    jobs_folder = JOBS_FOLDER
+    assert jobs_folder is not None
+    for job_file in jobs_folder.iterdir():
 
         with open(job_file, "r") as fd:
             c_json = json.load(fd)
@@ -286,10 +297,12 @@ def generate_invoice_docx(
         client.name,
     )
 
-    if not Path(INVOICES_FOLDER).exists():
-        Path(INVOICES_FOLDER).mkdir(parents=True, exist_ok=True)
+    invoices_folder = INVOICES_FOLDER
+    assert invoices_folder is not None
+    if not invoices_folder.exists():
+        invoices_folder.mkdir(parents=True, exist_ok=True)
 
-    doc.save(Path(INVOICES_FOLDER) / invoice_file_name)
+    doc.save(invoices_folder / invoice_file_name)
 
 
 def generate_invoice_pdf(
@@ -322,7 +335,9 @@ def generate_invoice_pdf(
         client.name,
     )
 
-    if not Path(INVOICES_FOLDER).exists():
-        Path(INVOICES_FOLDER).mkdir(parents=True, exist_ok=True)
+    invoices_folder = INVOICES_FOLDER
+    assert invoices_folder is not None
+    if not invoices_folder.exists():
+        invoices_folder.mkdir(parents=True, exist_ok=True)
 
-    pdfkit.from_string(output_text, Path(INVOICES_FOLDER) / invoice_file_name)
+    pdfkit.from_string(output_text, invoices_folder / invoice_file_name)

@@ -19,7 +19,7 @@ class Job:
     date_submitted: Union[date, str] = ""
     status: str = "Pending"
     amount_paid: float = 0.0
-    job_path: Union[str, Path] = ""
+    job_path: Optional[Path] = None
     note: str = ""
 
     def __post_init__(self):
@@ -150,8 +150,8 @@ class Job:
         amount_paid: float = (
             0.0 if not "amount_paid" in js.keys() else js["amount_paid"]
         )
-        job_path: Union[str, Path] = (
-            "" if not "job_path" in js.keys() else js["job_path"]
+        job_path: Optional[Path] = (
+            None if not "job_path" in js.keys() else js["job_path"]
         )
         note: str = "" if not "note" in js.keys() else js["note"]
 

@@ -6,11 +6,11 @@ from typing import Any, Optional, Union
 
 @dataclass
 class Settings:
-    clients_folder: Union[str, Path] = ""
-    jobs_folder: Union[str, Path] = ""
-    works_folder: Union[str, Path] = ""
-    config_folder: Union[str, Path] = ""
-    invoices_folder: Union[str, Path] = ""
+    clients_folder: Optional[Path] = None
+    jobs_folder: Optional[Path] = None
+    works_folder: Optional[Path] = None
+    config_folder: Optional[Path] = None
+    invoices_folder: Optional[Path] = None
     date_fmt: str = ""
 
     def __eq__(self, other: object) -> bool:
@@ -32,12 +32,20 @@ class Settings:
 
     def to_dict(self) -> dict:
         d: dict[Any, Any] = {}
-        d["clients_folder"] = str(self.clients_folder)
-        d["jobs_folder"] = str(self.jobs_folder)
-        d["works_folder"] = str(self.works_folder)
+        d["clients_folder"] = (
+            str(self.clients_folder) if self.clients_folder is not None else ""
+        )
+        d["jobs_folder"] = str(self.jobs_folder) if self.jobs_folder is not None else ""
+        d["works_folder"] = (
+            str(self.works_folder) if self.works_folder is not None else ""
+        )
         d["date_fmt"] = str(self.date_fmt)
-        d["config_folder"] = str(self.config_folder)
-        d["invoices_folder"] = str(self.invoices_folder)
+        d["config_folder"] = (
+            str(self.config_folder) if self.config_folder is not None else ""
+        )
+        d["invoices_folder"] = (
+            str(self.invoices_folder) if self.invoices_folder is not None else ""
+        )
 
         return d
 
@@ -56,20 +64,20 @@ class Settings:
             except Exception:
                 return cls()
 
-        clients_folder: Union[str, Path] = (
-            "" if not "clients_folder" in js.keys() else Path(js["clients_folder"])
+        clients_folder: Optional[Path] = (
+            None if not "clients_folder" in js.keys() else Path(js["clients_folder"])
         )
-        jobs_folder: Union[str, Path] = (
-            "" if not "jobs_folder" in js.keys() else Path(js["jobs_folder"])
+        jobs_folder: Optional[Path] = (
+            None if not "jobs_folder" in js.keys() else Path(js["jobs_folder"])
         )
-        works_folder: Union[str, Path] = (
-            "" if not "works_folder" in js.keys() else Path(js["works_folder"])
+        works_folder: Optional[Path] = (
+            None if not "works_folder" in js.keys() else Path(js["works_folder"])
         )
-        config_folder: Union[str, Path] = (
-            "" if not "config_folder" in js.keys() else Path(js["config_folder"])
+        config_folder: Optional[Path] = (
+            None if not "config_folder" in js.keys() else Path(js["config_folder"])
         )
-        invoices_folder: Union[str, Path] = (
-            "" if not "invoices_folder" in js.keys() else Path(js["invoices_folder"])
+        invoices_folder: Optional[Path] = (
+            None if not "invoices_folder" in js.keys() else Path(js["invoices_folder"])
         )
         date_fmt: str = "" if not "date_fmt" in js.keys() else js["date_fmt"]
 
@@ -82,10 +90,16 @@ class Settings:
             invoices_folder=invoices_folder,
         )
 
-    def load(self, config_path: Path):
-        with open(config_path, "r") as fd:
-            return self.from_json(json.load(fd))
+    def load(self, config_path: Optional[Path]):
+        if config_path:
+            with open(config_path, "r") as fd:
+                return self.from_json(json.load(fd))
+        else:
+            return
 
-    def save(self, config_path: Path):
-        with open(config_path, "w") as fd:
-            fd.write(self.to_json())
+    def save(self, config_path: Optional[Path]):
+        if config_path:
+            with open(config_path, "w") as fd:
+                fd.write(self.to_json())
+        else:
+            return

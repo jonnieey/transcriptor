@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 
 @dataclass
@@ -28,11 +28,13 @@ class Profile:
             self.to_dict(), indent=indent, ensure_ascii=ensure_ascii, sort_keys=True
         )
 
-    def save(self, config_path: Path):
+    def save(self, config_path: Optional[Path]):
+        assert config_path is not None
         with open(config_path, "w") as fd:
             fd.write(self.to_json())
 
     @classmethod
-    def load(cls, config_path: Path):
+    def load(cls, config_path: Optional[Path]):
+        assert config_path is not None
         with open(config_path, "r") as fd:
             return cls(**json.load(fd))

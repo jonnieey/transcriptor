@@ -43,7 +43,7 @@ CLIENTS_FOLDER, WORKS_FOLDER, JOBS_FOLDER, CONFIG_FOLDER = (
 def add_client(
     name: str,
     email: str,
-    clients_folder: Path = CLIENTS_FOLDER,
+    clients_folder: Optional[Path] = CLIENTS_FOLDER,
 ) -> None:
     new_client = create_client(name=name, email=email)
     clients = get_clients(CLIENTS_FOLDER)
@@ -72,7 +72,7 @@ def get_client_object(client_name: str) -> Client:
 
 
 def create_job(
-    zip_file: Path,
+    zip_file: Optional[Path],
     date_received: str,
     date_due: str,
     client: Client,
@@ -83,12 +83,15 @@ def create_job(
         date_due = parse_job_due_date(zip_file)
 
     job_folder_stem = "%s-%s_DUE_%s" % (date_received, job_number, date_due)
-    job_folder = WORKS_FOLDER / client.name / job_folder_stem
+    works_folder = WORKS_FOLDER
+    if isinstance(works_folder, Path):
+        job_folder = works_folder / client.name / job_folder_stem
 
     if not job_folder.exists():
         job_folder.mkdir(parents=True, exist_ok=True)
 
-    new_zip_file = shutil.copy2(zip_file, job_folder)  # should move
+    if isinstance(zip_file, Path):
+        new_zip_file = shutil.copy2(zip_file, job_folder)  # should move
     try:
         zipfile.ZipFile(new_zip_file).extractall(job_folder)
     except Exception as error:
@@ -228,7 +231,7 @@ def list_all_jobs(per_client: bool = False, show_path: bool = False) -> None:
         print_table(headers, jobs, amount, amount_paid, show_path=show_path)
 
 
-def get_profile(profile_file: Path = CONFIG_FOLDER / "profile.json") -> Profile:
+def get_profile(profile_file: Optional[Path] = None) -> Profile:
     try:
         profile = Profile.load(profile_file)
     except FileNotFoundError:
@@ -243,7 +246,7 @@ def check_value(value: str) -> Optional[str]:
     return value
 
 
-def create_profile_interactively(profile_path: Path) -> Profile:
+def create_profile_interactively(profile_path: Optional[Path]) -> Profile:
     first_name = click.prompt("Enter your first name", value_proc=check_value)
     last_name = click.prompt("Enter your last name", value_proc=check_value)
     country = click.prompt("Enter your country", default="")
@@ -256,7 +259,9 @@ def create_profile_interactively(profile_path: Path) -> Profile:
         "country": country,
     }
     profile = Profile(**user_profile)
-    profile.save(CONFIG_FOLDER / "profile.json")
+    config_folder = CONFIG_FOLDER
+    if isinstance(config_folder, Path):
+        profile.save(config_folder / "profile.json")
 
     return profile
 
@@ -278,7 +283,8 @@ def create_invoice(
     new_client_jobs = ClientList(
         client=client.to_dict(), jobs_list=[j.to_dict() for j in jobs]
     )
-    profile = get_profile()
+    assert CONFIG_FOLDER is not None
+    profile = get_profile(CONFIG_FOLDER / "profile.json")
     amount = new_client_jobs.amount()
     if as_docx:
         generate_invoice_docx(

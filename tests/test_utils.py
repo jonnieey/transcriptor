@@ -31,13 +31,13 @@ def test_string_to_date():
 
 
 def test_parse_job_number():
-    zip = "2021-11-12-514779_DUE_11.15_(EXAMPLE)/514779 DUE 11.15 (EXAMPLE).zip"
+    zip = Path("2021-11-12-514779_DUE_11.15_(EXAMPLE)/514779 DUE 11.15 (EXAMPLE).zip")
     job_number = parse_job_number(zip)
     assert job_number == "514779"
 
 
 def test_parse_job_due_date():
-    zip = "2021-11-12-514779_DUE_11.15_(EXAMPLE)/514779 DUE 11.15 (EXAMPLE).zip"
+    zip = Path("2021-11-12-514779_DUE_11.15_(EXAMPLE)/514779 DUE 11.15 (EXAMPLE).zip")
     date_due = parse_job_due_date(Path(zip))
     d = "%s-11-15" % (date.today().year)
     assert date_due == d
