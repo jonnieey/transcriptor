@@ -25,13 +25,25 @@ tests: run-tests clean-tests
 
 .PHONY: run-tests
 run-tests:  ## Run tests using pytest
-	@echo "RUNNING TESTS"
+	@echo -e "RUNNING TESTS\n"
 	pdm run pytest tests
+
+.PHONY: clean
+clean: clean-tests clean-tmp
 
 .PHONY: clean-tests
 clean-tests:  ## Delete temporary tests files.
-	@echo "CLEANING TEST DATA DIRECTORY"
+	@echo -e "REMOVING TEMP TEST DATA\n"
 	@rm -rf tests/data/* 2>/dev/null
+
+.PHONY: clean-tmp
+clean-tmp:  ## Delete temporary files.
+	@echo -e "REMOVING DATA DIRECTORY\n"
+	@rm -rf .mypy_cache
+	@rm -rf .pytest_cache
+	@rm -rf build
+	@rm -rf dist
+	@find . -type d -name __pycache__ | xargs rm -rf
 
 .PHONY: checks
 checks: check-types
