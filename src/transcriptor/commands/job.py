@@ -165,9 +165,6 @@ def update(**kwargs):
     """Update job"""
     u = [
         kwargs["client"],
-        kwargs["date_received"],
-        kwargs["date_due"],
-        kwargs["date_submitted"],
         kwargs["quantity"],
     ]
     if len(kwargs["job_number"]) > 1:
