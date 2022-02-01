@@ -30,6 +30,7 @@ def string_to_date(date_str: str, date_fmt: str = "%Y-%m-%d") -> Union[str, date
 
 def parse_job_number(zip_file: Optional[Path]) -> str:
     assert zip_file is not None
+    zip_file = Path(zip_file)
     job_name = zip_file.stem  # remove .zip extension
     job_number_pattern: Pattern = re.compile(r"(\d{6,8})")
 
@@ -44,6 +45,7 @@ def parse_job_number(zip_file: Optional[Path]) -> str:
 
 def parse_job_due_date(zip_file: Path) -> str:
     assert zip_file is not None
+    zip_file = Path(zip_file)
     job_name = zip_file.stem  # remove .zip extension
     date_due_pattern: Pattern = re.compile(
         r"(?:(?<=DUE)|(?<=BACK))\s(\d{1,2}\.\d{1,2})", re.I

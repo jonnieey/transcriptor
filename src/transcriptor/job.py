@@ -60,7 +60,7 @@ class Job:
 
     @amount.setter
     def amount(self, value: float) -> None:
-        self._amount = self.job_rate * self.quantity
+        self._amount = round(self.job_rate * self.quantity, 0)
 
     def __str__(self) -> str:
         j = "%s %s %s %s %s %s" % (

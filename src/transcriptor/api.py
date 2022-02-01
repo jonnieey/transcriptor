@@ -1,17 +1,17 @@
 import shutil
 import sys
 import zipfile
-from collections import namedtuple
 from datetime import date
 from pathlib import Path
-from typing import NamedTuple, Optional, Union
+from typing import Optional, Union
 
 import click
-from beautifultable import BeautifulTable
+# from beautifultable import BeautifulTable
+from rich.console import Console
+from rich.table import Table
 
 from transcriptor.client import Client
 from transcriptor.client_list import ClientList
-from transcriptor.job import Job
 from transcriptor.methods import (
     create_client,
     create_task,
@@ -91,8 +91,7 @@ def create_job(
     if not job_folder.exists():
         job_folder.mkdir(parents=True, exist_ok=True)
 
-    if isinstance(zip_file, Path):
-        new_zip_file = shutil.copy2(zip_file, job_folder)  # should move
+    new_zip_file = shutil.copy2(zip_file, job_folder)  # should move
     try:
         zipfile.ZipFile(new_zip_file).extractall(job_folder)
     except Exception as error:
@@ -119,7 +118,7 @@ def create_job(
                 show_choices=True,
             )
             quantity = get_quantity(
-                click.prompt("Enter quantity of task", default=total_quantity),
+                click.prompt("Enter quantity of task", default=str(total_quantity)),
                 total_quantity=total_quantity,
             )
             task = create_task(
@@ -142,111 +141,81 @@ def create_job(
 
 def print_clients(clients: list[Client]) -> None:
     headers = ["", "Name", "Email"]
+    table = Table()
 
-    table = BeautifulTable()
-    table.set_style(BeautifulTable.STYLE_BOX)
-    table.columns.header = headers
+    [table.add_column(header=x) for x in headers]
+    [table.add_row(str(idx + 1), c.name, c.email) for idx, c in enumerate(clients)]
 
-    [
-        table.rows.append([idx + 1, client.name, client.email])
-        for idx, client in enumerate(clients)
-    ]
-    click.echo(table)
+    console = Console()
+    console.print(table)
 
 
 def print_table(
     headers: list[str],
-    jobs: list[Job],
+    jobs: list[list[str]],
     amount: float,
     amount_paid: float,
-    show_path=False,
-    filter_by="",
-):
-    terminal_size = shutil.get_terminal_size()
-    table = BeautifulTable(maxwidth=terminal_size.columns)
-    table.set_style(BeautifulTable.STYLE_BOX)
-
-    table.columns.header = [header.replace("_", " ").title() for header in headers]
-    Footer = namedtuple(
-        "Footer",
-        [
-            "TOTALS",
-            "b",
-            "c",
-            "d",
-            "e",
-            "f",
-            "g",
-            "h",
-            "i",
-            "amount",
-            "amount_paid",
-            "k",
-            "l",
-        ],
-        defaults=[
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ],
-    )
+    show_path: bool = False,
+    filter_by: str = "",
+    title: str = "",
+) -> None:
+    table = Table(title=title, show_footer=True)
+    table.title_style = "red bold"
+    [table.add_column(column.replace("_", " ").title()) for column in headers]
 
     for job in jobs:
-        table.rows.append(list(job.to_dict().values()))
+        [table.add_row(*job)]
 
-    footer = Footer(TOTALS="TOTALS", amount=amount, amount_paid=amount_paid)
-    table.rows.append(footer)
-
-    if filter_by.strip():
-        # Implement other filters
-        table = table.rows.filter(lambda x: x["Status"] == filter_by)
-        amount, amount_paid = sum(table.columns["Amount"]), sum(
-            table.columns["Amount Paid"]
-        )
-        footer = Footer(TOTALS="TOTALS", amount=amount, amount_paid=amount_paid)
-        table.rows.append(footer)
-
+    table.columns[0].footer = "TOTALS"
+    for column in table.columns:
+        if column.header == "Amount":
+            column.footer = str(amount)
+        if column.header == "Amount Paid":
+            column.footer = str(amount_paid)
+        if column.header in [
+            "Quantity",
+            "Job Rate",
+            "Total Quantity",
+            "Amount Paid",
+            "Amount",
+        ]:
+            column.justify = "right"
     if not show_path:
-        table.columns.pop("Job Path")
-    else:
-        table.columns.padding = 0
-    table.rows.sort("Date Received")
+        # delete column containing header Job Path
+        del table.columns[[_.header for _ in list(table.columns)].index("Job Path")]
 
-    click.echo(table)
-    table.clear()
-    click.echo()
-    click.echo()
+    # Implement table sorter, filter
+    table.row_styles = ["none", "dim"]
+    console = Console()
+    console.print(table)
 
 
-def list_client_jobs(
-    client_name: str, show_path=False, filter_by: Optional[str] = ""
-) -> None:
+def list_client_jobs(client_name: str, show_path=False, filter_by: str = "") -> None:
     raw_jobs = get_jobs(client_name)
 
     if not raw_jobs:
         sys.exit("No Jobs available")
 
     headers = raw_jobs.headers()
+    client = raw_jobs.clients()[0].name
     amount = raw_jobs.amount()
     amount_paid = raw_jobs.amount_paid()
-    jobs = raw_jobs.jobs()
+    jobs = sorted(
+        [list(map(str, list(job.to_dict().values()))) for job in raw_jobs.jobs()]
+    )
     print_table(
-        headers, jobs, amount, amount_paid, show_path=show_path, filter_by=filter_by
+        headers,
+        jobs,
+        amount,
+        amount_paid,
+        show_path=show_path,
+        filter_by=filter_by,
+        title=client,
     )
 
 
 def list_all_jobs(
-    per_client: bool = False, show_path: bool = False, filter_by: Optional[str] = ""
+    per_client: bool = False, show_path: bool = False, filter_by: str = ""
 ) -> None:
     raw_jobs = get_jobs()
     if not raw_jobs:
@@ -257,8 +226,13 @@ def list_all_jobs(
         for client_job in raw_jobs:
             amount = client_job.amount()
             amount_paid = client_job.amount_paid()
-            client, jobs = client_job.client, client_job.jobs()
-            click.echo("%s  :   %s" % (client.name.upper(), client.email))
+            client = client_job.client
+            jobs = sorted(
+                [
+                    list(map(str, list(job.to_dict().values())))
+                    for job in client_job.jobs()
+                ]
+            )
             click.echo()
 
             print_table(
@@ -268,13 +242,24 @@ def list_all_jobs(
                 amount_paid,
                 show_path=show_path,
                 filter_by=filter_by,
+                title=client.name,
             )
     else:
         amount = raw_jobs.amount()
         amount_paid = raw_jobs.amount_paid()
-        jobs = raw_jobs.jobs()
+        # jobs = raw_jobs.jobs()
+        # TODO Refactor
+        jobs = sorted(
+            [list(map(str, list(job.to_dict().values()))) for job in raw_jobs.jobs()]
+        )
         print_table(
-            headers, jobs, amount, amount_paid, show_path=show_path, filter_by=filter_by
+            headers,
+            jobs,
+            amount,
+            amount_paid,
+            show_path=show_path,
+            filter_by=filter_by,
+            title="All Jobs",
         )
 
 

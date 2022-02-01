@@ -1,31 +1,27 @@
 [[package]]
 name = "appdirs"
-sections = ["default"]
 version = "1.4.4"
 summary = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 
 [[package]]
 name = "atomicwrites"
-sections = ["tests"]
 version = "1.4.0"
-marker = "sys_platform == 'win32'"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 summary = "Atomic file writes."
 
 [[package]]
 name = "attrs"
-sections = ["tests"]
-version = "21.3.0"
+version = "21.4.0"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 summary = "Classes Without Boilerplate"
 
 [[package]]
 name = "audioread"
-sections = ["default"]
 version = "2.1.9"
 summary = "multi-library, cross-platform audio decoding"
 
 [[package]]
 name = "autoflake"
-sections = ["tests"]
 version = "1.4"
 summary = "Removes unused imports and unused variables"
 dependencies = [
@@ -33,33 +29,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "beautifultable"
-sections = ["default"]
-version = "1.0.1"
-summary = "Print text tables for terminals"
-dependencies = [
-    "wcwidth",
-]
-
-[[package]]
 name = "black"
-sections = ["tests"]
 version = "21.12b0"
+requires_python = ">=3.6.2"
 summary = "The uncompromising code formatter."
 dependencies = [
     "click>=7.1.2",
+    "mypy-extensions>=0.4.3",
+    "pathspec<1,>=0.9.0",
     "platformdirs>=2",
     "tomli<2.0.0,>=0.2.6",
-    "pathspec<1,>=0.9.0",
-    "typing-extensions>=3.10.0.0",
-    "mypy-extensions>=0.4.3",
     "typing-extensions!=3.10.0.1; python_version >= \"3.10\"",
+    "typing-extensions>=3.10.0.0",
 ]
 
 [[package]]
 name = "click"
-sections = ["default", "tests"]
 version = "8.0.3"
+requires_python = ">=3.6"
 summary = "Composable command line interface toolkit"
 dependencies = [
     "colorama; platform_system == \"Windows\"",
@@ -67,14 +54,17 @@ dependencies = [
 
 [[package]]
 name = "colorama"
-sections = ["default", "tests"]
 version = "0.4.4"
-marker = "platform_system == 'Windows' or sys_platform == 'win32'"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 summary = "Cross-platform colored terminal text."
 
 [[package]]
+name = "commonmark"
+version = "0.9.1"
+summary = "Python parser for the CommonMark Markdown spec"
+
+[[package]]
 name = "docxcompose"
-sections = ["default"]
 version = "1.3.4"
 summary = "Compose .docx documents"
 dependencies = [
@@ -86,33 +76,31 @@ dependencies = [
 
 [[package]]
 name = "docxtpl"
-sections = ["default"]
 version = "0.15.2"
 summary = "Python docx template engine"
 dependencies = [
-    "six",
-    "python-docx",
     "docxcompose",
     "jinja2",
     "lxml",
+    "python-docx",
+    "six",
 ]
 
 [[package]]
 name = "iniconfig"
-sections = ["tests"]
 version = "1.1.1"
 summary = "iniconfig: brain-dead simple config-ini parsing"
 
 [[package]]
 name = "isort"
-sections = ["tests"]
 version = "5.10.1"
+requires_python = ">=3.6.1,<4.0"
 summary = "A Python utility / library to sort Python imports."
 
 [[package]]
-name = "Jinja2"
-sections = ["default"]
+name = "jinja2"
 version = "3.0.3"
+requires_python = ">=3.6"
 summary = "A very fast and expressive template engine."
 dependencies = [
     "MarkupSafe>=2.0",
@@ -120,37 +108,36 @@ dependencies = [
 
 [[package]]
 name = "lxml"
-sections = ["default"]
 version = "4.7.1"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, != 3.4.*"
 summary = "Powerful and Pythonic XML processing library combining libxml2/libxslt with the ElementTree API."
 
 [[package]]
-name = "MarkupSafe"
-sections = ["default"]
+name = "markupsafe"
 version = "2.0.1"
+requires_python = ">=3.6"
 summary = "Safely add untrusted strings to HTML/XML markup."
 
 [[package]]
 name = "mypy"
-sections = ["default"]
 version = "0.931"
+requires_python = ">=3.6"
 summary = "Optional static typing for Python"
 dependencies = [
-    "typing-extensions>=3.10",
     "mypy-extensions>=0.4.3",
     "tomli>=1.1.0",
+    "typing-extensions>=3.10",
 ]
 
 [[package]]
 name = "mypy-extensions"
-sections = ["default", "tests"]
 version = "0.4.3"
 summary = "Experimental type system extensions for programs checked with the mypy typechecker."
 
 [[package]]
 name = "packaging"
-sections = ["tests"]
 version = "21.3"
+requires_python = ">=3.6"
 summary = "Core utilities for Python packages"
 dependencies = [
     "pyparsing!=3.0.5,>=2.0.2",
@@ -158,65 +145,69 @@ dependencies = [
 
 [[package]]
 name = "pathspec"
-sections = ["tests"]
 version = "0.9.0"
+requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
 summary = "Utility library for gitignore style pattern matching of file paths."
 
 [[package]]
 name = "pdfkit"
-sections = ["default"]
 version = "1.0.0"
 summary = "Wkhtmltopdf python wrapper to convert html to pdf using the webkit rendering engine and qt"
 
 [[package]]
 name = "platformdirs"
-sections = ["tests"]
 version = "2.4.1"
+requires_python = ">=3.7"
 summary = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 
 [[package]]
 name = "pluggy"
-sections = ["tests"]
 version = "1.0.0"
+requires_python = ">=3.6"
 summary = "plugin and hook calling mechanisms for python"
 
 [[package]]
 name = "py"
-sections = ["tests"]
 version = "1.11.0"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 summary = "library with cross-python path, ini-parsing, io, code, log facilities"
 
 [[package]]
 name = "pyflakes"
-sections = ["tests"]
 version = "2.4.0"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 summary = "passive checker of Python programs"
 
 [[package]]
+name = "pygments"
+version = "2.11.2"
+requires_python = ">=3.5"
+summary = "Pygments is a syntax highlighting package written in Python."
+
+[[package]]
 name = "pyparsing"
-sections = ["tests"]
-version = "3.0.6"
+version = "3.0.7"
+requires_python = ">=3.6"
 summary = "Python parsing module"
 
 [[package]]
 name = "pytest"
-sections = ["tests"]
 version = "6.2.5"
+requires_python = ">=3.6"
 summary = "pytest: simple powerful testing with Python"
 dependencies = [
+    "atomicwrites>=1.0; sys_platform == \"win32\"",
     "attrs>=19.2.0",
+    "colorama; sys_platform == \"win32\"",
     "iniconfig",
     "packaging",
     "pluggy<2.0,>=0.12",
     "py>=1.8.2",
     "toml",
-    "atomicwrites>=1.0; sys_platform == \"win32\"",
-    "colorama; sys_platform == \"win32\"",
 ]
 
 [[package]]
 name = "python-docx"
-sections = ["default"]
 version = "0.8.11"
 summary = "Create and update Microsoft Word .docx files."
 dependencies = [
@@ -225,49 +216,54 @@ dependencies = [
 
 [[package]]
 name = "python-magic"
-sections = ["default"]
 version = "0.4.24"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 summary = "File type identification using libmagic"
 
 [[package]]
+name = "rich"
+version = "11.1.0"
+requires_python = ">=3.6.2,<4.0.0"
+summary = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
+dependencies = [
+    "colorama<0.5.0,>=0.4.0",
+    "commonmark<0.10.0,>=0.9.0",
+    "pygments<3.0.0,>=2.6.0",
+]
+
+[[package]]
 name = "setuptools"
-sections = ["default"]
-version = "60.5.0"
+version = "60.6.0"
+requires_python = ">=3.7"
 summary = "Easily download, build, install, upgrade, and uninstall Python packages"
 
 [[package]]
 name = "six"
-sections = ["default"]
 version = "1.16.0"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 summary = "Python 2 and 3 compatibility utilities"
 
 [[package]]
 name = "toml"
-sections = ["tests"]
 version = "0.10.2"
+requires_python = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 summary = "Python Library for Tom's Obvious, Minimal Language"
 
 [[package]]
 name = "tomli"
-sections = ["default", "tests"]
 version = "1.2.3"
+requires_python = ">=3.6"
 summary = "A lil' TOML parser"
 
 [[package]]
 name = "typing-extensions"
-sections = ["default", "tests"]
 version = "4.0.1"
+requires_python = ">=3.6"
 summary = "Backported and Experimental Type Hints for Python 3.6+"
 
-[[package]]
-name = "wcwidth"
-sections = ["default"]
-version = "0.2.5"
-summary = "Measures the displayed width of unicode strings in a terminal"
-
 [metadata]
-lock_version = "2"
-content_hash = "sha256:e06001b6affd0acb4d0c9b4d17f2dc07f94970a99be1b61f6d4b5077e1d5e977"
+lock_version = "3.1"
+content_hash = "sha256:76ee82c1c4cda5d3015f17e806b585501bc5bee13f5a05b173f1b6b35d5effc0"
 
 [metadata.files]
 "appdirs 1.4.4" = [
@@ -278,19 +274,15 @@ content_hash = "sha256:e06001b6affd0acb4d0c9b4d17f2dc07f94970a99be1b61f6d4b5077e
     {file = "atomicwrites-1.4.0-py2.py3-none-any.whl", hash = "sha256:6d1784dea7c0c8d4a5172b6c620f40b6e4cbfdf96d783691f2e1302a7b88e197"},
     {file = "atomicwrites-1.4.0.tar.gz", hash = "sha256:ae70396ad1a434f9c7046fd2dd196fc04b12f9e91ffb859164193be8b6168a7a"},
 ]
-"attrs 21.3.0" = [
-    {file = "attrs-21.3.0-py2.py3-none-any.whl", hash = "sha256:8f7335278dedd26b58c38e006338242cc0977f06d51579b2b8b87b9b33bff66c"},
-    {file = "attrs-21.3.0.tar.gz", hash = "sha256:50f3c9b216dc9021042f71b392859a773b904ce1a029077f58f6598272432045"},
+"attrs 21.4.0" = [
+    {file = "attrs-21.4.0-py2.py3-none-any.whl", hash = "sha256:2d27e3784d7a565d36ab851fe94887c5eccd6a463168875832a1be79c82828b4"},
+    {file = "attrs-21.4.0.tar.gz", hash = "sha256:626ba8234211db98e869df76230a137c4c40a12d72445c45d5f5b716f076e2fd"},
 ]
 "audioread 2.1.9" = [
     {file = "audioread-2.1.9.tar.gz", hash = "sha256:a3480e42056c8e80a8192a54f6729a280ef66d27782ee11cbd63e9d4d1523089"},
 ]
 "autoflake 1.4" = [
     {file = "autoflake-1.4.tar.gz", hash = "sha256:61a353012cff6ab94ca062823d1fb2f692c4acda51c76ff83a8d77915fba51ea"},
-]
-"beautifultable 1.0.1" = [
-    {file = "beautifultable-1.0.1-py2.py3-none-any.whl", hash = "sha256:8079a7b4179fbb5c0f61d8b3ddd036a1e2b9246d1725b2d2fcde214f9c69f61b"},
-    {file = "beautifultable-1.0.1.tar.gz", hash = "sha256:d2c9ce84f93794d8f158b0c76effba968d08fd2b4acce306911fe78210654dd1"},
 ]
 "black 21.12b0" = [
     {file = "black-21.12b0-py3-none-any.whl", hash = "sha256:a615e69ae185e08fdd73e4715e260e2479c861b5740057fde6e8b4e3b7dd589f"},
@@ -303,7 +295,10 @@ content_hash = "sha256:e06001b6affd0acb4d0c9b4d17f2dc07f94970a99be1b61f6d4b5077e
 "colorama 0.4.4" = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
     {file = "colorama-0.4.4.tar.gz", hash = "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b"},
-    {file = "docxcompose-1.3.4.tar.gz", hash = "sha256:b1a40d4f95751565822350174971012875f82a32b83a9d1be098edd965047029"},
+]
+"commonmark 0.9.1" = [
+    {file = "commonmark-0.9.1-py2.py3-none-any.whl", hash = "sha256:da2f38c92590f83de410ba1a3cbceafbc74fee9def35f9251ba9a971d6d66fd9"},
+    {file = "commonmark-0.9.1.tar.gz", hash = "sha256:452f9dc859be7f06631ddcb328b6919c67984aca654e5fefb3914d54691aed60"},
 ]
 "docxcompose 1.3.4" = [
     {file = "docxcompose-1.3.4.tar.gz", hash = "sha256:b1a40d4f95751565822350174971012875f82a32b83a9d1be098edd965047029"},
@@ -512,9 +507,13 @@ content_hash = "sha256:e06001b6affd0acb4d0c9b4d17f2dc07f94970a99be1b61f6d4b5077e
     {file = "pyflakes-2.4.0-py2.py3-none-any.whl", hash = "sha256:3bb3a3f256f4b7968c9c788781e4ff07dce46bdf12339dcda61053375426ee2e"},
     {file = "pyflakes-2.4.0.tar.gz", hash = "sha256:05a85c2872edf37a4ed30b0cce2f6093e1d0581f8c19d7393122da7e25b2b24c"},
 ]
-"pyparsing 3.0.6" = [
-    {file = "pyparsing-3.0.6-py3-none-any.whl", hash = "sha256:04ff808a5b90911829c55c4e26f75fa5ca8a2f5f36aa3a51f68e27033341d3e4"},
-    {file = "pyparsing-3.0.6.tar.gz", hash = "sha256:d9bdec0013ef1eb5a84ab39a3b3868911598afa494f5faa038647101504e2b81"},
+"pygments 2.11.2" = [
+    {file = "Pygments-2.11.2-py3-none-any.whl", hash = "sha256:44238f1b60a76d78fc8ca0528ee429702aae011c265fe6a8dd8b63049ae41c65"},
+    {file = "Pygments-2.11.2.tar.gz", hash = "sha256:4e426f72023d88d03b2fa258de560726ce890ff3b630f88c21cbb8b2503b8c6a"},
+]
+"pyparsing 3.0.7" = [
+    {file = "pyparsing-3.0.7-py3-none-any.whl", hash = "sha256:a6c06a88f252e6c322f65faf8f418b16213b51bdfaece0524c1c1bc30c63c484"},
+    {file = "pyparsing-3.0.7.tar.gz", hash = "sha256:18ee9022775d270c55187733956460083db60b37d0d0fb357445f3094eed3eea"},
 ]
 "pytest 6.2.5" = [
     {file = "pytest-6.2.5-py3-none-any.whl", hash = "sha256:7310f8d27bc79ced999e760ca304d69f6ba6c6649c0b60fb0e04a4a77cacc134"},
@@ -527,9 +526,13 @@ content_hash = "sha256:e06001b6affd0acb4d0c9b4d17f2dc07f94970a99be1b61f6d4b5077e
     {file = "python_magic-0.4.24-py2.py3-none-any.whl", hash = "sha256:4fec8ee805fea30c07afccd1592c0f17977089895bdfaae5fec870a84e997626"},
     {file = "python-magic-0.4.24.tar.gz", hash = "sha256:de800df9fb50f8ec5974761054a708af6e4246b03b4bdaee993f948947b0ebcf"},
 ]
-"setuptools 60.5.0" = [
-    {file = "setuptools-60.5.0-py3-none-any.whl", hash = "sha256:68eb94073fc486091447fcb0501efd6560a0e5a1839ba249e5ff3c4c93f05f90"},
-    {file = "setuptools-60.5.0.tar.gz", hash = "sha256:2404879cda71495fc4d5cbc445ed52fdaddf352b36e40be8dcc63147cb4edabe"},
+"rich 11.1.0" = [
+    {file = "rich-11.1.0-py3-none-any.whl", hash = "sha256:365ebcdbfb3aa8d4b0ed2490e0fbf7b886a39d14eb7ea5fb7aece950835e1eed"},
+    {file = "rich-11.1.0.tar.gz", hash = "sha256:43e03d8eec12e21beaecc22c828a41c4247356414a12d5879834863d4ad53816"},
+]
+"setuptools 60.6.0" = [
+    {file = "setuptools-60.6.0-py3-none-any.whl", hash = "sha256:c99207037c38984eae838c2fd986f39a9ddf4fabfe0fddd957e622d1d1dcdd05"},
+    {file = "setuptools-60.6.0.tar.gz", hash = "sha256:eb83b1012ae6bf436901c2a2cee35d45b7260f31fd4b65fd1e50a9f99c11d7f8"},
 ]
 "six 1.16.0" = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
@@ -546,8 +549,4 @@ content_hash = "sha256:e06001b6affd0acb4d0c9b4d17f2dc07f94970a99be1b61f6d4b5077e
 "typing-extensions 4.0.1" = [
     {file = "typing_extensions-4.0.1-py3-none-any.whl", hash = "sha256:7f001e5ac290a0c0401508864c7ec868be4e701886d5b573a9528ed3973d9d3b"},
     {file = "typing_extensions-4.0.1.tar.gz", hash = "sha256:4ca091dea149f945ec56afb48dae714f21e8692ef22a395223bcd328961b6a0e"},
-]
-"wcwidth 0.2.5" = [
-    {file = "wcwidth-0.2.5-py2.py3-none-any.whl", hash = "sha256:beb4802a9cebb9144e99086eff703a642a13d6a0052920003a230f3294bbe784"},
-    {file = "wcwidth-0.2.5.tar.gz", hash = "sha256:c4d647b99872929fdb7bdcaa4fbe7f01413ed3d98077df798530e5b04f116c83"},
 ]
