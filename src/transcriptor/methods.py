@@ -5,9 +5,9 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional, Union
 
-import jinja2
 import pdfkit
 from docxtpl import DocxTemplate
+from jinja2 import Environment, PackageLoader, select_autoescape
 
 from transcriptor.client import Client
 from transcriptor.client_list import ClientList, ClientLists
@@ -272,7 +272,7 @@ def filter_jobs_by_date(
 def generate_invoice_docx(
     client: Client, jobs: list[Job], amount: float, user_profile: Profile
 ) -> None:
-    doc = DocxTemplate(Path(__file__).parent / "invoice_template.docx")
+    doc = DocxTemplate(Path(__file__).parent / "templates" / "invoice_template.docx")
 
     data = {
         "invoice_number": random.randint(1, 100),
@@ -308,6 +308,10 @@ def generate_invoice_docx(
 def generate_invoice_pdf(
     client: Client, jobs: list[Job], amount: float, user_profile: Profile
 ) -> None:
+    env = Environment(
+        loader=PackageLoader("transcriptor", "templates"),
+        autoescape=select_autoescape(["html", "xml"]),
+    )
     data = {
         "invoice_number": random.randint(1, 100),
         "created": date.today().strftime(DATE_FMT),
@@ -324,10 +328,11 @@ def generate_invoice_pdf(
         "personal_data": personal_data,
     }
 
-    template_loader = jinja2.FileSystemLoader(searchpath="./")
-    template_env = jinja2.Environment(loader=template_loader)
+    # template_loader = jinja2.FileSystemLoader(searchpath="./")
+    # template_env = jinja2.Environment(loader=template_loader)
     template_file = "invoice_template.html"
-    template = template_env.get_template(template_file)
+    # template = template_env.get_template(template_file)
+    template = env.get_template(template_file)
     output_text = template.render(context)
 
     invoice_file_name = "%s-%s_invoice.pdf" % (
