@@ -1,0 +1,2 @@
+include src/transcriptor/commands/*
+include src/transcriptor/templates/*

@@ -14,11 +14,11 @@ lint: lint-black lint-isort  ## Run linting tools on the code.
 
 .PHONY: lint-black
 lint-black:  ## Lint the code using black.
-	pdm run black $(PY_SRC)
+	python -m black $(PY_SRC)
 
 .PHONY: lint-isort
 lint-isort:  ## Sort the imports using isort.
-	pdm run isort $(PY_SRC)
+	python -m isort $(PY_SRC)
 
 .PHONY: tests
 tests: run-tests clean-tests
@@ -26,7 +26,7 @@ tests: run-tests clean-tests
 .PHONY: run-tests
 run-tests:  ## Run tests using pytest
 	@echo -e "RUNNING TESTS\n"
-	pdm run pytest tests
+	python -m pytest tests
 
 .PHONY: clean
 clean: clean-tests clean-tmp
@@ -50,5 +50,5 @@ checks: check-types
 
 .PHONY: check-types
 check-types: ## Check types
-	pdm run mypy $(PY_SRC)
+	python -m mypy $(PY_SRC)
 

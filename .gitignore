@@ -1,6 +1,8 @@
 *.sw[p|o]
 __pycache__
+__pypackages__
+dist/
+build/
+*cache*
 *.pyc
-workfolder/
-clients/
 egg-info/
