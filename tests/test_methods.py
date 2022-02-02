@@ -9,6 +9,7 @@ from transcriptor.client import Client
 from transcriptor.conf import get_config
 from transcriptor.job import Job
 from transcriptor.methods import *
+from transcriptor.settings import Settings
 
 settings = Settings(**get_config())
 
