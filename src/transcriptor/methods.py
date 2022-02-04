@@ -367,12 +367,12 @@ def generate_invoice_pdf(
 
 def get_template_type(initials: str = ""):
     template_type_dict = {
-        "nd": "Deposition Block Files.doc",
-        "nh": "Hearing Block Files.doc",
+        "nd": "Deposition Block File.doc",
+        "nh": "Hearing Block File.doc",
         "ne": "Examination Under Oath Block Files.doc",
         "zd": "Zoom Deposition Block File.doc",
-        "zh": "Zoom Hearing Block Files.doc",
-        "ze": "Zoom Examination Under Oath Block Files.doc",
+        "zh": "Zoom Hearing Block File.doc",
+        "ze": "Zoom Examination Under Oath Block File.doc",
         "tt": "Tape Transcript.doc",
         "di": "Deposition with Interpreter.docx",
         "me": "Compulsory Medical Exam Template.doc",

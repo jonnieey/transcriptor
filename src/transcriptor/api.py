@@ -101,8 +101,8 @@ def create_job(
         job_folder.mkdir(parents=True, exist_ok=True)
 
     try:
-        new_zip_file = shutil.copy2(zip_file, job_folder)  # should move
-    except shutil.SameFileError:
+        new_zip_file = shutil.move(zip_file, job_folder)
+    except (shutil.SameFileError, shutil.Error):
         new_zip_file = zip_file
     try:
         zipfile.ZipFile(new_zip_file).extractall(job_folder)
