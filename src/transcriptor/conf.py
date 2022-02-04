@@ -9,6 +9,7 @@ JOBS_FOLDER = BASE_DIR / "jobs"
 WORKS_FOLDER = BASE_DIR / "work"
 CONFIG_FOLDER = Path(user_config_dir("transcriptor"))
 INVOICES_FOLDER = BASE_DIR / "invoices"
+RESOURCES_FOLDER = BASE_DIR / "resources"
 DATE_FMT = "%Y-%m-%d"
 
 TEST_BASE_DIR = Path(__file__).parent.parent.parent / "tests" / "data"
@@ -17,6 +18,7 @@ TEST_JOBS_FOLDER = TEST_BASE_DIR / "jobs"
 TEST_WORKS_FOLDER = TEST_BASE_DIR / "work"
 TEST_CONFIG_FOLDER = TEST_BASE_DIR / ".config" / "transcriptor"
 TEST_INVOICES_FOLDER = TEST_BASE_DIR / "invoices"
+TEST_RESOURCES_FOLDER = TEST_BASE_DIR / "resources"
 TEST_DATE_FMT = "%Y-%m-%d"
 
 paths = [
@@ -26,6 +28,7 @@ paths = [
     "config_folder",
     "invoices_folder",
     "date_fmt",
+    "resources_folder",
 ]
 
 app_paths = [
@@ -35,6 +38,7 @@ app_paths = [
     CONFIG_FOLDER,
     INVOICES_FOLDER,
     DATE_FMT,
+    RESOURCES_FOLDER,
 ]
 
 tests_paths = [
@@ -44,6 +48,7 @@ tests_paths = [
     TEST_CONFIG_FOLDER,
     TEST_INVOICES_FOLDER,
     TEST_DATE_FMT,
+    TEST_RESOURCES_FOLDER,
 ]
 
 

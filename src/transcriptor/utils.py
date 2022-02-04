@@ -69,11 +69,22 @@ def format_date(d: str, date_fmt: str = "%Y-%m-%d") -> str:
         return ""
 
 
+def deformat_date(d: str, date_fmt: str = "%Y-%m-%d") -> str:
+    try:
+        if isinstance(d, datetime) or isinstance(d, date):
+            date_object = d
+        elif isinstance(d, str):
+            date_object = datetime.strptime(d, date_fmt)
+        return date_object.strftime("%m.%d")
+    except ValueError:
+        return ""
+
+
 def get_media_files(task_folder: Optional[Path]) -> list[Path]:
     assert task_folder is not None
     media_files = []
 
-    files = [f for f in task_folder.iterdir()]
+    files = [f for f in task_folder.iterdir() if not f.is_dir()]
     for file in files:
         file_type = from_file(str(file), mime=True)
         if "audio" in file_type or "video" in file_type:

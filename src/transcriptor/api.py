@@ -20,12 +20,14 @@ from transcriptor.methods import (
     generate_invoice_pdf,
     get_clients,
     get_jobs,
+    get_template_file,
     save_client,
     save_job_to_file,
     settings,
 )
 from transcriptor.profile import Profile
 from transcriptor.utils import (
+    deformat_date,
     get_media_duration,
     get_media_files,
     get_quantity,
@@ -33,11 +35,12 @@ from transcriptor.utils import (
     parse_job_number,
 )
 
-CLIENTS_FOLDER, WORKS_FOLDER, JOBS_FOLDER, CONFIG_FOLDER = (
+CLIENTS_FOLDER, WORKS_FOLDER, JOBS_FOLDER, CONFIG_FOLDER, RESOURCES_FOLDER = (
     settings.clients_folder,
     settings.works_folder,
     settings.jobs_folder,
     settings.config_folder,
+    settings.resources_folder,
 )
 
 
@@ -48,15 +51,21 @@ def add_client(
 ) -> None:
     new_client = create_client(name=name, email=email)
     clients = get_clients(CLIENTS_FOLDER)
+    client_name = ""
     if clients:
         for client in clients:
-            if client == new_client:
+            if client.name == new_client.name:
                 sys.exit("Client already exists")
             else:
                 continue
-        save_client(client=new_client, clients_folder=clients_folder)
-    else:
-        save_client(client=new_client, clients_folder=clients_folder)
+    save_client(client=new_client, clients_folder=clients_folder)
+    client_name = new_client.name
+
+    resources_folder = RESOURCES_FOLDER
+    assert resources_folder is not None
+
+    client_resourse_folder = resources_folder / client_name
+    shutil.copytree(Path(__file__).parent / 'resources/', client_resourse_folder)
 
 
 def get_client_object(client_name: str) -> Client:
@@ -85,13 +94,16 @@ def create_job(
 
     job_folder_stem = "%s-%s_DUE_%s" % (date_received, job_number, date_due)
     works_folder = WORKS_FOLDER
-    if isinstance(works_folder, Path):
-        job_folder = works_folder / client.name / job_folder_stem
+    assert works_folder is not None
+    job_folder = works_folder / client.name / job_folder_stem
 
     if not job_folder.exists():
         job_folder.mkdir(parents=True, exist_ok=True)
 
-    new_zip_file = shutil.copy2(zip_file, job_folder)  # should move
+    try:
+        new_zip_file = shutil.copy2(zip_file, job_folder)  # should move
+    except shutil.SameFileError:
+        new_zip_file = zip_file
     try:
         zipfile.ZipFile(new_zip_file).extractall(job_folder)
     except Exception as error:
@@ -133,6 +145,20 @@ def create_job(
             )
             task.amount = round(task.job_rate * task.quantity, 0)
             tasks.append(task)
+            template_type = click.prompt(
+                "Enter template type",
+                type=click.Choice(
+                    ["nd", "nh", "ne", "zd", "zh", "ze", "tt", "di", "me"],
+                    case_sensitive=False,
+                ),
+                show_choices=True,
+            )
+            template_file = get_template_file(client.name, template_type)
+            shutil.copy2(
+                template_file,
+                "%s/%s"
+                % (job_folder, "%s Due %s.doc" % (job_number, deformat_date(date_due))),
+            )
         else:
             continue
 

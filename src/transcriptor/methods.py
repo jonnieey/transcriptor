@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import sys
 from datetime import date, datetime, timedelta
@@ -43,12 +44,20 @@ def get_settings(config_file: Optional[Path] = default_config_file) -> Settings:
 settings = get_settings(CONFIG_FOLDER / "conf.json")
 
 
-CONFIG_FOLDER, JOBS_FOLDER, CLIENTS_FOLDER, DATE_FMT, INVOICES_FOLDER = (
+(
+    CONFIG_FOLDER,
+    JOBS_FOLDER,
+    CLIENTS_FOLDER,
+    DATE_FMT,
+    INVOICES_FOLDER,
+    RESOURCES_FOLDER,
+) = (
     settings.config_folder,
     settings.jobs_folder,
     settings.clients_folder,
     settings.date_fmt,
     settings.invoices_folder,
+    settings.resources_folder,
 )
 
 
@@ -113,8 +122,16 @@ def save_job_to_file(
 
     if client_jobs_file.exists():
         with open(client_jobs_file, "r") as fd:
-            client_jobs_info = json.load(fd)
-            client_jobs_info["jobs_list"].extend(jobs_list)
+            fd.seek(0, os.SEEK_END)
+            if fd.tell():
+                fd.seek(0)
+
+                client_jobs_info = json.load(fd)
+                client_jobs_info["jobs_list"].extend(jobs_list)
+            else:
+                client_jobs_info = {}
+                client_jobs_info["client"] = client.to_dict()
+                client_jobs_info["jobs_list"] = jobs_list
     else:
 
         client_jobs_info = {}
@@ -346,3 +363,27 @@ def generate_invoice_pdf(
         invoices_folder.mkdir(parents=True, exist_ok=True)
 
     pdfkit.from_string(output_text, invoices_folder / invoice_file_name)
+
+
+def get_template_type(initials: str = ""):
+    template_type_dict = {
+        "nd": "Deposition Block Files.doc",
+        "nh": "Hearing Block Files.doc",
+        "ne": "Examination Under Oath Block Files.doc",
+        "zd": "Zoom Deposition Block File.doc",
+        "zh": "Zoom Hearing Block Files.doc",
+        "ze": "Zoom Examination Under Oath Block Files.doc",
+        "tt": "Tape Transcript.doc",
+        "di": "Deposition with Interpreter.docx",
+        "me": "Compulsory Medical Exam Template.doc",
+    }
+
+    return template_type_dict[initials]
+
+
+def get_template_file(client: str, template_type: str = ""):
+    templates_folder = RESOURCES_FOLDER
+    assert templates_folder is not None
+
+    template_file = Path(templates_folder) / client / get_template_type(template_type)
+    return template_file

@@ -11,6 +11,7 @@ class Settings:
     works_folder: Optional[Path] = None
     config_folder: Optional[Path] = None
     invoices_folder: Optional[Path] = None
+    resources_folder: Optional[Path] = None
     date_fmt: str = ""
 
     def __eq__(self, other: object) -> bool:
@@ -46,6 +47,9 @@ class Settings:
         d["invoices_folder"] = (
             str(self.invoices_folder) if self.invoices_folder is not None else ""
         )
+        d["resources_folder"] = (
+            str(self.resources_folder) if self.resources_folder is not None else ""
+        )
 
         return d
 
@@ -80,6 +84,11 @@ class Settings:
             None if not "invoices_folder" in js.keys() else Path(js["invoices_folder"])
         )
         date_fmt: str = "" if not "date_fmt" in js.keys() else js["date_fmt"]
+        resources_folder: Optional[Path] = (
+            None
+            if not "resources_folder" in js.keys()
+            else Path(js["resources_folder"])
+        )
 
         return cls(
             clients_folder=clients_folder,
@@ -88,6 +97,7 @@ class Settings:
             date_fmt=date_fmt,
             config_folder=config_folder,
             invoices_folder=invoices_folder,
+            resources_folder=resources_folder,
         )
 
     def load(self, config_path: Optional[Path]):
