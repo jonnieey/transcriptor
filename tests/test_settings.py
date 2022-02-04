@@ -6,6 +6,7 @@ from transcriptor.conf import (
     TEST_DATE_FMT,
     TEST_INVOICES_FOLDER,
     TEST_JOBS_FOLDER,
+    TEST_RESOURCES_FOLDER,
     TEST_WORKS_FOLDER,
 )
 from transcriptor.methods import default_settings
@@ -25,6 +26,7 @@ def test_default_settings(default_config):
         "date_fmt": str(TEST_DATE_FMT),
         "config_folder": str(TEST_CONFIG_FOLDER),
         "invoices_folder": str(TEST_INVOICES_FOLDER),
+        "resources_folder": str(TEST_RESOURCES_FOLDER),
     }
 
     assert default_config.to_dict() == settings_dict
