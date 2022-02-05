@@ -37,10 +37,8 @@ def add(name, email, **kwargs):
     add_client(name, email)
 
 
-clients = get_clients()
-
-
 @cli.command()
 def list():
     """List clients"""
+    clients = get_clients()
     print_clients(clients)

@@ -1,3 +1,4 @@
+import os
 import shutil
 import sys
 import zipfile
@@ -65,7 +66,7 @@ def add_client(
     assert resources_folder is not None
 
     client_resourse_folder = resources_folder / client_name
-    shutil.copytree(Path(__file__).parent / 'resources/', client_resourse_folder)
+    shutil.copytree(Path(__file__).parent / "resources/", client_resourse_folder)
 
 
 def get_client_object(client_name: str) -> Client:
@@ -101,7 +102,10 @@ def create_job(
         job_folder.mkdir(parents=True, exist_ok=True)
 
     try:
-        new_zip_file = shutil.move(zip_file, job_folder)
+        if os.environ["TRANSCRIPTOR_TEST"] == "1":
+            new_zip_file = shutil.copy2(zip_file, job_folder)
+        else:
+            new_zip_file = shutil.move(zip_file, job_folder)
     except (shutil.SameFileError, shutil.Error):
         new_zip_file = zip_file
     try:
