@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import shutil
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -199,7 +200,9 @@ def get_jobs(client_name: Optional[str] = None) -> ClientLists:
     assert jobs_folder is not None
     if jobs_folder.exists():
         if client_name:
-            client_jobs_files = jobs_folder.iterdir()
+            client_jobs_files = [
+                j for j in jobs_folder.iterdir() if not j.suffix == ".bak"
+            ]
             for client_job_file in client_jobs_files:
                 if client_name.lower() not in client_job_file.name.lower():
                     continue
@@ -210,7 +213,7 @@ def get_jobs(client_name: Optional[str] = None) -> ClientLists:
                     jobs.append(ClientList(**client_json))
                     break
         else:
-            job_files = jobs_folder.iterdir()
+            job_files = [j for j in jobs_folder.iterdir() if not j.suffix == ".bak"]
             for job_file in job_files:
                 with open(job_file, "r") as fp:
                     client_json = json.load(fp)
@@ -224,7 +227,7 @@ def get_jobs_per_client() -> ClientLists:
     jobs_folder = JOBS_FOLDER
     assert jobs_folder is not None
     if jobs_folder.exists():
-        job_files = jobs_folder.iterdir()
+        job_files = [j for j in jobs_folder.iterdir() if not j.suffix == ".bak"]
         for job_file in job_files:
             with open(job_file, "r") as fp:
                 client_json = json.load(fp)
@@ -236,7 +239,7 @@ def update_job(job_number: str, d: dict = {}) -> int:
     updated = 1
     jobs_folder = JOBS_FOLDER
     assert jobs_folder is not None
-    for job_file in jobs_folder.iterdir():
+    for job_file in [j for j in jobs_folder.iterdir() if not j.suffix == ".bak"]:
 
         with open(job_file, "r") as fd:
             c_json = json.load(fd)
@@ -244,6 +247,7 @@ def update_job(job_number: str, d: dict = {}) -> int:
 
             for idx, job in enumerate(jobs_list):
                 if job["job_number"] == job_number:
+                    shutil.copy2(job_file, "%s.bak" % (job_file))
                     job.update(d)
                     updated_job = Job.from_json(job)
                     jobs_list[idx] = updated_job.to_dict()

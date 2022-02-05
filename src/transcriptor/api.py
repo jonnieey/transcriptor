@@ -166,6 +166,13 @@ def create_job(
         else:
             continue
 
+    try:
+        assert JOBS_FOLDER is not None
+        job_bak = JOBS_FOLDER / client.name
+        job_backup = shutil.copy2(CLIENTS_FOLDER / client.name, '%s.bak' % (job_bak))
+    except Exception as error:
+        # log could not create backup
+        pass
     save_job_to_file(client, tasks, JOBS_FOLDER)
 
 
