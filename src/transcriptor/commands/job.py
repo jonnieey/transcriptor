@@ -161,6 +161,12 @@ def check_date_due(ctx, params, value):
 )
 @click.option("-a", "--amount_paid", type=float, help="Specify amount paid")
 @click.option("-q", "--quantity", type=float, help="Specify quantity")
+@click.option(
+    "-t",
+    "--job-type",
+    type=click.Choice(["Normal", "Interpreted", "Expedite"]),
+    help="Specify job type",
+)
 def update(**kwargs):
     """Update job"""
     u = [
