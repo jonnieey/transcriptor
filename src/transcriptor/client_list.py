@@ -12,18 +12,30 @@ class ClientList:
     def __post_init__(self):
         self.jobs_list = [Job.from_json(j) for j in self.jobs_list]
         self.client = Client(**self.client)
+        self.length = len(self.jobs_list)
 
-    def amount(self):
-        return round(sum([d.amount for d in self.jobs_list]), 0)
-
-    def amount_paid(self):
-        return round(sum([d.amount_paid for d in self.jobs_list]), 0)
+    def all_jobs(self):
+        return self.jobs_list
 
     def jobs(self):
-        return self.jobs_list
+        return [j for j in self.jobs_list if j.amount_paid < j.amount]
 
     def headers(self):
         return [t for t in self.jobs_list[0].to_dict()]
+
+    def __len__(self):
+        return len(self.jobs_list)
+
+    def __iter__(self):
+        self.current = 0
+        return self
+
+    def __next__(self):
+        if self.current >= self.length:
+            raise StopIteration
+        to_return = self.jobs_list[self.current]
+        self.current += 1
+        return to_return
 
 
 @dataclass
@@ -33,15 +45,15 @@ class ClientLists:
     def __post_init__(self):
         self.length = len(self.clients_jobs)
 
-    def amount(self):
-        return round(sum([d.amount() for d in self.clients_jobs]), 0)
-
-    def amount_paid(self):
-        return round(sum([d.amount_paid() for d in self.clients_jobs]), 0)
-
-    def jobs(self):
+    def all_jobs(self):
         jobs = []
         [jobs.extend(j.jobs_list) for j in self.clients_jobs]
+        return jobs
+
+    def jobs(self):
+        jobs = [
+            job for j in self.clients_jobs for job in j if job.amount_paid < job.amount
+        ]
         return jobs
 
     def clients(self):

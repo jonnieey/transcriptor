@@ -22,6 +22,8 @@ from transcriptor.methods import (
     get_clients,
     get_jobs,
     get_template_file,
+    get_total_amount,
+    get_total_amount_paid,
     save_client,
     save_job_to_file,
     settings,
@@ -169,7 +171,7 @@ def create_job(
     try:
         assert JOBS_FOLDER is not None
         job_bak = JOBS_FOLDER / client.name
-        job_backup = shutil.copy2(CLIENTS_FOLDER / client.name, '%s.bak' % (job_bak))
+        job_backup = shutil.copy2(CLIENTS_FOLDER / client.name, "%s.bak" % (job_bak))
     except Exception as error:
         # log could not create backup
         pass
@@ -227,19 +229,26 @@ def print_table(
     console.print(table)
 
 
-def list_client_jobs(client_name: str, show_path=False, filter_by: str = "") -> None:
+def list_client_jobs(
+    client_name: str, show_path=False, filter_by: str = "", show_paid=False
+) -> None:
     raw_jobs = get_jobs(client_name)
 
     if not raw_jobs:
         sys.exit("No Jobs available")
 
     headers = raw_jobs.headers()
-    client = raw_jobs.clients()[0].name
-    amount = raw_jobs.amount()
-    amount_paid = raw_jobs.amount_paid()
-    jobs = sorted(
-        [list(map(str, list(job.to_dict().values()))) for job in raw_jobs.jobs()]
-    )
+    client = raw_jobs.clients()[0]
+    if show_paid is False:
+        r_jobs = raw_jobs.jobs()
+        amount = get_total_amount(r_jobs)
+        amount_paid = get_total_amount_paid(r_jobs)
+        jobs = sorted([list(map(str, list(job.to_dict().values()))) for job in r_jobs])
+    else:
+        r_jobs = raw_jobs.all_jobs()
+        amount = get_total_amount(r_jobs)
+        amount_paid = get_total_amount_paid(r_jobs)
+        jobs = sorted([list(map(str, list(job.to_dict().values()))) for job in r_jobs])
     print_table(
         headers,
         jobs,
@@ -247,12 +256,15 @@ def list_client_jobs(client_name: str, show_path=False, filter_by: str = "") -> 
         amount_paid,
         show_path=show_path,
         filter_by=filter_by,
-        title=client,
+        title=client.name,
     )
 
 
 def list_all_jobs(
-    per_client: bool = False, show_path: bool = False, filter_by: str = ""
+    per_client: bool = False,
+    show_path: bool = False,
+    filter_by: str = "",
+    show_paid: bool = False,
 ) -> None:
     raw_jobs = get_jobs()
     if not raw_jobs:
@@ -261,14 +273,17 @@ def list_all_jobs(
     headers = raw_jobs.headers()
     if per_client:
         for client_job in raw_jobs:
-            amount = client_job.amount()
-            amount_paid = client_job.amount_paid()
+            if show_paid is False:
+                r_jobs = client_job.jobs()
+            else:
+                r_jobs = client_job.all_jobs()
+
+            amount = get_total_amount(r_jobs)
+            amount_paid = get_total_amount_paid(r_jobs)
             client = client_job.client
+
             jobs = sorted(
-                [
-                    list(map(str, list(job.to_dict().values())))
-                    for job in client_job.jobs()
-                ]
+                [list(map(str, list(job.to_dict().values()))) for job in r_jobs]
             )
             click.echo()
 
@@ -282,13 +297,15 @@ def list_all_jobs(
                 title=client.name,
             )
     else:
-        amount = raw_jobs.amount()
-        amount_paid = raw_jobs.amount_paid()
+        if show_paid is False:
+            r_jobs = raw_jobs.jobs()
+        else:
+            r_jobs = raw_jobs.all_jobs()
+        amount = get_total_amount(r_jobs)
+        amount_paid = get_total_amount_paid(r_jobs)
         # jobs = raw_jobs.jobs()
         # TODO Refactor
-        jobs = sorted(
-            [list(map(str, list(job.to_dict().values()))) for job in raw_jobs.jobs()]
-        )
+        jobs = sorted([list(map(str, list(job.to_dict().values()))) for job in r_jobs])
         print_table(
             headers,
             jobs,
@@ -349,12 +366,11 @@ def create_invoice(
         date_to=date_to,
         jobs=raw_jobs.jobs(),
     )
-    new_client_jobs = ClientList(
-        client=client.to_dict(), jobs_list=[j.to_dict() for j in jobs]
-    )
+    if not jobs:
+        sys.exit("No jobs from %s to %s" % (date_from, date_to))
     assert CONFIG_FOLDER is not None
     profile = get_profile(CONFIG_FOLDER / "profile.json")
-    amount = new_client_jobs.amount()
+    amount = get_total_amount(jobs)
     if as_docx:
         generate_invoice_docx(
             client=client, jobs=jobs, amount=amount, user_profile=profile

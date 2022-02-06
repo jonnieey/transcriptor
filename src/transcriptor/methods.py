@@ -277,16 +277,15 @@ def filter_jobs_by_date(
     for job in jobs:
         date_key = string_to_date(job.to_dict()[key])
 
-        if date_key is None:
+        if date_key is None or date_key == "":
             continue
 
-        if (
-            isinstance(date_key, date)
-            and isinstance(date_from, date)
-            and isinstance(date_to, date)
-        ):
-            if (date_key >= date_from) and (date_key <= date_to):
-                filtered_jobs.append(job)
+        assert isinstance(date_key, date)
+        assert isinstance(date_from, date)
+        assert isinstance(date_to, date)
+
+        if (date_key >= date_from) and (date_key <= date_to):
+            filtered_jobs.append(job)
     return filtered_jobs
 
 
@@ -391,3 +390,11 @@ def get_template_file(client: str, template_type: str = ""):
 
     template_file = Path(templates_folder) / client / get_template_type(template_type)
     return template_file
+
+
+def get_total_amount(jobs_list: list[Job]) -> float:
+    return round(sum([job.amount for job in jobs_list]), 0)
+
+
+def get_total_amount_paid(jobs_list: list[Job]) -> float:
+    return round(sum([job.amount_paid for job in jobs_list]), 0)

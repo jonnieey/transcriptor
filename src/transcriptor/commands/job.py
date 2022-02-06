@@ -79,9 +79,9 @@ def create(file, date_received=None, date_due=None, client=None, note=None, **kw
 
 @cli.command()
 @click.option("-c", "--client", help="Specify client")
-@click.option("-a", "--all", is_flag=True, help="Specify client")
+@click.option("-a", "--show_all", is_flag=True, help="Specify client")
 @click.option("-s", "--per-client", is_flag=True, help="List job per client")
-@click.option("-p", "--show-path", is_flag=True, help="List job per client")
+@click.option("-p", "--show-path", is_flag=True, help="Show job path")
 @click.option(
     "-f",
     "--filter-by",
@@ -89,19 +89,35 @@ def create(file, date_received=None, date_due=None, client=None, note=None, **kw
     default="",
     help="Filter by word",
 )
+@click.option("-P", "--show-paid", is_flag=True, help="Include paid jobs")
 def list(
-    client=None, all=None, per_client=None, show_path=None, filter_by=None, **kwargs
+    client=None,
+    show_all=None,
+    per_client=None,
+    show_path=None,
+    filter_by=None,
+    show_paid=None,
+    **kwargs
 ):
     """List client's jobs"""
-    if all is True:
-        list_all_jobs(per_client=per_client, show_path=show_path, filter_by=filter_by)
+    if show_all is True:
+        list_all_jobs(
+            per_client=per_client,
+            show_path=show_path,
+            filter_by=filter_by,
+            show_paid=show_paid,
+        )
         return
 
     if client is not None:
-        list_client_jobs(client, show_path=show_path, filter_by=filter_by)
+        list_client_jobs(
+            client, show_path=show_path, filter_by=filter_by, show_paid=show_path
+        )
     else:
         client = click.prompt("Enter client's name")
-        list_client_jobs(client, show_path=show_path, filter_by=filter_by)
+        list_client_jobs(
+            client, show_path=show_path, filter_by=filter_by, show_paid=show_path
+        )
 
 
 def check_date_received(ctx, params, value):

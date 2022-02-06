@@ -115,9 +115,11 @@ class Tests:
         assert len(clients) == 2
 
     def test_get_jobs_with_client(self, test_client, test_job):
-        save_job_to_file(test_client, [test_job, test_job])
+        test_job2 = copy.copy(test_job)
+        test_job2.name = "TestClient2"
+        save_job_to_file(test_client, [test_job, test_job2])
         jobs = get_jobs(test_client.name)
-        assert len(jobs.jobs()) == 2
+        assert len(jobs.all_jobs()) == 2
 
     def test_get_jobs_without_client(self, test_client, test_job):
         save_job_to_file(test_client, [test_job, test_job])
@@ -125,7 +127,7 @@ class Tests:
         save_job_to_file(client2, [test_job, test_job])
         jobs = get_jobs()
 
-        assert len(jobs.jobs()) == 4
+        assert len(jobs.all_jobs()) == 4
 
     def test_update_job(self, test_client, test_job):
         save_job_to_file(test_client, [test_job])
