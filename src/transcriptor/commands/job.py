@@ -111,12 +111,12 @@ def list(
 
     if client is not None:
         list_client_jobs(
-            client, show_path=show_path, filter_by=filter_by, show_paid=show_path
+            client, show_path=show_path, filter_by=filter_by, show_paid=show_paid
         )
     else:
         client = click.prompt("Enter client's name")
         list_client_jobs(
-            client, show_path=show_path, filter_by=filter_by, show_paid=show_path
+            client, show_path=show_path, filter_by=filter_by, show_paid=show_paid
         )
 
 

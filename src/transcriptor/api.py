@@ -31,6 +31,8 @@ from transcriptor.methods import (
 from transcriptor.profile import Profile
 from transcriptor.utils import (
     deformat_date,
+    dict_values_string,
+    filter_list,
     get_media_duration,
     get_media_files,
     get_quantity,
@@ -192,10 +194,7 @@ def print_clients(clients: list[Client]) -> None:
 def print_table(
     headers: list[str],
     jobs: list[list[str]],
-    amount: float,
-    amount_paid: float,
     show_path: bool = False,
-    filter_by: str = "",
     title: str = "",
 ) -> None:
     table = Table(title=title, show_footer=True)
@@ -208,9 +207,9 @@ def print_table(
     table.columns[0].footer = "TOTALS"
     for column in table.columns:
         if column.header == "Amount":
-            column.footer = str(amount)
+            column.footer = str(sum(map(float, column._cells)))
         if column.header == "Amount Paid":
-            column.footer = str(amount_paid)
+            column.footer = str(sum(map(float, column._cells)))
         if column.header in [
             "Quantity",
             "Job Rate",
@@ -230,7 +229,10 @@ def print_table(
 
 
 def list_client_jobs(
-    client_name: str, show_path=False, filter_by: str = "", show_paid=False
+    client_name: str,
+    show_path=False,
+    filter_by: str = "",
+    show_paid=False,
 ) -> None:
     raw_jobs = get_jobs(client_name)
 
@@ -241,21 +243,27 @@ def list_client_jobs(
     client = raw_jobs.clients()[0]
     if show_paid is False:
         r_jobs = raw_jobs.jobs()
-        amount = get_total_amount(r_jobs)
-        amount_paid = get_total_amount_paid(r_jobs)
-        jobs = sorted([list(map(str, list(job.to_dict().values()))) for job in r_jobs])
+
+        jobs_rows = [dict_values_string(job.to_dict()) for job in r_jobs]
+
+        if filter_by != "":
+            jobs = filter_list(filter_by, jobs_rows)
+        else:
+            jobs = jobs_rows
+
     else:
         r_jobs = raw_jobs.all_jobs()
-        amount = get_total_amount(r_jobs)
-        amount_paid = get_total_amount_paid(r_jobs)
-        jobs = sorted([list(map(str, list(job.to_dict().values()))) for job in r_jobs])
+        jobs_rows = [dict_values_string(job.to_dict()) for job in r_jobs]
+
+        if filter_by != "":
+            jobs = filter_list(filter_by, jobs_rows)
+        else:
+            jobs = jobs_rows
+
     print_table(
         headers,
         jobs,
-        amount,
-        amount_paid,
         show_path=show_path,
-        filter_by=filter_by,
         title=client.name,
     )
 
@@ -278,22 +286,18 @@ def list_all_jobs(
             else:
                 r_jobs = client_job.all_jobs()
 
-            amount = get_total_amount(r_jobs)
-            amount_paid = get_total_amount_paid(r_jobs)
             client = client_job.client
+            jobs_rows = [dict_values_string(job.to_dict()) for job in r_jobs]
 
-            jobs = sorted(
-                [list(map(str, list(job.to_dict().values()))) for job in r_jobs]
-            )
-            click.echo()
+            if filter_by != "":
+                jobs = filter_list(filter_by, jobs_rows)
+            else:
+                jobs = jobs_rows
 
             print_table(
                 headers,
                 jobs,
-                amount,
-                amount_paid,
                 show_path=show_path,
-                filter_by=filter_by,
                 title=client.name,
             )
     else:
@@ -301,18 +305,18 @@ def list_all_jobs(
             r_jobs = raw_jobs.jobs()
         else:
             r_jobs = raw_jobs.all_jobs()
-        amount = get_total_amount(r_jobs)
-        amount_paid = get_total_amount_paid(r_jobs)
-        # jobs = raw_jobs.jobs()
-        # TODO Refactor
-        jobs = sorted([list(map(str, list(job.to_dict().values()))) for job in r_jobs])
+
+        jobs_rows = sorted([dict_values_string(job.to_dict()) for job in r_jobs])
+
+        if filter_by != "":
+            jobs = filter_list(filter_by, jobs_rows)
+        else:
+            jobs = jobs_rows
+
         print_table(
             headers,
             jobs,
-            amount,
-            amount_paid,
             show_path=show_path,
-            filter_by=filter_by,
             title="All Jobs",
         )
 

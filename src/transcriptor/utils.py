@@ -116,3 +116,15 @@ def get_quantity(quantity: Union[str, int, float], total_quantity: float) -> flo
                 q = round(float(total_quantity * quantity_words[quantity.lower()]), 0)
 
     return q
+
+
+def dict_values_string(d: dict) -> list[str]:
+    values_list = list(map(str, d.values()))
+    return values_list
+
+
+def filter_list(filter_keyword: str, jobs_rows: list[list[str]]):
+    filtered_lists = filter(
+        lambda b: b if filter_keyword in [f for f in b] else [], jobs_rows
+    )
+    return list(filtered_lists)
