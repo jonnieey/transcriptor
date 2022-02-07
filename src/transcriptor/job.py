@@ -9,6 +9,8 @@ from transcriptor.utils import date_to_string, string_to_date
 
 @dataclass
 class Job:
+    """Class containing information about a job."""
+
     date_received: Union[date, str] = ""
     job_number: str = ""
     job_type: str = ""
@@ -22,8 +24,9 @@ class Job:
     job_path: Optional[Path] = None
     note: str = ""
 
-    def __post_init__(self):
-        # self.date_received = date_received if date_received else string_to_date(date_received))
+    def __post_init__(self) -> None:
+        """Initialize class objects that depends on other class fields."""
+
         self.job_rate = (
             self.job_rate if self.job_rate else self.get_job_rate(self.job_type)
         )
@@ -56,6 +59,14 @@ class Job:
 
     @property
     def amount(self) -> float:
+        """
+        Returns amount of the job.
+
+        Amount is the  value of job in monetary form. ie quantity * rate
+
+        Returns:
+            The value of amount
+        """
         return self._amount
 
     @amount.setter
@@ -74,6 +85,16 @@ class Job:
         return j
 
     def get_date_due(self, date_received: Union[str, date], job_type: str) -> date:
+        """
+        Get job's due date if date due is missing using job type.
+
+        Arguments:
+            date_received: String or date object of job's date received.
+            job_type: Job type string.
+
+        Returns:
+            Date object of job's due date.
+        """
         job_types = {"Normal": 5, "Interpreted": 5, "Expedite": 1}
         job_days = job_types[job_type]
 
@@ -92,10 +113,25 @@ class Job:
         return due_date
 
     def get_job_rate(self, job_type: str) -> float:
+        """
+        Get job rate from job type.
+
+        Arguments:
+            job_type: Job type string.
+
+        Returns:
+            The job rate.
+        """
         job_types = {"Normal": 0.4, "Interpreted": 0.3, "Expedite": 0.6}
         return job_types[job_type]
 
     def to_dict(self) -> dict[Any, Any]:
+        """
+        Convert job instance to dictionary.
+
+        Returns:
+            A dictionary with job details.
+        """
         d: dict[Any, Any] = {}
 
         d["date_received"] = date_to_string(self.date_received)
@@ -115,6 +151,16 @@ class Job:
         return d
 
     def to_json(self, indent=2, ensure_ascii=False) -> Union[str, dict]:
+        """
+        Convert a dictionary to json.
+
+        Arguments:
+            indent: Json indent level.
+            ensure_ascii: Escape non-ascii characters.
+
+        Returns:
+            Json object.
+        """
         return json.dumps(
             self.to_dict(),
             indent=indent,
@@ -123,6 +169,15 @@ class Job:
 
     @classmethod
     def from_json(cls, js: Optional[dict] = None):
+        """
+        Convert a json object to Job instance.
+
+        Arguments:
+            js: Job json object.
+
+        Returns:
+            Job instance.
+        """
         if js is None:
             return cls()
 

@@ -11,6 +11,16 @@ from magic import from_file
 def date_to_string(
     date_obj: Union[str, date], date_fmt: str = "%Y-%m-%d"
 ) -> Union[str, date]:
+    """
+    Convert date object to string.
+
+    Arguments:
+        date_obj: Instance of date object.
+        date_fmt: Date format string.
+
+    Returns:
+        A date string
+    """
     if date_obj is None or date_obj == "":
         return ""
     if isinstance(date_obj, str):
@@ -20,6 +30,16 @@ def date_to_string(
 
 
 def string_to_date(date_str: str, date_fmt: str = "%Y-%m-%d") -> Union[str, date]:
+    """
+    Convert string to date object.
+
+    Arguments:
+        date_str: Date string.
+        date_fmt: Date format string.
+
+    Returns:
+        A date object.
+    """
     if date_str is None or date_str == "":
         return ""
     if isinstance(date_str, date):
@@ -29,6 +49,16 @@ def string_to_date(date_str: str, date_fmt: str = "%Y-%m-%d") -> Union[str, date
 
 
 def parse_job_number(zip_file: Optional[Path]) -> str:
+    """
+    Extract job number from file path name.
+
+    Arguments:
+        zip_file: Path to job zip file.
+
+    Returns:
+        Job number string.
+
+    """
     assert zip_file is not None
     zip_file = Path(zip_file)
     job_name = zip_file.stem  # remove .zip extension
@@ -44,6 +74,16 @@ def parse_job_number(zip_file: Optional[Path]) -> str:
 
 
 def parse_job_due_date(zip_file: Path) -> str:
+    """
+    Extract due date from file path name.
+
+    Arguments:
+        zip_file: Path to job zip file.
+
+    Returns:
+        Job's due date string.
+
+    """
     assert zip_file is not None
     zip_file = Path(zip_file)
     job_name = zip_file.stem  # remove .zip extension
@@ -61,6 +101,17 @@ def parse_job_due_date(zip_file: Path) -> str:
 
 
 def format_date(d: str, date_fmt: str = "%Y-%m-%d") -> str:
+    """
+    Convert month.day ('%m.%d') string to full date string.
+
+    Arguments:
+        d: String with format of '%m.%d' date format.
+        date_fmt: Date format string.
+
+    Returns:
+        A date string.
+
+    """
     try:
         date_string = "%s.%s" % (d, datetime.today().year)
         date_obj = datetime.strptime(date_string, "%m.%d.%Y")
@@ -70,6 +121,17 @@ def format_date(d: str, date_fmt: str = "%Y-%m-%d") -> str:
 
 
 def deformat_date(d: str, date_fmt: str = "%Y-%m-%d") -> str:
+    """
+    Convert full date string  to month.day ('%m.%d') string.
+
+    Arguments:
+        d: Date string
+        date_fmt: Date format string.
+
+    Returns:
+        String with format of '%m.%d' date format.
+
+    """
     try:
         if isinstance(d, datetime) or isinstance(d, date):
             date_object = d
@@ -81,6 +143,15 @@ def deformat_date(d: str, date_fmt: str = "%Y-%m-%d") -> str:
 
 
 def get_media_files(task_folder: Optional[Path]) -> list[Path]:
+    """
+    Get all media files in a directory.
+
+    Arguments:
+        task_folder: Path to task/work folder.
+
+    Returns:
+        List of media file paths.
+    """
     assert task_folder is not None
     media_files = []
 
@@ -93,15 +164,47 @@ def get_media_files(task_folder: Optional[Path]) -> list[Path]:
 
 
 def get_media_duration(media_file: Path) -> float:
+    """
+    Get media duration.
+
+    Arguments:
+        media_file: Path to media file.
+
+    Returns:
+        Duration/Length of media file in minutes.
+
+    """
     return sec_to_min(audio_open(media_file).duration)
 
 
 def sec_to_min(seconds: float) -> float:
+    """
+    Convert seconds to minutes.
+
+    Arguments:
+        seconds: Duration in seconds.
+
+    Returns:
+        Duration in minutes
+
+    """
     min = (seconds // 60) + (seconds % 60) / 60
     return round(float(min), 0)
 
 
 def get_quantity(quantity: Union[str, int, float], total_quantity: float) -> float:
+    """
+    Get quantity of work.
+
+    Arguments:
+        quantity: A float,
+                  A Fraction string (1/2) or
+                  A word (whole, half, quarter) *supported
+
+    Returns:
+        Quantity of job.
+
+    """
     quantity_words = {"whole": 1, "half": 0.5, "quarter": 0.25}
 
     try:
@@ -119,12 +222,30 @@ def get_quantity(quantity: Union[str, int, float], total_quantity: float) -> flo
 
 
 def dict_values_string(d: dict) -> list[str]:
+    """
+    Convert dictionary values to string.
+
+    Arguments:
+        d: A dictionary.
+
+    Returns:
+        A list of dictionary value strings.
+    """
     values_list = list(map(str, d.values()))
     return values_list
 
 
-def filter_list(filter_keyword: str, jobs_rows: list[list[str]]):
-    filtered_lists = filter(
-        lambda b: b if filter_keyword in [f for f in b] else [], jobs_rows
-    )
+def filter_list(keyword: str, jobs_rows: list[list[str]]):
+    """
+    Filter list according to keyword.
+
+    Arguments:
+        keyword: Word to filter list.
+        job_rows: A list of list of string.
+
+    Returns:
+        A list of keyword filtered lists.
+
+    """
+    filtered_lists = filter(lambda b: b if keyword in [f for f in b] else [], jobs_rows)
     return list(filtered_lists)

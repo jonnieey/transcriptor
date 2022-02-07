@@ -54,6 +54,14 @@ def add_client(
     email: str,
     clients_folder: Optional[Path] = CLIENTS_FOLDER,
 ) -> None:
+    """
+    Add new client.
+
+    Arguments:
+        name: New client's name.
+        email: New client's email.
+
+    """
     new_client = create_client(name=name, email=email)
     clients = get_clients(CLIENTS_FOLDER)
     client_name = ""
@@ -74,6 +82,15 @@ def add_client(
 
 
 def get_client_object(client_name: str) -> Client:
+    """
+    Get client from client name.
+
+    Arguments:
+        client_name: Client name string.
+
+    Return:
+        Client object.
+    """
     clients = get_clients(CLIENTS_FOLDER)
 
     for client_obj in clients:
@@ -93,6 +110,17 @@ def create_job(
     client: Client,
     note: str = "",
 ) -> None:
+    """
+    Create new job.
+
+    Arguments:
+        zip_file: Optional[Path],
+        date_received: Job's date received string or date object.
+        date_due:  Job's date due string or date object.
+        client: Client instance.
+        note: Job note.
+
+    """
     job_number = parse_job_number(zip_file)
     if date_due is None:
         date_due = parse_job_due_date(zip_file)
@@ -181,6 +209,12 @@ def create_job(
 
 
 def print_clients(clients: list[Client]) -> None:
+    """
+    Print clients table.
+
+    Arguments:
+        clients:  List of Client objects.
+    """
     headers = ["", "Name", "Email"]
     table = Table()
 
@@ -197,6 +231,17 @@ def print_table(
     show_path: bool = False,
     title: str = "",
 ) -> None:
+    """
+    Print job tables.
+
+    Arguments:
+        headers: A list of header strings.
+        jobs: A list of list of string.
+        show_path: Bool to show job path.
+        title: Table title.
+
+    """
+
     table = Table(title=title, show_footer=True)
     table.title_style = "red bold"
     [table.add_column(column.replace("_", " ").title()) for column in headers]
@@ -234,6 +279,16 @@ def list_client_jobs(
     filter_by: str = "",
     show_paid=False,
 ) -> None:
+    """
+    Get client's job lists and print them.
+
+    Arguments:
+        client_name: Client's name.
+        show_path: Show path or not.
+        filter_by: Filter keyword.
+        show_paid: Show paid jobs.
+
+    """
     raw_jobs = get_jobs(client_name)
 
     if not raw_jobs:
@@ -274,6 +329,16 @@ def list_all_jobs(
     filter_by: str = "",
     show_paid: bool = False,
 ) -> None:
+
+    """Get all jobs lists and print them.
+
+    Arguments:
+        per_client: Print jobs per client.
+        show_path: Show path or not.
+        filter_by: Filter keyword.
+        show_paid: Show paid jobs.
+
+    """
     raw_jobs = get_jobs()
     if not raw_jobs:
         sys.exit("No Jobs available")
@@ -322,6 +387,12 @@ def list_all_jobs(
 
 
 def get_profile(profile_file: Optional[Path] = None) -> Profile:
+    """
+    Get user profile from file or create interactively.
+
+    Arguments:
+        profile_path: Path to user profile configurations.
+    """
     try:
         profile = Profile.load(profile_file)
     except FileNotFoundError:
@@ -337,6 +408,12 @@ def check_value(value: str) -> Optional[str]:
 
 
 def create_profile_interactively(profile_path: Optional[Path]) -> Profile:
+    """
+    Create user profile interactively.
+
+    Arguments:
+        profile_path: Path to user profile configurations.
+    """
     first_name = click.prompt("Enter your first name", value_proc=check_value)
     last_name = click.prompt("Enter your last name", value_proc=check_value)
     country = click.prompt("Enter your country", default="")
@@ -362,6 +439,15 @@ def create_invoice(
     date_to: Union[str, date],
     as_docx: bool = False,
 ) -> None:
+    """
+    Create pdf or docx invoice.
+
+    Arguments:
+        client_name: Client's name.
+        date_from: A date string.
+        date_to: A date string.
+        as_docx: Create invoice as docx file.
+    """
     client = get_client_object(client_name)
     raw_jobs = get_jobs(client_name)
     jobs = filter_jobs_by_date(

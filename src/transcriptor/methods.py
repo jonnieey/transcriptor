@@ -24,11 +24,26 @@ default_config_file = CONFIG_FOLDER / "conf.json"
 
 
 def default_settings() -> Settings:
+    """
+    Get default settings.
+
+    Returns:
+        Settings instance.
+    """
     settings = Settings(**get_config())
     return settings
 
 
 def get_settings(config_file: Optional[Path] = default_config_file) -> Settings:
+    """
+    Load user configurations or use default configurations.
+
+    Arguments:
+        config_file: Path to user configurations file.
+
+    Returns:
+        Settings instance.
+    """
     assert config_file is not None
     try:
         settings = Settings().load(config_file)
@@ -63,11 +78,31 @@ settings = get_settings(CONFIG_FOLDER / "conf.json")
 
 
 def create_client(name: str, email: str) -> Client:
+    """
+    Create Client instance.
+
+    Arguments:
+        name: Name of the client.
+        email: Email of the client.
+
+    Returns:
+        Client instance.
+    """
     client = Client(name, email)
     return client
 
 
-def save_client(client: Client, clients_folder: Optional[Path] = CLIENTS_FOLDER) -> int:
+def save_client(
+    client: Client, clients_folder: Optional[Path] = CLIENTS_FOLDER
+) -> None:
+    """
+    Save client information to file.
+
+    Arguments:
+        client: Client instance.
+        clients_folder: Folder containing clients information files.
+
+    """
     assert clients_folder is not None
     if not clients_folder.exists():
         clients_folder.mkdir(parents=True, exist_ok=True)
@@ -78,9 +113,8 @@ def save_client(client: Client, clients_folder: Optional[Path] = CLIENTS_FOLDER)
     try:
         with open(client_file, "w") as fp:
             fp.write(client_json)
-        return 0
     except Exception:
-        return 1
+        sys.exit("Cannot open file")
 
 
 def create_task(
@@ -93,6 +127,22 @@ def create_task(
     job_path: Optional[Path],
     note: str,
 ) -> Job:
+    """
+    Create job/task instance.
+
+    Arguments:
+        date_due:  Job's date due string or date object.
+        date_received: Job's date received string or date object.
+        job_number: Job number string.
+        job_type: Job number string string.
+        quantity: Job quantity.
+        total_quantity: Total job quantity.
+        job_path: Path to job/task file.
+        note: Job note.
+
+    Returns:
+        Job Instance.
+    """
     task = Job(
         date_due=date_due,
         date_received=date_received,
@@ -110,8 +160,17 @@ def save_job_to_file(
     client: Client,
     jobs: list[Job],
     jobs_folder: Optional[Path] = JOBS_FOLDER,
-) -> int:
+):
 
+    """
+    Save job to jobs file.
+
+    Arguments:
+        client: Client instance.
+        jobs: list of Job instance.
+        jobs_folder: Path to jobs file.
+
+    """
     assert jobs_folder is not None
     if not jobs_folder.exists():
         jobs_folder.mkdir(parents=True, exist_ok=True)
@@ -148,12 +207,21 @@ def save_job_to_file(
     try:
         with open(client_jobs_file, "w") as fp:
             fp.write(job_json)
-        return 0
     except Exception as error:
-        return 1
+        sys.exit("Cannot write to file")
 
 
 def get_date_received(date_received: str) -> date:
+    """
+    Get date received.
+
+    Arguments:
+        date_received: A date string, or an int string ('2').
+            Positive dates are negated (Cannot receive job in future, yet. :D)
+
+    Returns:
+        A date object.
+    """
 
     try:
         if isinstance(int(date_received), int):
@@ -169,6 +237,16 @@ def get_date_received(date_received: str) -> date:
 
 
 def get_date_due(date_due: str) -> date:
+    """
+    Get date due.
+
+    Arguments:
+        date_due: A date string, or an int string ('2')
+            Negative dates are converted to positive numbers
+
+    Returns:
+        A date object.
+    """
     try:
         if isinstance(int(date_due), int):
             date_d = date.today() + timedelta(days=int(date_due))
@@ -180,6 +258,15 @@ def get_date_due(date_due: str) -> date:
 
 
 def get_clients(clients_folder: Optional[Path] = CLIENTS_FOLDER) -> list[Client]:
+    """
+    Get clients from clients folder.
+
+    Arguments:
+        clients_folder: Path to clients folder.
+
+    Return:
+        List of Client instances.
+    """
     clients = []
     assert clients_folder is not None
     if not clients_folder.exists():
@@ -194,6 +281,15 @@ def get_clients(clients_folder: Optional[Path] = CLIENTS_FOLDER) -> list[Client]
 
 
 def get_jobs(client_name: Optional[str] = None) -> ClientLists:
+    """
+    Get all jobs or client jobs.
+
+    Arguments:
+        client_name: Optional client name string.
+
+    Returns:
+        ClientLists instance.
+    """
     jobs = []
     jobs_folder = JOBS_FOLDER
 
@@ -222,21 +318,15 @@ def get_jobs(client_name: Optional[str] = None) -> ClientLists:
     return ClientLists(jobs)
 
 
-def get_jobs_per_client() -> ClientLists:
-    jobs = []
-    jobs_folder = JOBS_FOLDER
-    assert jobs_folder is not None
-    if jobs_folder.exists():
-        job_files = [j for j in jobs_folder.iterdir() if not j.suffix == ".bak"]
-        for job_file in job_files:
-            with open(job_file, "r") as fp:
-                client_json = json.load(fp)
-            jobs.append(ClientList(**client_json))
-    return ClientLists(jobs)
+def update_job(job_number: str, d: dict = {}) -> None:
+    """
+    Update job.
 
+    Arguments:
+        job_number: Job number string.
+        d: Update dictionary
 
-def update_job(job_number: str, d: dict = {}) -> int:
-    updated = 1
+    """
     jobs_folder = JOBS_FOLDER
     assert jobs_folder is not None
     for job_file in [j for j in jobs_folder.iterdir() if not j.suffix == ".bak"]:
@@ -257,7 +347,6 @@ def update_job(job_number: str, d: dict = {}) -> int:
 
         with open(job_file, "w") as fd:
             json.dump(c_json, fd, indent=2, ensure_ascii=False)
-    return updated
 
 
 def filter_jobs_by_date(
@@ -267,6 +356,18 @@ def filter_jobs_by_date(
     jobs: list[Job],
 ) -> list[Job]:
 
+    """
+    Filter jobs by date.
+
+    Arguments:
+        key: Job date property (date_received, date_due, date_submitted).
+        date_from: A date string.
+        date_to: A date string.
+        jobs: List of Job instances.
+
+    Returns:
+        List of filtered Job instances.
+    """
     filtered_jobs = []
 
     if isinstance(date_from, str):
@@ -292,6 +393,16 @@ def filter_jobs_by_date(
 def generate_invoice_docx(
     client: Client, jobs: list[Job], amount: float, user_profile: Profile
 ) -> None:
+    """
+    Generate docx invoice.
+
+    Arguments:
+        client: Client object.
+        jobs:  list of Job instances.
+        amount:  Amount value of job.
+        user_profile: Profile Instance.
+
+    """
     doc = DocxTemplate(Path(__file__).parent / "templates" / "invoice_template.docx")
 
     data = {
@@ -328,6 +439,16 @@ def generate_invoice_docx(
 def generate_invoice_pdf(
     client: Client, jobs: list[Job], amount: float, user_profile: Profile
 ) -> None:
+    """
+    Generate pdf invoice.
+
+    Arguments:
+        client: Client object.
+        jobs:  list of Job instances.
+        amount:  Amount value of job.
+        user_profile: Profile Instance.
+
+    """
     env = Environment(
         loader=PackageLoader("transcriptor", "templates"),
         autoescape=select_autoescape(["html", "xml"]),
@@ -337,7 +458,6 @@ def generate_invoice_pdf(
         "created": date.today().strftime(DATE_FMT),
         "due": (date.today() + timedelta(days=2)).strftime(DATE_FMT),
     }
-    # implement get_transcriber_info function
     personal_data = user_profile.__dict__
 
     context = {
@@ -348,10 +468,8 @@ def generate_invoice_pdf(
         "personal_data": personal_data,
     }
 
-    # template_loader = jinja2.FileSystemLoader(searchpath="./")
-    # template_env = jinja2.Environment(loader=template_loader)
     template_file = "invoice_template.html"
-    # template = template_env.get_template(template_file)
+
     template = env.get_template(template_file)
     output_text = template.render(context)
 
@@ -369,6 +487,15 @@ def generate_invoice_pdf(
 
 
 def get_template_type(initials: str = ""):
+    """
+    Get template type from template initials.
+
+    Arguments:
+        initials: Template initials.
+
+    Returns:
+        String of template type.
+    """
     template_type_dict = {
         "nd": "Deposition Block File.doc",
         "nh": "Hearing Block File.doc",
@@ -385,6 +512,16 @@ def get_template_type(initials: str = ""):
 
 
 def get_template_file(client: str, template_type: str = ""):
+    """
+    Get template file from template type.
+
+    Arguments:
+        client: Client's name.
+        template_type:  Template type string.
+
+    Returns:
+        Template file path object.
+    """
     templates_folder = RESOURCES_FOLDER
     assert templates_folder is not None
 
@@ -393,8 +530,26 @@ def get_template_file(client: str, template_type: str = ""):
 
 
 def get_total_amount(jobs_list: list[Job]) -> float:
+    """
+    Get total amount.
+
+    Arguments:
+        jobs_list:  list of Job instances.
+
+    Returns:
+        Total amount of jobs.
+    """
     return round(sum([job.amount for job in jobs_list]), 0)
 
 
 def get_total_amount_paid(jobs_list: list[Job]) -> float:
+    """
+    Get total amount paid.
+
+    Arguments:
+        jobs_list:  list of Job instances.
+
+    Returns:
+        Total amount paid of jobs.
+    """
     return round(sum([job.amount_paid for job in jobs_list]), 0)

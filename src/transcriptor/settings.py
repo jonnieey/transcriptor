@@ -6,6 +6,8 @@ from typing import Any, Optional, Union
 
 @dataclass
 class Settings:
+    """Class containing information about user settings."""
+
     clients_folder: Optional[Path] = None
     jobs_folder: Optional[Path] = None
     works_folder: Optional[Path] = None
@@ -32,6 +34,12 @@ class Settings:
         return equal
 
     def to_dict(self) -> dict:
+        """
+        Convert Settings instance to dictionary.
+
+        Returns:
+            A dictionary with settings details.
+        """
         d: dict[Any, Any] = {}
         d["clients_folder"] = (
             str(self.clients_folder) if self.clients_folder is not None else ""
@@ -54,12 +62,31 @@ class Settings:
         return d
 
     def to_json(self, indent=2, ensure_ascii=False) -> str:
+        """
+        Convert a dictionary to json.
+
+        Arguments:
+            indent: Json indent level.
+            ensure_ascii: Escape non-ascii characters.
+
+        Returns:
+            Json object.
+        """
         return json.dumps(
             self.to_dict(), indent=indent, ensure_ascii=ensure_ascii, sort_keys=True
         )
 
     @classmethod
     def from_json(cls, js: Optional[dict] = None):
+        """
+        Convert a json object to Settings instance.
+
+        Arguments:
+            js: Settings json object.
+
+        Returns:
+            Settings instance.
+        """
         if js is None:
             return cls
         if not isinstance(js, dict):
@@ -101,13 +128,28 @@ class Settings:
         )
 
     def load(self, config_path: Optional[Path]):
+        """
+        Get settings from file.
+
+        Arguments:
+            config_path: Path to configuration file.
+
+        Returns:
+            Settings instance or None
+        """
         if config_path:
             with open(config_path, "r") as fd:
                 return self.from_json(json.load(fd))
         else:
             return
 
-    def save(self, config_path: Optional[Path]):
+    def save(self, config_path: Optional[Path]) -> None:
+        """
+        Write settings to file.
+
+        Arguments:
+            config_path: Path to configuration file.
+        """
         if config_path:
             with open(config_path, "w") as fd:
                 fd.write(self.to_json())
