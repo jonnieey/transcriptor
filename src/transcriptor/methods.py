@@ -539,7 +539,7 @@ def get_total_amount(jobs_list: list[Job]) -> float:
     Returns:
         Total amount of jobs.
     """
-    return round(sum([job.amount for job in jobs_list]), 0)
+    return round(sum([job.amount for job in jobs_list]), 1)
 
 
 def get_total_amount_paid(jobs_list: list[Job]) -> float:
@@ -552,4 +552,4 @@ def get_total_amount_paid(jobs_list: list[Job]) -> float:
     Returns:
         Total amount paid of jobs.
     """
-    return round(sum([job.amount_paid for job in jobs_list]), 0)
+    return round(sum([job.amount_paid for job in jobs_list]), 1)

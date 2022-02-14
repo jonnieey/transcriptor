@@ -179,7 +179,7 @@ def create_job(
                 job_path=job_folder,
                 note=note,
             )
-            task.amount = round(task.job_rate * task.quantity, 0)
+            task.amount = round(task.job_rate * task.quantity, 1)
             tasks.append(task)
             template_type = click.prompt(
                 "Enter template type",
