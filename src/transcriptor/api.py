@@ -134,7 +134,7 @@ def create_job(
         job_folder.mkdir(parents=True, exist_ok=True)
 
     try:
-        if os.environ["TRANSCRIPTOR_TEST"] == "1":
+        if os.environ.get("TRANSCRIPTOR_TEST", "0") == "1":
             new_zip_file = shutil.copy2(zip_file, job_folder)
         else:
             new_zip_file = shutil.move(zip_file, job_folder)
@@ -195,6 +195,7 @@ def create_job(
                 "%s/%s"
                 % (job_folder, "%s Due %s.doc" % (job_number, deformat_date(date_due))),
             )
+            note = ""  # Refactor apply note to first job only
         else:
             continue
 

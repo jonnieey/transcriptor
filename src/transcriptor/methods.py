@@ -343,7 +343,7 @@ def update_job(job_number: str, d: dict = {}) -> None:
                     jobs_list[idx] = updated_job.to_dict()
                     c_json["jobs_list"] = jobs_list
                     updated = 0
-                    break  # Allow user to select if multiple jobs exists; Only updates the first instance
+                    # break  # Allow user to select if multiple jobs exists; Only updates the first instance
 
         with open(job_file, "w") as fd:
             json.dump(c_json, fd, indent=2, ensure_ascii=False)
@@ -499,7 +499,7 @@ def get_template_type(initials: str = ""):
     template_type_dict = {
         "nd": "Deposition Block File.doc",
         "nh": "Hearing Block File.doc",
-        "ne": "Examination Under Oath Block Files.doc",
+        "ne": "Examination Under Oath Block File.doc",
         "zd": "Zoom Deposition Block File.doc",
         "zh": "Zoom Hearing Block File.doc",
         "ze": "Zoom Examination Under Oath Block File.doc",
