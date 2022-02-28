@@ -17,7 +17,7 @@ from transcriptor.conf import get_config
 from transcriptor.job import Job
 from transcriptor.profile import Profile
 from transcriptor.settings import Settings
-from transcriptor.utils import string_to_date
+from transcriptor.utils import custom_round, string_to_date
 
 CONFIG_FOLDER = get_config()["config_folder"]
 default_config_file = CONFIG_FOLDER / "conf.json"
@@ -539,7 +539,7 @@ def get_total_amount(jobs_list: list[Job]) -> float:
     Returns:
         Total amount of jobs.
     """
-    return round(sum([job.amount for job in jobs_list]), 1)
+    return custom_round(sum([job.amount for job in jobs_list]), 2)
 
 
 def get_total_amount_paid(jobs_list: list[Job]) -> float:
@@ -552,4 +552,4 @@ def get_total_amount_paid(jobs_list: list[Job]) -> float:
     Returns:
         Total amount paid of jobs.
     """
-    return round(sum([job.amount_paid for job in jobs_list]), 1)
+    return custom_round(sum([job.amount_paid for job in jobs_list]), 2)

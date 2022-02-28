@@ -1,5 +1,6 @@
 import re
 from datetime import date, datetime
+from decimal import Decimal
 from fractions import Fraction
 from pathlib import Path
 from typing import Match, Optional, Pattern, Union
@@ -249,3 +250,7 @@ def filter_list(keyword: str, jobs_rows: list[list[str]]):
     """
     filtered_lists = filter(lambda b: b if keyword in [f for f in b] else [], jobs_rows)
     return list(filtered_lists)
+
+
+def custom_round(amount: float, ndigits: int = 0):
+    return Decimal(amount).quantize(Decimal("1e" + str(-ndigits)))

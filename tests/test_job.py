@@ -24,21 +24,21 @@ def test_job():
 
 
 def test_job_to_dict(test_job):
-    test_job.quantity = 20
+    test_job.quantity = "20"
     date_due = date.today() + timedelta(days=5)
     job_dict = {
         "date_received": date_to_string(TODAY),
         "job_number": "56321",
         "job_type": "Normal",
-        "total_quantity": 40,
-        "job_rate": 0.4,
-        "quantity": 20,
+        "total_quantity": "40",
+        "job_rate": "0.4",
+        "quantity": "20",
         "date_due": date_to_string(date_due),
         "date_submitted": "",
         "status": "Pending",
-        "amount_paid": 0.0,
+        "amount_paid": "0.00",
         "job_path": "somerandompath",
-        "amount": 0,
+        "amount": "0.00",
         "note": "",
     }
 

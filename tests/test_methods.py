@@ -73,6 +73,7 @@ class Tests:
         assert isinstance(job, Job)
 
     def test_save_client_job_to_file(self, test_client, test_job):
+        print(test_job)
         save_job_to_file(test_client, [test_job], JOBS_FOLDER)
         with open(JOBS_FOLDER / test_client.name, "r") as fp:
             client_jobs_json = json.load(fp)
@@ -142,8 +143,8 @@ class Tests:
             client_jobs_json = json.load(fp)
 
         # TODO add method to get job from job list
-        assert client_jobs_json["jobs_list"][0]["amount"] == 8.0
-        assert client_jobs_json["jobs_list"][0]["amount_paid"] == 8.0
+        assert client_jobs_json["jobs_list"][0]["amount"] == "8.00"
+        assert client_jobs_json["jobs_list"][0]["amount_paid"] == "8.00"
         assert client_jobs_json["jobs_list"][0]["status"] == "Done"
         assert client_jobs_json["jobs_list"][0]["date_submitted"] == TODAY.strftime(
             DATE_FMT

@@ -30,6 +30,7 @@ from transcriptor.methods import (
 )
 from transcriptor.profile import Profile
 from transcriptor.utils import (
+    custom_round,
     deformat_date,
     dict_values_string,
     filter_list,
@@ -179,7 +180,7 @@ def create_job(
                 job_path=job_folder,
                 note=note,
             )
-            task.amount = round(task.job_rate * task.quantity, 1)
+            task.amount = custom_round(task.job_rate * task.quantity, 2)
             tasks.append(task)
             template_type = click.prompt(
                 "Enter template type",
@@ -253,9 +254,9 @@ def print_table(
     table.columns[0].footer = "TOTALS"
     for column in table.columns:
         if column.header == "Amount":
-            column.footer = str(sum(map(float, column._cells)))
+            column.footer = str(custom_round(sum(map(float, column._cells)), 2))
         if column.header == "Amount Paid":
-            column.footer = str(sum(map(float, column._cells)))
+            column.footer = str(custom_round(sum(map(float, column._cells)), 2))
         if column.header in [
             "Quantity",
             "Job Rate",

@@ -1,10 +1,11 @@
 import json
 from dataclasses import dataclass
 from datetime import date, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Optional, Union
 
-from transcriptor.utils import date_to_string, string_to_date
+from transcriptor.utils import custom_round, date_to_string, string_to_date
 
 
 @dataclass
@@ -35,9 +36,11 @@ class Job:
             if self.date_due
             else self.get_date_due(self.date_received, self.job_type)
         )
-        self.amount: float = round((self.job_rate * self.quantity), 1)
+        self.amount: float = custom_round((self.job_rate * self.quantity), 2)
         self.amount_paid = (
-            self.amount_paid if (self.amount_paid < self.amount) else self.amount
+            custom_round(self.amount_paid, 2)
+            if (custom_round(self.amount_paid, 2) < custom_round(self.amount, 2))
+            else custom_round(self.amount, 2)
         )
 
     def __eq__(self, other: object) -> bool:
@@ -71,7 +74,7 @@ class Job:
 
     @amount.setter
     def amount(self, value: float) -> None:
-        self._amount = round(self.job_rate * self.quantity, 1)
+        self._amount = custom_round(self.job_rate * self.quantity, 2)
 
     def __str__(self) -> str:
         j = "%s %s %s %s %s %s" % (
@@ -138,19 +141,21 @@ class Job:
         d["date_due"] = date_to_string(self.date_due)
         d["job_number"] = self.job_number
         d["job_type"] = self.job_type
-        d["job_rate"] = self.job_rate
-        d["total_quantity"] = self.total_quantity
-        d["quantity"] = self.quantity
+        d["job_rate"] = str(self.job_rate)
+        d["total_quantity"] = str(self.total_quantity)
+        d["quantity"] = str(self.quantity)
         d["status"] = self.status
         d["date_submitted"] = date_to_string(self.date_submitted)
-        d["amount"] = self._amount
-        d["amount_paid"] = self.amount_paid
+        d["amount"] = str(self._amount)
+        d["amount_paid"] = str(self.amount_paid)
         d["job_path"] = str(self.job_path)
         d["note"] = str(self.note)
 
         return d
 
-    def to_json(self, indent=2, ensure_ascii=False) -> Union[str, dict]:
+    def to_json(
+        self, indent=2, ensure_ascii=False, parse_int=int, parse_float=float
+    ) -> Union[str, dict]:
         """
         Convert a dictionary to json.
 
@@ -165,6 +170,8 @@ class Job:
             self.to_dict(),
             indent=indent,
             ensure_ascii=ensure_ascii,
+            parse_int=parse_int,
+            parse_float=parse_float,
         )
 
     @classmethod
@@ -193,17 +200,21 @@ class Job:
         date_due: date = "" if not "date_due" in js.keys() else js["date_due"]
         job_number: str = "" if not "job_number" in js.keys() else js["job_number"]
         job_type: str = "" if not "job_type" in js.keys() else js["job_type"]
-        job_rate: float = 0.0 if not "job_rate" in js.keys() else js["job_rate"]
-        total_quantity: float = (
-            0.0 if not "total_quantity" in js.keys() else js["total_quantity"]
+        job_rate: float = (
+            0.0 if not "job_rate" in js.keys() else Decimal(js["job_rate"])
         )
-        quantity: float = 0.0 if not "quantity" in js.keys() else js["quantity"]
+        total_quantity: float = (
+            0.0 if not "total_quantity" in js.keys() else Decimal(js["total_quantity"])
+        )
+        quantity: float = (
+            0.0 if not "quantity" in js.keys() else Decimal(js["quantity"])
+        )
         status: str = "" if not "status" in js.keys() else js["status"]
         date_submitted: date = (
             "" if not "date_submitted" in js.keys() else js["date_submitted"]
         )
         amount_paid: float = (
-            0.0 if not "amount_paid" in js.keys() else js["amount_paid"]
+            0.0 if not "amount_paid" in js.keys() else Decimal(js["amount_paid"])
         )
         job_path: Optional[Path] = (
             None if not "job_path" in js.keys() else js["job_path"]
