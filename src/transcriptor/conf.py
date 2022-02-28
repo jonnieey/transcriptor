@@ -3,7 +3,7 @@ from pathlib import Path
 
 from appdirs import user_config_dir
 
-BASE_DIR = Path("/home/kamikaze/Documents/Wera/Transcription2")
+BASE_DIR = Path.home() / "Documents/Wera/Transcription2"
 CLIENTS_FOLDER = BASE_DIR / "clients"
 JOBS_FOLDER = BASE_DIR / "jobs"
 WORKS_FOLDER = BASE_DIR / "work"
