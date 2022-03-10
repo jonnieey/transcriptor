@@ -79,7 +79,7 @@ def add_client(
     assert resources_folder is not None
 
     client_resourse_folder = resources_folder / client_name
-    shutil.copytree(Path(__file__).parent / "resources/", client_resourse_folder)
+    shutil.copytree(Path(__file__).parent / "resources/", client_resourse_folder, dirs_exist_ok=True)
 
 
 def get_client_object(client_name: str) -> Client:
@@ -101,7 +101,7 @@ def get_client_object(client_name: str) -> Client:
         else:
             continue
 
-    sys.exit("Client does not exist")
+    # sys.exit("Client does not exist")
 
 
 def create_job(
@@ -203,7 +203,7 @@ def create_job(
     try:
         assert JOBS_FOLDER is not None
         job_bak = JOBS_FOLDER / client.name
-        job_backup = shutil.copy2(CLIENTS_FOLDER / client.name, "%s.bak" % (job_bak))
+        job_backup = shutil.copy2(JOBS_FOLDER / client.name, "%s.bak" % (job_bak))
     except Exception as error:
         # log could not create backup
         pass
