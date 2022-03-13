@@ -56,6 +56,8 @@ def get_settings(config_file: Optional[Path] = default_config_file) -> Settings:
             sys.exit("cannot create %s" % (config_file))
     return settings
 
+def save_settings(settings: Settings, config_file: Optional[Path] = default_config_file) -> None:
+    settings.save(config_file)
 
 settings = get_settings(CONFIG_FOLDER / "conf.json")
 
