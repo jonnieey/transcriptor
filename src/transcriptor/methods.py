@@ -553,3 +553,15 @@ def get_total_amount_paid(jobs_list: list[Job]) -> float:
         Total amount paid of jobs.
     """
     return custom_round(sum([job.amount_paid for job in jobs_list]), 2)
+
+def clear_finished_job_media_files():
+    """
+    Delete Done and paid jobs media files and archives
+    """
+    finished_jobs = get_jobs().finished_jobs()
+    fin_job_paths = []
+    for finished_job  in finished_jobs:
+        unwanted_files = Path(finished_job.job_path).glob('**/*[mwzM][p4aiP][3avp3]')
+        for unwanted_file in unwanted_files:
+            unwanted_file.unlink(missing_ok=True)
+

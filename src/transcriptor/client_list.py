@@ -20,6 +20,9 @@ class ClientList:
     def jobs(self):
         return [j for j in self.jobs_list if j.amount_paid < j.amount]
 
+    def finished_jobs(self):
+        return [j for j in self.jobs_list if j.amount_paid >= j.amount]
+
     def headers(self):
         return [t for t in self.jobs_list[0].to_dict()]
 
@@ -55,6 +58,12 @@ class ClientLists:
             job for j in self.clients_jobs for job in j if job.amount_paid < job.amount
         ]
         return jobs
+
+    def finished_jobs(self):
+        finished_jobs  = [
+            job for j in self.clients_jobs for job in j if job.amount_paid >= job.amount
+        ]
+        return finished_jobs
 
     def clients(self):
         return [j.client for j in self.clients_jobs]
