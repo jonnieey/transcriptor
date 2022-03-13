@@ -68,7 +68,8 @@ def add_settings_window():
         if event in ['-SAVE-']:
             settings_dict = {}
             for k, v in values.items():
-                settings_dict[k.strip('-').replace('-', '_').lower()] = v
+                if not k.startswith('Browse'):
+                    settings_dict[k.strip('-').replace('-', '_').lower()] = v
             save_settings(Settings(**settings_dict))
             window.close()
             break
@@ -79,7 +80,7 @@ def add_profile_window():
     try:
         profile = Profile.load(profile_file)
     except FileNotFoundError:
-        profile = { 'area': '', 'country': '', 'first_name': '', 'last_name': '' }
+        profile = Profile(**{ 'area': '', 'country': '', 'first_name': '', 'last_name': '' })
 
     layout = []
     for k, v in profile.to_dict().items():
@@ -417,5 +418,4 @@ def main():
     window.close()
 
 main()
-# print(jobs[1:])
 
