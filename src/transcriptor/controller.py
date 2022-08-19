@@ -3,7 +3,6 @@ class Controller:
         self.model = model
         self.view = view
 
-
     def show_items(self):
         items = list(self.model)
         item_type = self.model.item_type

@@ -1,9 +1,11 @@
-from pathlib import Path
-import json
 import copy
-from datetime import date, datetime
+import json
+import pickle
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
+from datetime import date, datetime
+from pathlib import Path
+
 
 class Model(ABC):
     @abstractmethod
@@ -23,7 +25,6 @@ class ConfigModel(Model):
 
     def __post_init__(self):
         self.base_dir = Path(self.base_dir)
-        
 
     def __iter__(self):
         yield from self.__dict__.items()
@@ -47,12 +48,13 @@ class ConfigModel(Model):
 
     item_type = "config"
 
+
 @dataclass
 class ProfileModel(Model):
-    first_name: str = ''
-    last_name: str = ''
-    area: str = ''
-    country: str = ''
+    first_name: str = ""
+    last_name: str = ""
+    area: str = ""
+    country: str = ""
 
     def __iter__(self):
         yield from self.__dict__.items()
@@ -69,7 +71,11 @@ class ProfileModel(Model):
         except Exception as error:
             print(error)
 
+    def save(self, file_object, indent=2):
+        json.dump(dict(self), file_object, indent=indent)
+
     item_type = "profile"
+
 
 @dataclass
 class ClientModel(Model):
@@ -92,7 +98,11 @@ class ClientModel(Model):
         except Exception as error:
             print(error)
 
+    def save(self, file_object, indent=2):
+        pickle.dump(self, file_object)
+
     item_type = "client"
+
 
 @dataclass
 class JobModel(Model):
@@ -129,7 +139,7 @@ class JobModel(Model):
 
 
 if __name__ == "__main__":
-    client = ClientModel(name='john', email='john@gmail.com', rates={})
+    client = ClientModel(name="john", email="john@gmail.com", rates={})
     job = JobModel(
         client=client,
         date_received=datetime.strptime("2022-05-05", "%Y-%m-%d"),
@@ -141,9 +151,9 @@ if __name__ == "__main__":
         date_due=datetime.strptime("2022-06-01", "%Y-%m-%d"),
         job_path=Path("somerandompath"),
         date_submitted=datetime.strptime("2022-06-01", "%Y-%m-%d"),
-        status= "Done",
-        amount_paid= 0.0,
-        note= "",
+        status="Done",
+        amount_paid=0.0,
+        note="",
     )
     # print(dict(job))
     # print(list(job))
