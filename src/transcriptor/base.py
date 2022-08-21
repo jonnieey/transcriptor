@@ -1,11 +1,10 @@
 import json
 import pickle
 
-from appdirs import user_data_dir
 
 from transcriptor.controller import Controller
 from transcriptor.models import ConfigModel, ProfileModel
-from transcriptor.new_handlers import Api
+from transcriptor.api import Api
 from transcriptor.utils import *
 from transcriptor.view import ConsoleView
 
@@ -40,42 +39,6 @@ class Transcriptor(Base, Api):
         else:
             if not hasattr(self, "profile"):
                 self.profile = self.load_profile()
-
-    def save_config(self, config):
-        touch(self.config_file)
-
-        with open(self.config_file, "w") as fd:
-            config.save(fd)
-
-    def load_config(self):
-        try:
-            with open(self.config_file, "r") as fd:
-                return ConfigModel(**json.load(fd))
-        except FileNotFoundError:
-            config = self.default_config()
-            self.save_config(config)
-            return config
-
-    def default_config(self):
-        date_format = "%Y-%m-%d"
-        base_dir = user_data_dir(self.APP_NAME, self.AUTHOR)
-        default_config = ConfigModel(date_format, base_dir)
-        return default_config
-
-    def save_profile(self, profile):
-        touch(self.profile_file)
-
-        with open(self.profile_file, "w") as fd:
-            profile.save(fd)
-
-    def load_profile(self):
-        try:
-            with open(self.profile_file, "r") as fd:
-                return ProfileModel(**json.load(fd))
-        except FileNotFoundError:
-            profile = ProfileModel()
-            self.save_profile(profile)
-            return profile
 
 
 def main():

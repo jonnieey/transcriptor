@@ -1,8 +1,9 @@
 import copy
 import json
 import pickle
+from typing import Optional
 from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 
@@ -30,16 +31,10 @@ class ConfigModel(Model):
         yield from self.__dict__.items()
 
     def get(self, attr):
-        try:
-            return getattr(self, attr)
-        except Exception as error:
-            print(error)
+        return getattr(self, attr)
 
     def set(self, attr, value):
-        try:
-            setattr(self, attr, value)
-        except Exception as error:
-            print(error)
+        setattr(self, attr, value)
 
     def save(self, file_object, indent=2):
         config = copy.copy(self)
@@ -60,16 +55,10 @@ class ProfileModel(Model):
         yield from self.__dict__.items()
 
     def get(self, attr):
-        try:
-            return getattr(self, attr)
-        except Exception as error:
-            print(error)
+        return getattr(self, attr)
 
     def set(self, attr, value):
-        try:
-            setattr(self, attr, value)
-        except Exception as error:
-            print(error)
+        setattr(self, attr, value)
 
     def save(self, file_object, indent=2):
         json.dump(dict(self), file_object, indent=indent)
@@ -87,18 +76,12 @@ class ClientModel(Model):
         yield from self.__dict__.items()
 
     def get(self, attr):
-        try:
-            return getattr(self, attr)
-        except Exception as error:
-            print(error)
+        return getattr(self, attr)
 
     def set(self, attr, value):
-        try:
-            setattr(self, attr, value)
-        except Exception as error:
-            print(error)
+        setattr(self, attr, value)
 
-    def save(self, file_object, indent=2):
+    def save(self, file_object):
         pickle.dump(self, file_object)
 
     item_type = "client"
@@ -115,25 +98,19 @@ class JobModel(Model):
     quantity: float
     date_due: date
     job_path: Path
-    date_submitted: date
-    status: str
-    amount_paid: float
-    note: str
+    date_submitted: Optional[date] = None
+    status: str = 'Pending'
+    amount_paid: float = 0.0
+    note: str = ''
 
     def __iter__(self):
         yield from self.__dict__.items()
 
     def get(self, attr):
-        try:
-            return getattr(self, attr)
-        except Exception as error:
-            print(error)
+        return getattr(self, attr)
 
     def set(self, attr, value):
-        try:
-            setattr(self, attr, value)
-        except Exception as error:
-            print(error)
+        setattr(self, attr, value)
 
     item_type = "job"
 

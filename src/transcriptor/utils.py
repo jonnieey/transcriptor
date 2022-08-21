@@ -18,7 +18,7 @@ def touch(file_path: Path):
         file_path.touch(exist_ok=True)
 
 
-def snake_case(string: str):
+def sc(string: str):
     return string.replace(" ", "_")
 
 
