@@ -1,8 +1,9 @@
-import pytest
 import json
-from io import BytesIO, StringIO
 from collections.abc import Iterable
+from io import BytesIO, StringIO
 from pathlib import Path
+
+import pytest
 
 from transcriptor.models import *
 
@@ -13,6 +14,7 @@ def test_config_model():
     base_dir = str(Path(__file__).parent.joinpath("data"))
     return ConfigModel(date_format, base_dir)
 
+
 @pytest.fixture()
 def test_profile_model():
     first_name = "Test"
@@ -21,12 +23,14 @@ def test_profile_model():
     country = "Country"
     return ProfileModel(first_name, last_name, area, country)
 
+
 @pytest.fixture()
 def test_client_model():
     name = "Client"
     email = "clientemail@gmail.com"
     rates = {"Normal": 0.4, "Expedite": 0.5, "Interpreted": 0.3}
     return ClientModel(name, email, rates)
+
 
 @pytest.fixture()
 def test_job_model():
@@ -42,6 +46,7 @@ def test_job_model():
         job_path="somerandompath",
     )
     return job
+
 
 class TestConfigModel:
     def test_base_dir_is_path_obj(self, test_config_model):
@@ -64,6 +69,7 @@ class TestConfigModel:
         test_config_model.save(fd)
         assert test_config_model == ConfigModel(**json.loads(fd.getvalue()))
 
+
 class TestProfileModel:
     def test_is_iterable(self, test_profile_model):
         assert isinstance(test_profile_model, Iterable)
@@ -81,6 +87,7 @@ class TestProfileModel:
         fd = StringIO()
         test_profile_model.save(fd)
         assert test_profile_model == ProfileModel(**json.loads(fd.getvalue()))
+
 
 class TestClientModel:
     def test_is_iterable(self, test_client_model):

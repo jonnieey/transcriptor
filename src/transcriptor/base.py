@@ -1,10 +1,9 @@
 import json
 import pickle
 
-
+from transcriptor.api import Api
 from transcriptor.controller import Controller
 from transcriptor.models import ConfigModel, ProfileModel
-from transcriptor.api import Api
 from transcriptor.utils import *
 from transcriptor.view import ConsoleView
 
@@ -49,7 +48,6 @@ def main():
         rates={"Normal": 0.4, "Expedite": 0.6, "Interpreted": 0.3},
     )
     t.save_client(client)
-    t.edit_client(client, update_dict={"name": "test update"})
     view = ConsoleView()
     client_controller = Controller(client, view)
     client_controller.show_items()

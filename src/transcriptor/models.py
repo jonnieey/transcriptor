@@ -1,11 +1,11 @@
 import copy
 import json
 import pickle
-from typing import Optional
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
+from typing import Optional
 
 
 class Model(ABC):
@@ -99,9 +99,9 @@ class JobModel(Model):
     date_due: date
     job_path: Path
     date_submitted: Optional[date] = None
-    status: str = 'Pending'
+    status: str = "Pending"
     amount_paid: float = 0.0
-    note: str = ''
+    note: str = ""
 
     def __iter__(self):
         yield from self.__dict__.items()
@@ -111,6 +111,30 @@ class JobModel(Model):
 
     def set(self, attr, value):
         setattr(self, attr, value)
+
+    def save(self, file_object) -> None:
+        """
+        Save job object as pickle to file.
+
+        Arguments:
+            file_object: Open file buffer
+
+        """
+        # seek(pos, whence=[0, 1, 2]) 0:start of stream , 2: Curr pos, 2: End of stream
+        file_object.seek(0, 2)
+        if file_object.tell() == 0:
+            jobs = [self]  # new job list
+        else:
+            file_object.seek(0)
+            jobs = pickle.load(file_object)
+            jobs.append(self)
+
+        file_object.seek(0)
+        pickle.dump(
+            jobs,
+            file_object,
+            protocol=pickle.HIGHEST_PROTOCOL,
+        )
 
     item_type = "job"
 
