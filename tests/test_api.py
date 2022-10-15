@@ -191,7 +191,7 @@ class TestApi:
             assert len(jobs) == 1
             assert job2 not in jobs
 
-    def test_update_job(self, test_job):
+    def test_edit_job(self, test_job):
         client_name = test_job.client.name
         jobs_file = BASE_DIR.joinpath(
             "clients", f"{sc(client_name)}", f"{YEAR}-jobs.pickle"

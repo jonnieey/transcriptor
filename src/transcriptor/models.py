@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
+from transcriptor.utils import sc
+TODAY = datetime.today()
+YEAR = TODAY.year
 
 
 class Model(ABC):
@@ -89,15 +92,15 @@ class ClientModel(Model):
 
 @dataclass
 class JobModel(Model):
-    client: ClientModel
-    date_received: date
-    job_number: str
-    job_type: str
-    total_quantity: float
-    job_rate: float
-    quantity: float
-    date_due: date
-    job_path: Path
+    client: ClientModel = None
+    date_received: date = None
+    job_number: str = ""
+    job_type: str = ""
+    total_quantity: float = 0.0
+    job_rate: float = 0.0
+    quantity: float = 0.0
+    date_due: date = None
+    job_path: Path = None
     date_submitted: Optional[date] = None
     status: str = "Pending"
     amount_paid: float = 0.0
@@ -138,23 +141,3 @@ class JobModel(Model):
 
     item_type = "job"
 
-
-if __name__ == "__main__":
-    client = ClientModel(name="john", email="john@gmail.com", rates={})
-    job = JobModel(
-        client=client,
-        date_received=datetime.strptime("2022-05-05", "%Y-%m-%d"),
-        job_number="56321",
-        job_type="Normal",
-        total_quantity=42.12630,
-        job_rate=0.40,
-        quantity=21.06315,
-        date_due=datetime.strptime("2022-06-01", "%Y-%m-%d"),
-        job_path=Path("somerandompath"),
-        date_submitted=datetime.strptime("2022-06-01", "%Y-%m-%d"),
-        status="Done",
-        amount_paid=0.0,
-        note="",
-    )
-    # print(dict(job))
-    # print(list(job))

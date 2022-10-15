@@ -122,7 +122,8 @@ class TestJobModel:
         assert test_job_model.name != "Client"
         assert test_job_model.name == "Client2"
 
-    # def test_save(self, test_job_model):
-    #     fd = BytesIO()
-    #     test_job_model.save(fd)
-    #     assert test_job_model == pickle.loads(fd.getvalue())
+    def test_save(self, test_job_model):
+        fd = BytesIO()
+        test_job_model.save(fd)
+        # Saves jobs as a list of dicts
+        assert [test_job_model] == pickle.loads(fd.getvalue())

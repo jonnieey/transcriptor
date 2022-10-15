@@ -17,10 +17,11 @@ def touch(file_path: Path):
         file_path.parent.mkdir(exist_ok=True, parents=True)
         file_path.touch(exist_ok=True)
 
-
 def sc(string: str):
     return string.replace(" ", "_")
 
+def nc(string: str):
+    return string.replace("_", " ")
 
 def kebab_case(string: str):
     return string.replace(" ", "-")
