@@ -28,10 +28,7 @@ class Model(ABC):
 @dataclass
 class ConfigModel(Model):
     date_format: str
-    base_dir: Path
-
-    def __post_init__(self):
-        self.base_dir = Path(self.base_dir)
+    base_dir: str
 
     def __iter__(self):
         yield from self.__dict__.items()

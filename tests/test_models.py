@@ -1,9 +1,11 @@
 import json
+import uuid
 from collections.abc import Iterable
 from io import BytesIO, StringIO
 from pathlib import Path
 
 import pytest
+import yaml
 
 from transcriptor.models import *
 
@@ -26,16 +28,18 @@ def test_profile_model():
 
 @pytest.fixture()
 def test_client_model():
+    client_id = str(uuid.uuid4())
     name = "Client"
     email = "clientemail@gmail.com"
     rates = {"Normal": 0.4, "Expedite": 0.5, "Interpreted": 0.3}
-    return ClientModel(name, email, rates)
+    return ClientModel(client_id, name, email, rates)
 
 
 @pytest.fixture()
 def test_job_model():
     job = JobModel(
-        client="Client",
+        job_id=str(uuid.uuid4()),
+        client_id=str(uuid.uuid4()),
         date_received="2022-05-05",
         job_number="56321",
         job_type="Normal",
@@ -49,8 +53,8 @@ def test_job_model():
 
 
 class TestConfigModel:
-    def test_base_dir_is_path_obj(self, test_config_model):
-        assert isinstance(test_config_model.base_dir, Path)
+    def test_base_dir_is_str(self, test_config_model):
+        assert isinstance(test_config_model.base_dir, str)
 
     def test_is_iterable(self, test_config_model):
         assert isinstance(test_config_model, Iterable)
@@ -67,7 +71,7 @@ class TestConfigModel:
     def test_save(self, test_config_model):
         fd = StringIO()
         test_config_model.save(fd)
-        assert test_config_model == ConfigModel(**json.loads(fd.getvalue()))
+        assert test_config_model == ConfigModel(**yaml.safe_load(fd.getvalue()))
 
 
 class TestProfileModel:
@@ -86,7 +90,7 @@ class TestProfileModel:
     def test_save(self, test_profile_model):
         fd = StringIO()
         test_profile_model.save(fd)
-        assert test_profile_model == ProfileModel(**json.loads(fd.getvalue()))
+        assert test_profile_model == ProfileModel(**yaml.safe_load(fd.getvalue()))
 
 
 class TestClientModel:
@@ -103,9 +107,9 @@ class TestClientModel:
         assert test_client_model.name == "Client2"
 
     def test_save(self, test_client_model):
-        fd = BytesIO()
+        fd = StringIO()
         test_client_model.save(fd)
-        assert test_client_model == pickle.loads(fd.getvalue())
+        assert test_client_model == ClientModel(**yaml.safe_load(fd.getvalue()))
 
 
 class TestJobModel:
@@ -113,8 +117,8 @@ class TestJobModel:
         assert isinstance(test_job_model, Iterable)
 
     def test_get_attribute(self, test_job_model):
-        assert test_job_model.client == "Client"
-        assert test_job_model.get("client") == "Client"
+        assert test_job_model.client_id == test_job_model.client_id
+        assert test_job_model.get("client_id") == test_job_model.client_id
         assert test_job_model.status == "Pending"
 
     def test_set_attribute(self, test_job_model):
@@ -123,7 +127,7 @@ class TestJobModel:
         assert test_job_model.name == "Client2"
 
     def test_save(self, test_job_model):
-        fd = BytesIO()
+        fd = StringIO()
         test_job_model.save(fd)
         # Saves jobs as a list of dicts
-        assert [test_job_model] == pickle.loads(fd.getvalue())
+        assert [dict(test_job_model)] == yaml.safe_load(fd.getvalue())
