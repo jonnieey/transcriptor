@@ -40,9 +40,7 @@ class ConfigModel(Model):
         setattr(self, attr, value)
 
     def save(self, file_object, indent=2):
-        config = copy.copy(self)
-        config.base_dir = str(config.base_dir)
-        yaml.dump(dict(config), file_object, sort_keys=False)
+        yaml.dump(dict(self), file_object, sort_keys=False)
 
     item_type = "config"
 

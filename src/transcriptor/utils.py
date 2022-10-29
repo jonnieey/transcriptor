@@ -8,6 +8,12 @@ def touch(file_path: Path):
         file_path.touch(exist_ok=True)
 
 
+def mkdirp(dir_path: Path):
+    if not dir_path.exists():
+        dir_path.mkdir(exist_ok=True, parents=True)
+    return dir_path
+
+
 def sc(string: str):
     return string.replace(" ", "_")
 

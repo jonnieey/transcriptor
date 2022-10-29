@@ -24,8 +24,8 @@ class Transcriptor(Base, API):
     def __init__(self):
 
         self.config = self.get_config()
-        self.base_dir = Path(self.config.base_dir)
-        self.clients_dir = self.base_dir.joinpath("clients")
+        self.base_dir = mkdirp(Path(self.config.base_dir))
+        self.clients_dir = mkdirp(self.base_dir.joinpath("clients"))
 
     def get_config(self):
         CONFIG_DIR = Path(user_config_dir(appname=self.APP_NAME))
@@ -67,7 +67,27 @@ class Transcriptor(Base, API):
 
 if __name__ == "__main__":
     app = Transcriptor()
-    print(app.get_config())
-    print(app.get_profile())
-    print([x for x in app.get_client_by_attr("name", "Anderson", app.clients_dir)])
-    # app.add_client("Anderson Njahi", "JohnAnderson@gmail.com")
+    # create Profile
+    app.get_profile()
+    client_name = "John"
+    client_email = "Johnnjahi@gmail.com"
+    # app.add_client(client_name, client_email)
+    client = [x for x in app.get_client_by_attr("name", client_name, app.clients_dir)][
+        0
+    ]
+    job = app.create_job(
+        client_id=client.client_id,
+        date_received="2022-05-05",
+        job_number="56321",
+        job_type="Normal",
+        total_quantity="42.12630",
+        job_rate="0.40",
+        quantity="21.06315",
+        date_due="2022-06-01",
+        job_path="somerandompath",
+    )
+    job_file = app.clients_dir.joinpath(sc(client.name)).joinpath("jobs.yml")
+    if not job_file.exists():
+        touch(job_file)
+    with open(job_file, "r+") as fd:
+        app.save_job(job, fd)

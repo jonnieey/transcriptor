@@ -66,11 +66,24 @@ class API:
         client = self.load_object(obj, file_object)
         return client
 
+    def get_clients(self, clients_dir: Path):
+        logger.info("Get all clients")
+        clients_dir = Path(clients_dir)
+
+        for client_dir in clients_dir.iterdir():
+            client_file = client_dir.joinpath(f"{client_dir.name}.yml")
+            if client_file.exists():
+                try:
+                    with open(client_file, "r") as fd:
+                        client = self.load_object(ClientModel, fd)
+                        yield client
+
+                except Exception as error:
+                    logger.error(error)
+
     def get_client_by_attr(self, attr, attr_value, clients_dir: Path):
         logger.info("Get client attribute")
         clients_dir = Path(clients_dir)
-
-        clients = []
 
         for client_dir in clients_dir.iterdir():
             client_file = client_dir.joinpath(f"{client_dir.name}.yml")
@@ -79,8 +92,7 @@ class API:
                     with open(client_file, "r") as fd:
                         client = self.load_object(ClientModel, fd)
                         if attr_value in client.get(attr):
-                            clients.append(client)
-                            yield clients
+                            yield client
 
                 except Exception as error:
                     logger.error(error)
