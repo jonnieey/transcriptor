@@ -26,7 +26,7 @@ tests: run-tests clean-tests
 .PHONY: run-tests
 run-tests:  ## Run tests using pytest
 	@echo -e "RUNNING TESTS\n"
-	pytest tests
+	python -m pytest tests
 
 .PHONY: clean
 clean: clean-tests clean-tmp

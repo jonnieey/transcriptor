@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from transcriptor.api import API
+from transcriptor.controller import API
 from transcriptor.models import *
 from transcriptor.utils import *
 

@@ -1,17 +1,11 @@
-import copy
-import pickle
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import date, datetime
-from pathlib import Path
-from typing import Optional
 
 import yaml
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from transcriptor.utils import sc
-
-TODAY = datetime.today()
-YEAR = TODAY.year
+from transcriptor.database import Base
 
 
 class Model(ABC):
@@ -39,8 +33,8 @@ class ConfigModel(Model):
     def set(self, attr, value):
         setattr(self, attr, value)
 
-    def save(self, file_object, indent=2):
-        yaml.dump(dict(self), file_object, sort_keys=False)
+    def save(self, file_object):
+        yaml.safe_dump(dict(self), file_object, sort_keys=False)
 
     item_type = "config"
 
@@ -62,83 +56,46 @@ class ProfileModel(Model):
         setattr(self, attr, value)
 
     def save(self, file_object):
-        yaml.dump(dict(self), file_object, sort_keys=False)
+        yaml.safe_dump(dict(self), file_object, sort_keys=False)
 
     item_type = "profile"
 
 
-@dataclass
-class ClientModel(Model):
-    client_id: str
-    name: str
-    email: str
-    rates: dict
+class RatesModel(Base):
+    __tablename__ = "Rates"
 
-    def __iter__(self):
-        yield from self.__dict__.items()
-
-    def get(self, attr):
-        return getattr(self, attr)
-
-    def set(self, attr, value):
-        setattr(self, attr, value)
-
-    def save(self, file_object):
-        yaml.dump(dict(self), file_object, sort_keys=False)
-
-    item_type = "client"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    normal: Mapped[float] = mapped_column(default=0.40)
+    expedite: Mapped[float] = mapped_column(default=0.60)
+    interpreted: Mapped[float] = mapped_column(default=0.30)
+    client: Mapped["ClientModel"] = relationship(back_populates="rates")
 
 
-@dataclass
-class JobModel(Model):
-    job_id: str
-    client_id: str
-    date_received: str
-    job_number: str
-    job_type: str
-    total_quantity: float
-    job_rate: float
-    quantity: float
-    date_due: str
-    job_path: str
-    date_submitted: str = ""
-    status: str = "Pending"
-    amount_paid: float = 0.0
-    note: str = ""
+class ClientModel(Base):
+    __tablename__ = "Clients"
 
-    def __iter__(self):
-        yield from self.__dict__.items()
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(unique=True)
+    email: Mapped[str] = mapped_column()
+    rates_id: Mapped[int] = mapped_column(ForeignKey("Rates.id"), default="")
+    rates: Mapped["RatesModel"] = relationship(back_populates="client")
+    jobs: Mapped[list["JobModel"]] = relationship()
 
-    def get(self, attr):
-        return getattr(self, attr)
 
-    def set(self, attr, value):
-        setattr(self, attr, value)
+class JobModel(Base):
+    __tablename__ = "Jobs"
 
-    def save(self, file_object) -> None:
-        """
-        Save job object as pickle to file.
-
-        Arguments:
-            file_object: Open file buffer
-
-        """
-        # seek(pos, whence=[0, 1, 2]) 0:start of stream , 2: Curr pos, 2: End of stream
-        file_object.seek(0, 2)
-        if file_object.tell() == 0:
-            jobs = [dict(self)]  # new job list
-        else:
-            file_object.seek(0)
-            # jobs = pickle.load(file_object)
-            jobs = yaml.safe_load(file_object)
-            jobs.append(dict(self))
-
-        file_object.seek(0)
-        # pickle.dump(
-        #     jobs,
-        #     file_object,
-        #     protocol=pickle.HIGHEST_PROTOCOL,
-        # )
-        yaml.safe_dump(jobs, file_object, sort_keys=False)
-
-    item_type = "job"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("Clients.id"))
+    date_received: Mapped[str] = mapped_column()
+    job_number: Mapped[str] = mapped_column()
+    job_type: Mapped[str] = mapped_column()
+    total_quantity: Mapped[float] = mapped_column()
+    job_rate: Mapped[float] = mapped_column()
+    quantity: Mapped[float] = mapped_column()
+    date_due: Mapped[str] = mapped_column()
+    job_path: Mapped[str] = mapped_column()
+    date_submitted: Mapped[str] = mapped_column(default="")
+    status: Mapped[str] = mapped_column(default="Pending")
+    amount_paid: Mapped[float] = mapped_column(default=0.0)
+    note: Mapped[str] = mapped_column(default="")
