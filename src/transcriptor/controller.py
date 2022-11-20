@@ -1,11 +1,9 @@
 import logging
-import shutil
-import zipfile
 from pathlib import Path
 
 import yaml
-from appdirs import user_config_dir, user_data_dir
-from sqlalchemy import select, text
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from transcriptor.database import Base, Database
 from transcriptor.models import ClientModel, JobModel, ProfileModel, RatesModel
@@ -16,23 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 class API:
-    def __init__(self, config=None, profile=None, db_path="transcriptor.db"):
-        if config is None:
-            self.config = self.load_config()
-        else:
-            self.config = config
+    def __init__(self, base_dir, db_path="transcriptor.db"):
 
-        self.base_dir = Path(self.config.base_dir)
+        self.base_dir = Path(base_dir)
         mkdirp([self.base_dir])
-        self.date_format = self.config.date_format
-
-        if profile is None:
-            self.profile = self.load_profile()
 
         self.db = Database(self.base_dir.joinpath(db_path))
-        self.init_db()
-
-    def init_db(self):
         Base.metadata.create_all(self.db.engine)
 
     def save_object(self, obj, file_object):
@@ -41,6 +28,8 @@ class API:
 
     def load_object(self, obj, file_object):
         obj_dict = yaml.safe_load(file_object)
+        if obj_dict is None:
+            return obj()
         obj = obj(**obj_dict)
         return obj
 
@@ -49,66 +38,37 @@ class API:
         config = self.save_object(obj, file_object)
         return config
 
-    def load_config(self):
+    # def load_config(self):
+    def load_config(self, fd):
         logger.info("Load config")
-        config_file = Path(user_config_dir(appname="transcriptor3")).joinpath(
-            "config.yml"
-        )
-        touch([config_file])
-        try:
-            with open(config_file, "r") as fd:
-                obj_dict = yaml.safe_load(fd)
-                if obj_dict is None:
-                    raise FileNotFoundError
-                config = ConfigModel(**obj_dict)
-        except (FileNotFoundError) as error:
-            with open(config_file, "w") as fd:
-                config = self.default_config()
-                config.save(fd)
+        config = self.load_object(ConfigModel, fd)
         return config
 
-    def default_config(self):
-        logger.info("Create default configuration")
-        date_format = "%Y-%m-%d"
-        base_dir = user_data_dir(appname="transcriptor3")
-        config_obj = ConfigModel(date_format=date_format, base_dir=base_dir)
-        return config_obj
-
-    def save_profile(self, obj, file_object):
+    def save_profile(self, obj, fd):
         logger.info("Save profile")
-        profile = self.save_object(obj, file_object)
+        profile = self.save_object(obj, fd)
         return profile
 
-    def load_profile(self):
-        logger.info("Load profile")
-        profile_file = self.base_dir.joinpath("profile.yml")
-        touch([profile_file])
-        try:
-            with open(profile_file, "r") as fd:
-                obj_dict = yaml.safe_load(fd)
-                if obj_dict is None:
-                    raise FileNotFoundError
-                profile = ProfileModel(**obj_dict)
-        except (FileNotFoundError) as error:
-            with open(profile_file, "w") as fd:
-                profile = ProfileModel()
-                profile.save(fd)
+    def load_profile(self, fd):
+        profile = self.load_object(ProfileModel, fd)
         return profile
 
-    def create_client(self, name: str, email: str, rates: dict):
+    def create_client(
+        self,
+        name: str,
+        email: str,
+        rates: dict = {"normal": 0.40, "interpreted": 0.30, "expedite": 0.60},
+    ):
         logger.info(f'Creating client "{name}"')
         rate_obj = RatesModel(**rates)
         client = ClientModel(name=name, email=email, rates=rate_obj)
-        client_dir = self.base_dir.joinpath("clients").joinpath(sc(name))
-        client_info = client_dir.joinpath(f"{sc(name)}_info.yml")
+        return client
 
+    def save_client(self, client: ClientModel):
         try:
-            with self.db.session as session:
+            with Session(self.db.engine) as session:
                 session.add(client)
                 session.commit()
-                mkdirp([client_dir])
-                with open(client_info, "w") as fd:
-                    yaml.dump({"name": name, "email": email, "rates": rates}, fd)
 
         except Exception as error:
             logger.error(error)
@@ -143,56 +103,15 @@ class API:
         )
         return job
 
-    def create_job_dir(
-        self, client_name, job_number, year, date_received, date_due, job_file
-    ):
-        with self.db.session as session:
-            stmt = select(ClientModel).where(ClientModel.name == client_name)
-            client = session.execute(stmt).first()
-
-            job_dir = (
-                self.base_dir.joinpath("clients")
-                .joinpath(sc(client_name))
-                .joinpath("jobs")
-                .joinpath(year)
-                .joinpath(f"{date_received}_{job_number}_DUE-{date_due}")
-            )
-            mkdirp([job_dir])
-            moved_file = shutil.copy(job_file, job_dir)
-            if zipfile.is_zipfile(moved_file):
-                zipfile.ZipFile(moved_file).extractall(job_dir)
-
-            # getaudio files
-            media_files = get_media_files(job_dir)
-            for media_file in media_files:
-                do = input("Do work? [Y/N]: ")
-                if do.upper() == "Y":
-
-                    total_quantity = get_media_duration(media_file)
-                    quantity = input("duration: ")
-                    job_type = input("Job type: ")
-                    job_template = input("Job template: ")
-                    note = input("Notes: ")
-
-                    job_dict = {
-                        "client_id": client[0].id,
-                        "date_received": date_received,
-                        "job_number": job_number,
-                        "job_type": job_type,
-                        "total_quantity": total_quantity,
-                        "job_rate": 0.4,
-                        "quantity": quantity,
-                        "date_due": date_due,
-                        "job_path": str(job_dir),
-                        "note": note,
-                    }
-                    job = self.create_job(**job_dict)
-                    session.add(job)
+    def save_job(self, job):
+        with Session(self.db.engine) as session:
+            session.add(job)
             session.commit()
 
-        # with self.db.session as session:
-        #     session.add(job)
-        #     session.commit()
+    def execute_sql(self, s):
+        stmt = text(s)
+        with Session(self.db.engine) as session:
+            return session.execute(stmt)
 
 
 if __name__ == "__main__":

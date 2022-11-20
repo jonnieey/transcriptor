@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 import yaml
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from transcriptor.database import Base
@@ -94,7 +94,7 @@ class JobModel(Base):
     job_rate: Mapped[float] = mapped_column()
     quantity: Mapped[float] = mapped_column()
     date_due: Mapped[str] = mapped_column()
-    job_path: Mapped[str] = mapped_column()
+    job_path: Mapped[str] = mapped_column(String(100))
     date_submitted: Mapped[str] = mapped_column(default="")
     status: Mapped[str] = mapped_column(default="Pending")
     amount_paid: Mapped[float] = mapped_column(default=0.0)
