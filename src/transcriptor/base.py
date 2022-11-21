@@ -1,5 +1,6 @@
 import logging
 import shutil
+import sys
 import zipfile
 from datetime import date
 from typing import Any, Dict
@@ -13,14 +14,14 @@ from transcriptor.utils import *
 logger = logging.getLogger(__name__)
 
 
-class Base:
+class BaseTranscriptor:
     _shared_state: Dict[Any, Any] = {}
 
     def __init__(self):
         self.__dict__ = self._shared_state
 
 
-class Transcriptor(Base):
+class Transcriptor(BaseTranscriptor):
     APP_NAME = "transcriptor3"
 
     def __init__(self, config=None):
@@ -46,15 +47,20 @@ class Transcriptor(Base):
         CONFIG_DIR = Path(user_config_dir(appname=self.APP_NAME))
         CONFIG_FILE = CONFIG_DIR.joinpath("config.yml")
 
-        if not CONFIG_FILE.exists():
+        if not CONFIG_FILE.exists() or (yaml.safe_load(CONFIG_FILE.open("r")) is None):
             touch([CONFIG_FILE])
             config = self.default_config()
             self.add_config(config)
             return config
 
         with open(CONFIG_FILE, "r") as fd:
-            obj_dict = yaml.safe_load(fd)
-            return ConfigModel(**obj_dict)
+            try:
+                obj_dict = yaml.safe_load(fd)
+                obj = ConfigModel(**obj_dict)
+                return obj
+            except TypeError as error:
+                logger.error(error)
+                sys.exit(1)
 
     def add_config(self, config: ConfigModel):
         CONFIG_FILE = Path(user_config_dir(appname=self.APP_NAME)).joinpath(
@@ -67,7 +73,9 @@ class Transcriptor(Base):
     def get_profile(self):
         PROFILE_FILE = self.base_dir.joinpath("profile.yml")
 
-        if not PROFILE_FILE.exists():
+        if not PROFILE_FILE.exists() or (
+            yaml.safe_load(PROFILE_FILE.open("r")) is None
+        ):
             touch([PROFILE_FILE])
             profile = ProfileModel()
             self.add_profile(profile)

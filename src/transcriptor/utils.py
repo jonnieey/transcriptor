@@ -1,7 +1,7 @@
 import math
 import re
 from pathlib import Path
-from typing import Optional, Pattern, Match
+from typing import Match, Optional, Pattern
 
 from audioread import audio_open
 from magic import from_file
@@ -30,7 +30,7 @@ kc = lambda s: convert_case(s, " ", "- ")
 tc = lambda s: nc(s).title()
 
 
-def parse_job_number(file: str | Path):
+def parse_job_number(file: str):
     job_number_pattern: Pattern = re.compile(r"(\d{6,8})")
     job_number_matches: Optional[Match] = job_number_pattern.search(file)
 

@@ -14,8 +14,8 @@ def cli(**kwargs):
 
 @cli.command()
 def show(**kwargs):
-    if show:
-        profile = app.profile
+    profile = app.profile
+    if profile:
         cols, rows = (profile.cols(), profile.rows())
         ConsoleView().vertical_table(cols, rows)
 

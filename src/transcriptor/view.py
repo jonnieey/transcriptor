@@ -28,4 +28,3 @@ class ConsoleView:
             else:
                 self.table.add_row(tc(cols[idx]), row)
         self.console.print(self.table)
-

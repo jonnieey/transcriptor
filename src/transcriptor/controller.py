@@ -6,7 +6,13 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from transcriptor.database import Base, Database
-from transcriptor.models import ClientModel, JobModel, ProfileModel, RatesModel
+from transcriptor.models import (
+    ClientModel,
+    ConfigModel,
+    JobModel,
+    ProfileModel,
+    RatesModel,
+)
 from transcriptor.utils import *
 from transcriptor.view import *
 
@@ -34,8 +40,11 @@ class API:
         obj_dict = yaml.safe_load(file_object)
         if obj_dict is None:
             return obj()
-        obj = obj(**obj_dict)
-        return obj
+        try:
+            obj = obj(**obj_dict)
+            return obj
+        except TypeError as error:
+            logger.error(error)
 
     def save_config(self, obj, file_object):
         logger.info("Save config")

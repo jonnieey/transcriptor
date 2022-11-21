@@ -1,5 +1,6 @@
-import click
 import logging
+
+import click
 from sqlalchemy import select
 
 from transcriptor.base import Transcriptor
