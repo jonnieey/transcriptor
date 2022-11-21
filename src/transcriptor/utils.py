@@ -1,5 +1,6 @@
 import math
 import re
+from datetime import date, datetime
 from pathlib import Path
 from typing import Match, Optional, Pattern
 
@@ -75,7 +76,7 @@ def get_media_duration(media_file: Path) -> float:
 
 
 def truncate(num, dp):
-    return math.trunc(num * 10**dp) / (10 * dp)
+    return math.trunc(num * 10**dp) / (10**dp)
 
 
 def sec_to_min(seconds: float) -> float:
@@ -89,11 +90,29 @@ def sec_to_min(seconds: float) -> float:
         Duration in minutes
 
     """
-    minutes = (seconds // 60) + (math.fmod(seconds, 60) / 60)
+    minutes = (seconds // 60) + ((seconds % 60) / 60)
     return truncate(minutes, 2)
 
 
+def format_date(date_str: str, date_fmt: str):
+    """
+    Convert month.day ('%m.%d') string to full date string.
+
+    Arguments:
+        date_str: String with format of '%m.%d' date format.
+        date_fmt: Date format string.
+
+    Returns:
+        A date string.
+
+    """
+    try:
+        full_date_string = f"{date_str}.{date.today().year}"
+        date_obj = datetime.strptime(full_date_string, "%m.%d.%Y")
+        return date_obj.strftime(date_fmt)
+    except ValueError:
+        return ""
+
+
 if __name__ == "__main__":
-    print(parse_job_number("5234223-DUE-11-10"))
-    print(parse_due_date("5234223-DUE 11.10"))
-    print(tc("take_me out"))
+    print(sec_to_min(960))

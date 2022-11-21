@@ -13,6 +13,8 @@ from transcriptor.utils import *
 
 logger = logging.getLogger(__name__)
 
+APP_NAME = "transcriptor3"
+
 
 class BaseTranscriptor:
     _shared_state: Dict[Any, Any] = {}
@@ -22,8 +24,6 @@ class BaseTranscriptor:
 
 
 class Transcriptor(BaseTranscriptor):
-    APP_NAME = "transcriptor3"
-
     def __init__(self, config=None):
 
         self.config = config if config is not None else self.get_config()
@@ -44,7 +44,7 @@ class Transcriptor(BaseTranscriptor):
         return config_obj
 
     def get_config(self):
-        CONFIG_DIR = Path(user_config_dir(appname=self.APP_NAME))
+        CONFIG_DIR = Path(user_config_dir(appname=APP_NAME))
         CONFIG_FILE = CONFIG_DIR.joinpath("config.yml")
 
         if not CONFIG_FILE.exists() or (yaml.safe_load(CONFIG_FILE.open("r")) is None):
@@ -63,9 +63,7 @@ class Transcriptor(BaseTranscriptor):
                 sys.exit(1)
 
     def add_config(self, config: ConfigModel):
-        CONFIG_FILE = Path(user_config_dir(appname=self.APP_NAME)).joinpath(
-            "config.yml"
-        )
+        CONFIG_FILE = Path(user_config_dir(appname=APP_NAME)).joinpath("config.yml")
         touch([CONFIG_FILE])
         with open(CONFIG_FILE, "w") as fd:
             config.save(fd)
@@ -103,17 +101,17 @@ class Transcriptor(BaseTranscriptor):
         mkdirp([job_dir])
         return job_dir
 
-    def mv_extract_job_file(self, job_file, job_dir):
+    @staticmethod
+    def mv_extract_job_file(job_file, job_dir):
+        # TODO move file
         moved_file = shutil.copy(job_file, job_dir)
         if zipfile.is_zipfile(moved_file):
             zipfile.ZipFile(moved_file).extractall(job_dir)
 
-    def add_job(self, client, job_file):
+    def add_job(self, client, job_file, date_received="", date_due=""):
         job_num = parse_job_number(job_file)
-        date_due = parse_due_date("DUE 11.19")
-        today = str(date.today().strftime("%m-%d"))
 
-        job_dir = self.create_job_dir(client.name, job_num, today, date_due)
+        job_dir = self.create_job_dir(client.name, job_num, date_received, date_due)
         self.mv_extract_job_file(job_file, job_dir)
 
         media_files = get_media_files(job_dir)
@@ -129,13 +127,13 @@ class Transcriptor(BaseTranscriptor):
 
                 job_dict = {
                     "client_id": client.id,
-                    "date_received": str(date.today()),
+                    "date_received": date_received,
                     "job_number": job_num,
                     "job_type": job_type,
                     "total_quantity": total_quantity,
                     "job_rate": 0.4,
                     "quantity": quantity,
-                    "date_due": "2022-11-25",
+                    "date_due": date_due,
                     "job_path": str(job_dir),
                     "note": note,
                 }
