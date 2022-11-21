@@ -4,7 +4,7 @@ import click
 from sqlalchemy import select
 
 from transcriptor.base import Transcriptor
-from transcriptor.models import ClientModel
+from transcriptor.models import ClientModel, RatesModel
 from transcriptor.view import ConsoleView
 
 logger = logging.getLogger(__name__)
@@ -20,9 +20,14 @@ def cli(**kwargs):
 
 @cli.command()
 def list(**kwargs):
-    clients = app.api.execute_sql("SELECT * FROM Clients").fetchall()
+    stmt = (
+        """SELECT * FROM "Clients" JOIN "Rates" ON "Rates".id = "Clients".rates_id """
+    )
+    clients = app.api.execute_sql(stmt).fetchall()
     if clients:
-        cols = clients[0]._asdict().keys()
+        cols = clients[0]._asdict()
+        cols.pop("rates_id")
+        cols = tuple(cols.keys())
         rows = clients
         ConsoleView().vertical_table(cols, rows, headers=cols)
 

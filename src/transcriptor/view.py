@@ -22,9 +22,12 @@ class ConsoleView:
             self.table.add_column(tc(header))
 
         for idx, row in enumerate(rows):
-            if not isinstance(row, str):
-                r = row._asdict()
-                self.table.add_row(*r2s(r.values()))
-            else:
+            if isinstance(row, str):
                 self.table.add_row(tc(cols[idx]), row)
+            elif isinstance(row, dict):
+                self.table.add_row(*r2s(row.values()))
+            else:
+                r = row._asdict()
+                r = {k: v for k, v in r.items() if k in cols}
+                self.table.add_row(*r2s(r.values()))
         self.console.print(self.table)
