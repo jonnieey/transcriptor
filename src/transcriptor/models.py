@@ -18,6 +18,12 @@ class Model(ABC):
     def item_type(self):
         pass
 
+    def cols(self):
+        return list(self.__dict__.keys())
+
+    def rows(self):
+        return self.__dict__.values()
+
 
 @dataclass
 class ConfigModel(Model):
@@ -86,7 +92,7 @@ class JobModel(Base):
     __tablename__ = "Jobs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    client_id: Mapped[int] = mapped_column(ForeignKey("Clients.id"))
+    client_id: Mapped[int] = mapped_column(ForeignKey("Clients.id"), nullable=True)
     date_received: Mapped[str] = mapped_column()
     job_number: Mapped[str] = mapped_column()
     job_type: Mapped[str] = mapped_column()

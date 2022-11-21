@@ -1,8 +1,7 @@
 import math
-import os
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Pattern, Match
 
 from audioread import audio_open
 from magic import from_file
@@ -21,16 +20,14 @@ def mkdirp(dir_paths: list[Path]):
         dir_path.mkdir(exist_ok=True, parents=True)
 
 
-def sc(string: str):
-    return string.replace(" ", "_")
+def convert_case(string, from_, to_):
+    return string.replace(from_, to_)
 
 
-def nc(string: str):
-    return string.replace("_", " ")
-
-
-def kebab_case(string: str):
-    return string.replace(" ", "-")
+sc = lambda s: convert_case(s, " ", "_")
+nc = lambda s: convert_case(s, "_", " ")
+kc = lambda s: convert_case(s, " ", "- ")
+tc = lambda s: nc(s).title()
 
 
 def parse_job_number(file: str | Path):
@@ -41,7 +38,7 @@ def parse_job_number(file: str | Path):
     return job_number
 
 
-def parse_due_date(file: str | Path):
+def parse_due_date(file: str):
     date_due_pattern: Pattern = re.compile(
         r"(?:(?<=DUE)|(?<=BACK))[/\s-](\d{1,2}\.\d{1,2})", re.I
     )
@@ -50,7 +47,7 @@ def parse_due_date(file: str | Path):
     return date_due
 
 
-def get_media_files(job_dir: Optional[Path]) -> list[Path]:
+def get_media_files(job_dir: Path) -> list[Path]:
     media_files = []
     files = [f for f in job_dir.iterdir() if not f.is_dir()]
 
@@ -99,3 +96,4 @@ def sec_to_min(seconds: float) -> float:
 if __name__ == "__main__":
     print(parse_job_number("5234223-DUE-11-10"))
     print(parse_due_date("5234223-DUE 11.10"))
+    print(tc("take_me out"))

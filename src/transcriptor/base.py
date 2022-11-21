@@ -48,14 +48,21 @@ class Transcriptor(Base):
 
         if not CONFIG_FILE.exists():
             touch([CONFIG_FILE])
-            with open(CONFIG_FILE, "w") as fd:
-                config = self.default_config()
-                config.save(fd)
-                return config
+            config = self.default_config()
+            self.add_config(config)
+            return config
 
         with open(CONFIG_FILE, "r") as fd:
             obj_dict = yaml.safe_load(fd)
             return ConfigModel(**obj_dict)
+
+    def add_config(self, config: ConfigModel):
+        CONFIG_FILE = Path(user_config_dir(appname=self.APP_NAME)).joinpath(
+            "config.yml"
+        )
+        touch([CONFIG_FILE])
+        with open(CONFIG_FILE, "w") as fd:
+            config.save(fd)
 
     def get_profile(self):
         PROFILE_FILE = self.base_dir.joinpath("profile.yml")
@@ -63,11 +70,20 @@ class Transcriptor(Base):
         if not PROFILE_FILE.exists():
             touch([PROFILE_FILE])
             profile = ProfileModel()
-            with open(PROFILE_FILE, "w") as fd:
-                self.api.save_profile(profile, fd)
+            self.add_profile(profile)
+            return profile
 
         with open(PROFILE_FILE, "r") as fd:
             return self.api.load_profile(fd)
+
+    def add_profile(self, profile: ProfileModel):
+        PROFILE_FILE = self.base_dir.joinpath("profile.yml")
+        with open(PROFILE_FILE, "w") as fd:
+            profile.save(fd)
+
+    @property
+    def profile(self):
+        return self.get_profile()
 
     def create_job_dir(self, client_name, job_num, date_r, date_due):
         job_dir = (
@@ -120,7 +136,7 @@ class Transcriptor(Base):
 
 
 if __name__ == "__main__":
-    shutil.rmtree("/home/kamikaze/.local/share/transcriptor3", ignore_errors=True)
+    # shutil.rmtree("/home/kamikaze/.local/share/transcriptor3", ignore_errors=True)
     app = Transcriptor()
     print(app.get_config())
     print(app.get_profile())

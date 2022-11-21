@@ -1,30 +1,31 @@
-from abc import ABC, abstractmethod
+from rich.console import Console
+from rich.table import Table
 
-from transcriptor.models import ConfigModel
-
-
-class View(ABC):
-    @abstractmethod
-    def show_item_list(self, item_type, item_list):
-        pass
-
-    @abstractmethod
-    def show_item_information(self, item_type, item_name, item_info):
-        pass
+from transcriptor.utils import tc
 
 
-class ConsoleView(View):
-    def show_item_list(self, item_type, item_list):
-        for item in item_list:
-            print(item)
-        print("")
-
-    def show_item_information(self, item_type, item_name, item_info):
-        print(f"{item_name} -> {item_info}")
+def r2s(row):
+    return (str(v) for v in row)
 
 
-if __name__ == "__main__":
-    c = ConfigModel(date_format="%m-%Y", base_dir="base/dir")
-    v = ConsoleView()
-    v.show_item_list(c.item_type, list(c))
-    v.show_item_information(c.item_type, "config", dict(c))
+class ConsoleView:
+    def __init__(self):
+        self.console = Console()
+        self.table = Table(
+            show_header=True, header_style="bold red", title_justify="center"
+        )
+
+    def vertical_table(self, cols, rows, headers=["Option", "Value"], title=""):
+        self.table.title = title
+
+        for header in headers:
+            self.table.add_column(tc(header))
+
+        for idx, row in enumerate(rows):
+            if not isinstance(row, str):
+                r = row._asdict()
+                self.table.add_row(*r2s(r.values()))
+            else:
+                self.table.add_row(tc(cols[idx]), row)
+        self.console.print(self.table)
+
