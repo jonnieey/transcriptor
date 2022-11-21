@@ -104,6 +104,9 @@ class API:
 
         logger.info(f"Creating new job {job_number}")
 
+        amount = float(job_rate) * float(quantity)
+        amount = truncate(amount, 2)
+
         job = JobModel(
             client_id=client_id,
             date_received=date_received,
@@ -111,6 +114,7 @@ class API:
             job_type=job_type,
             total_quantity=total_quantity,
             job_rate=job_rate,
+            amount=amount,
             quantity=quantity,
             date_due=date_due,
             job_path=job_path,

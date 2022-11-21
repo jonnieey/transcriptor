@@ -27,7 +27,6 @@ def list(**kwargs):
     if clients:
         cols = clients[0]._asdict()
         cols.pop("rates_id")
-        cols = tuple(cols.keys())
         rows = clients
         ConsoleView().vertical_table(cols, rows, headers=cols)
 

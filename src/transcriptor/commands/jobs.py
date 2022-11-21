@@ -4,8 +4,8 @@ import click
 from sqlalchemy import select
 
 from transcriptor.base import Transcriptor
-from transcriptor.models import ClientModel, JobModel
-from transcriptor.utils import format_date, parse_due_date
+from transcriptor.models import ClientModel, JobModel, RatesModel
+from transcriptor.utils import *
 from transcriptor.view import ConsoleView
 
 app = Transcriptor()
@@ -54,22 +54,66 @@ def cli(**kwargs):
 )
 def create(file, client, date_received, date_due, **kwargs):
     """Create job"""
-    with app.api.session as session:
-        # TODO Handle multiple clients with almost same name
-        client = session.execute(
-            select(ClientModel).filter(ClientModel.name.like(f"%{client}%"))
-        ).scalar_one()
 
-        app.add_job(
-            client=client, job_file=file, date_received=date_received, date_due=date_due
+    def add_job_cb(media_file, client, rates, date_received, job_num, job_dir):
+        do = input("Do work? [Y/N]: ")
+        if do.upper() == "Y":
+
+            total_quantity = get_media_duration(media_file)
+            quantity = float(input("duration: "))
+            job_type = input("Job type: ").lower()
+            job_template = input("Job template: ")
+            note = input("Notes: ")
+            job_rate = rates.__dict__.get(job_type, 0.40)
+
+            job_dict = {
+                "client_id": client.id,
+                "date_received": date_received,
+                "job_number": job_num,
+                "job_type": job_type,
+                "total_quantity": total_quantity,
+                # TODO implement job rate
+                "job_rate": job_rate,
+                "quantity": quantity,
+                "date_due": date_due,
+                "job_path": str(job_dir),
+                "note": note,
+            }
+            job = app.api.create_job(**job_dict)
+            return job
+
+    with app.api.session as session:
+        stmt = (
+            select(ClientModel, RatesModel)
+            .filter(ClientModel.name.like(f"%{client}%"))
+            .join(RatesModel)
         )
+        scalars = session.execute(stmt).all()
+        # TODO Handle multiple clients with almost same name
+        # Only one client found
+        if len(scalars) == 1:
+            client = scalars[0]._asdict()["ClientModel"]
+            rates = scalars[0]._asdict()["RatesModel"]
+
+            app.add_job(
+                add_job_cb,
+                client=client,
+                rates=rates,
+                job_file=file,
+                date_received=date_received,
+                date_due=date_due,
+            )
 
 
 @cli.command()
 def list(**kwargs):
-    jobs = app.api.execute_sql("SELECT * FROM Jobs").fetchall()
+    stmt = str(
+        select(ClientModel.name.label("Client Name"), JobModel).join(ClientModel)
+    )
+    jobs = app.api.execute_sql(stmt).fetchall()
     if jobs:
-        cols = tuple(jobs[0]._asdict().keys())
+        cols = jobs[0]._asdict()
+        cols.pop("client_id")
         rows = jobs
         ConsoleView().vertical_table(cols, rows, headers=cols)
 
