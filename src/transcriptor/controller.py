@@ -2,19 +2,12 @@ import logging
 from pathlib import Path
 
 import yaml
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from transcriptor.database import Base, Database
-from transcriptor.models import (
-    ClientModel,
-    ConfigModel,
-    JobModel,
-    ProfileModel,
-    RatesModel,
-)
+from transcriptor.models import *
 from transcriptor.utils import *
-from transcriptor.view import *
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +79,49 @@ class API:
         except Exception as error:
             logger.error(error)
 
-    # def edit_client()
+    def list_clients(self):
+        """
+        Returns:
+            Tuple of (tuple(Columns), List[tuple(Row)]) .ex. ((id, Name), [(1, John), (2, Doe)])
+        """
+
+        stmt = """SELECT * FROM "Clients" JOIN "Rates" ON "Rates".id = "Clients".rates_id """
+        clients = self.execute_sql(stmt).fetchall()
+        if clients:
+            cols = clients[0]._asdict()
+            cols.pop("rates_id")
+            cols = tuple(cols.keys())
+            rows = clients
+            return (cols, rows)
+
+    def edit_client(self, client, name, email, rates):
+        with self.session as session:
+            scalars = session.execute(
+                select(ClientModel, RatesModel)
+                .filter_by(name=f"{client}")
+                .join(RatesModel)
+            ).all()
+            if scalars:
+                client_model = scalars[0]._asdict()["ClientModel"]
+                rates_model = scalars[0]._asdict()["RatesModel"]
+                if rates:
+                    normal, expedite, interpreted = rates
+                    rates_model.normal = normal
+                    rates_model.expedite = expedite
+                    rates_model.interpreted = interpreted
+                if name:
+                    client_model.name = name
+                if email:
+                    client_model.email = email
+                session.commit()
+
+    def delete_client(self, client_name):
+        with self.session as session:
+            c = session.execute(
+                select(ClientModel).filter_by(name=f"{client_name}")
+            ).scalar_one()
+            session.delete(c)
+            session.commit()
 
     def create_job(
         self,
@@ -127,7 +162,81 @@ class API:
             session.add(job)
             session.commit()
 
+    def list_jobs(self):
+        stmt = str(
+            select(ClientModel.name.label("Client Name"), JobModel).join(ClientModel)
+        )
+        jobs = self.execute_sql(stmt).fetchall()
+        if jobs:
+            cols = jobs[0]._asdict()
+            cols.pop("client_id")
+            cols = tuple(cols.keys())
+            rows = jobs
+            return (cols, rows)
+
+    def edit_job(self, **kwargs):
+        new_dict = {k: v for k, v in kwargs.items() if v is not None}
+        stmt = select(JobModel).filter(JobModel.id == kwargs["job_id"])
+
+        with self.session as session:
+            scalars = session.execute(stmt).all()
+            jobs_model = scalars[0]._asdict()["JobModel"]
+
+            if kwargs["client_id"]:
+                stmt = (
+                    select(ClientModel, RatesModel)
+                    .filter(ClientModel.id == kwargs["client_id"])
+                    .join(RatesModel)
+                )
+                try:
+                    scalars = session.execute(stmt).all()
+                    client_model = scalars[0]._asdict()["ClientModel"]
+                    rates_model = scalars[0]._asdict()["RatesModel"]
+                    new_dict["client_id"] = client_model.id
+                    new_rate = rates_model.__dict__[jobs_model.job_type]
+                    new_dict["job_rate"] = new_rate
+                    new_dict["amount"] = truncate(new_rate * jobs_model.quantity, 2)
+
+                except Exception as error:
+                    logger.error(error)
+
+            if kwargs["job_rate"] and kwargs["quantity"]:
+                new_dict["job_rate"] = kwargs["job_rate"]
+                new_dict["quantity"] = kwargs["quantity"]
+                new_dict["amount"] = truncate(
+                    kwargs["job_rate"] * kwargs["quantity"], 2
+                )
+
+            elif kwargs["job_rate"]:
+                new_dict["job_rate"] = kwargs["job_rate"]
+                new_dict["amount"] = truncate(
+                    kwargs["job_rate"] * jobs_model.quantity, 2
+                )
+
+            elif kwargs["quantity"]:
+                new_dict["quantity"] = kwargs["quantity"]
+                new_dict["amount"] = truncate(
+                    kwargs["quantity"] * jobs_model.job_rate, 2
+                )
+
+            for k, v in new_dict.items():
+                jobs_model.__setattr__(f"{k}", v)
+
+            session.commit()
+
+    def delete_job(self, job_id):
+        with self.session as session:
+            job = session.execute(
+                select(JobModel).filter_by(id=f"{job_id}")
+            ).scalar_one()
+            session.delete(job)
+            session.commit()
+
     def execute_sql(self, s):
         stmt = text(s)
+        with self.session as session:
+            return session.execute(stmt)
+
+    def execute_orm_stmt(self, stmt):
         with self.session as session:
             return session.execute(stmt)

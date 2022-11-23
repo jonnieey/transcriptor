@@ -6,6 +6,7 @@ from datetime import date
 from typing import Any, Dict
 
 from appdirs import user_config_dir, user_data_dir
+from sqlalchemy import select
 
 from transcriptor.controller import API
 from transcriptor.models import *
@@ -108,24 +109,38 @@ class Transcriptor(BaseTranscriptor):
         if zipfile.is_zipfile(moved_file):
             zipfile.ZipFile(moved_file).extractall(job_dir)
 
-    def add_job(
-        self, add_job_cb, client, rates, job_file, date_received="", date_due=""
-    ):
+    def add_job(self, add_job_cb, client_name, job_file, date_received="", date_due=""):
+
         job_num = parse_job_number(job_file)
 
-        job_dir = self.create_job_dir(client.name, job_num, date_received, date_due)
-        self.mv_extract_job_file(job_file, job_dir)
-
-        media_files = get_media_files(job_dir)
-        for media_file in media_files:
-            # callback return JobModel object
-
-            job = add_job_cb(
-                media_file=media_file,
-                client=client,
-                rates=rates,
-                date_received=date_received,
-                job_num=job_num,
-                job_dir=job_dir,
+        with self.api.session as session:
+            stmt = (
+                select(ClientModel, RatesModel)
+                .filter(ClientModel.name.like(f"%{client_name}%"))
+                .join(RatesModel)
             )
-            self.api.save_job(job)
+            scalars = session.execute(stmt).all()
+            # TODO Handle multiple clients with almost same name
+            # Only one client found
+            if len(scalars) == 1:
+                client = scalars[0]._asdict()["ClientModel"]
+                rates = scalars[0]._asdict()["RatesModel"]
+
+                job_dir = self.create_job_dir(
+                    client.name, job_num, date_received, date_due
+                )
+                self.mv_extract_job_file(job_file, job_dir)
+
+                media_files = get_media_files(job_dir)
+                for media_file in media_files:
+                    # callback return JobModel object
+
+                    job = add_job_cb(
+                        media_file=media_file,
+                        client=client,
+                        rates=rates,
+                        date_received=date_received,
+                        job_num=job_num,
+                        job_dir=job_dir,
+                    )
+                    self.api.save_job(job)

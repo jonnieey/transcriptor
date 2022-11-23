@@ -1,12 +1,13 @@
+import logging
 from datetime import date
 
 import click
-from sqlalchemy import select
 
 from transcriptor.base import Transcriptor
-from transcriptor.models import ClientModel, JobModel, RatesModel
 from transcriptor.utils import *
 from transcriptor.view import ConsoleView
+
+logger = logging.getLogger(__name__)
 
 app = Transcriptor()
 
@@ -27,11 +28,11 @@ def cli(**kwargs):
 
 @cli.command()
 @click.option(
-    "-f", "--file", type=click.Path(exists=True), required=True, is_eager=True
+    "-f", "--job-file", type=click.Path(exists=True), required=True, is_eager=True
 )
 @click.option(
     "-c",
-    "--client",
+    "--client-name",
     prompt="Enter client's name",
     help="Specify client name",
 )
@@ -52,17 +53,35 @@ def cli(**kwargs):
     default=due_date_cb,
     help="Specify due date fmt: YYYY-MM-DD",
 )
-def create(file, client, date_received, date_due, **kwargs):
+def create(job_file, client_name, date_received, date_due, **kwargs):
     """Create job"""
 
     def add_job_cb(media_file, client, rates, date_received, job_num, job_dir):
-        do = input("Do work? [Y/N]: ")
-        if do.upper() == "Y":
 
+        click.echo(media_file)
+        work_on_file = click.prompt(
+            "Work on this file",
+            type=click.Choice(["Y", "N"], case_sensitive=False),
+            show_choices=True,
+        )
+        if work_on_file.lower() == "y":
+            job_type = click.prompt(
+                "Specify job type",
+                type=click.Choice(
+                    ["Normal", "Interpreted", "Expedite"], case_sensitive=False
+                ),
+                show_choices=True,
+            )
             total_quantity = get_media_duration(media_file)
-            quantity = float(input("duration: "))
-            job_type = input("Job type: ").lower()
-            job_template = input("Job template: ")
+            quantity = click.prompt("Enter quantity of task", default=total_quantity)
+            job_template = click.prompt(
+                "Specify template type",
+                type=click.Choice(
+                    ["nd", "nh", "ne", "zd", "zh", "ze", "zdi", "tt", "me"],
+                    case_sensitive=False,
+                ),
+                show_choices=True,
+            )
             note = input("Notes: ")
             job_rate = rates.__dict__.get(job_type, 0.40)
 
@@ -72,7 +91,6 @@ def create(file, client, date_received, date_due, **kwargs):
                 "job_number": job_num,
                 "job_type": job_type,
                 "total_quantity": total_quantity,
-                # TODO implement job rate
                 "job_rate": job_rate,
                 "quantity": quantity,
                 "date_due": date_due,
@@ -82,46 +100,41 @@ def create(file, client, date_received, date_due, **kwargs):
             job = app.api.create_job(**job_dict)
             return job
 
-    with app.api.session as session:
-        stmt = (
-            select(ClientModel, RatesModel)
-            .filter(ClientModel.name.like(f"%{client}%"))
-            .join(RatesModel)
-        )
-        scalars = session.execute(stmt).all()
-        # TODO Handle multiple clients with almost same name
-        # Only one client found
-        if len(scalars) == 1:
-            client = scalars[0]._asdict()["ClientModel"]
-            rates = scalars[0]._asdict()["RatesModel"]
-
-            app.add_job(
-                add_job_cb,
-                client=client,
-                rates=rates,
-                job_file=file,
-                date_received=date_received,
-                date_due=date_due,
-            )
+    app.add_job(
+        add_job_cb=add_job_cb,
+        client_name=client_name,
+        job_file=job_file,
+        date_received=date_received,
+        date_due=date_due,
+    )
 
 
 @cli.command()
 def list(**kwargs):
-    stmt = str(
-        select(ClientModel.name.label("Client Name"), JobModel).join(ClientModel)
-    )
-    jobs = app.api.execute_sql(stmt).fetchall()
-    if jobs:
-        cols = jobs[0]._asdict()
-        cols.pop("client_id")
-        rows = jobs
+    cols, rows = app.api.list_jobs()
+    if all([cols, rows]):
         ConsoleView().vertical_table(cols, rows, headers=cols)
 
 
 @cli.command()
-@click.argument("id")
-def delete(id, **kwargs):
-    with app.api.session as session:
-        j = session.execute(select(JobModel).filter_by(id=f"{id}")).scalar_one()
-        session.delete(j)
-        session.commit()
+# values to edit
+@click.argument("job_id")
+@click.option("-c", "--client-id", type=int, help="Specify client id")
+@click.option("-R", "--date-received", type=str, help="Specify date received")
+@click.option("-n", "--job-number", type=str, help="Specify job number")
+@click.option("-t", "--job-type", type=str, help="Specify job type")
+@click.option("-s", "--job-status", type=str, help="Specify job status")
+@click.option("-D", "--date-due", type=str, help="Specify date due")
+@click.option("-q", "--quantity", type=float, help="Specify job quantity")
+@click.option("-r", "--job-rate", type=float, help="Specify job rate")
+@click.option("-S", "--date-submitted", type=str, help="Specify date submitted")
+@click.option("-a", "--amount-paid", type=float, help="Specify amount paid")
+@click.option("-n", "--note", type=str, help="Specify note")
+def edit(**kwargs):
+    app.api.edit_job(**kwargs)
+
+
+@cli.command()
+@click.argument("job_id")
+def delete(job_id, **kwargs):
+    app.api.delete_job(job_id)

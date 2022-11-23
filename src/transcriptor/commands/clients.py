@@ -1,10 +1,8 @@
 import logging
 
 import click
-from sqlalchemy import select
 
 from transcriptor.base import Transcriptor
-from transcriptor.models import ClientModel, RatesModel
 from transcriptor.view import ConsoleView
 
 logger = logging.getLogger(__name__)
@@ -20,14 +18,8 @@ def cli(**kwargs):
 
 @cli.command()
 def list(**kwargs):
-    stmt = (
-        """SELECT * FROM "Clients" JOIN "Rates" ON "Rates".id = "Clients".rates_id """
-    )
-    clients = app.api.execute_sql(stmt).fetchall()
-    if clients:
-        cols = clients[0]._asdict()
-        cols.pop("rates_id")
-        rows = clients
+    cols, rows = app.api.list_clients()
+    if all([cols, rows]):
         ConsoleView().vertical_table(cols, rows, headers=cols)
 
 
@@ -37,7 +29,7 @@ def list(**kwargs):
 def create(name, email, **kwargs):
     """Create new client"""
     try:
-        client = app.api.create_client(name, email)
+        client = app.api.create_client(name=name, email=email)
         app.api.save_client(client)
     except Exception as error:
         logger.error(error)
@@ -47,24 +39,12 @@ def create(name, email, **kwargs):
 @click.argument("client")
 @click.option("-n", "--name", help="New client name")
 @click.option("-e", "--email", help="New client email")
-def edit(client, name, email, **kwargs):
-    with app.api.session as session:
-        c = session.execute(
-            select(ClientModel).filter_by(name=f"{client}")
-        ).scalar_one()
-        if name:
-            c.name = name
-        if email:
-            c.email = email
-        session.commit()
+@click.option("-r", "--rates", type=(float, float, float), help="New client rates")
+def edit(client, name, email, rates, **kwargs):
+    app.api.edit_client(client=client, name=name, email=email, rates=rates)
 
 
 @cli.command()
-@click.argument("client")
-def delete(client, **kwargs):
-    with app.api.session as session:
-        c = session.execute(
-            select(ClientModel).filter_by(name=f"{client}")
-        ).scalar_one()
-        session.delete(c)
-        session.commit()
+@click.argument("client_name")
+def delete(client_name, **kwargs):
+    app.api.delete_client(client_name=client_name)
