@@ -27,7 +27,7 @@ def convert_case(string, from_, to_):
 
 sc = lambda s: convert_case(s, " ", "_")
 nc = lambda s: convert_case(s, "_", " ")
-kc = lambda s: convert_case(s, " ", "- ")
+kc = lambda s: convert_case(s, " ", "-")
 tc = lambda s: nc(s).title()
 
 

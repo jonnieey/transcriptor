@@ -94,25 +94,25 @@ class API:
             rows = clients
             return (cols, rows)
 
-    def edit_client(self, client, name, email, rates):
+    def edit_client(self, client_name, new_name, new_email, new_rates):
         with self.session as session:
             scalars = session.execute(
                 select(ClientModel, RatesModel)
-                .filter_by(name=f"{client}")
+                .filter_by(name=f"{client_name}")
                 .join(RatesModel)
             ).all()
             if scalars:
                 client_model = scalars[0]._asdict()["ClientModel"]
                 rates_model = scalars[0]._asdict()["RatesModel"]
-                if rates:
-                    normal, expedite, interpreted = rates
+                if new_rates:
+                    normal, expedite, interpreted = new_rates
                     rates_model.normal = normal
                     rates_model.expedite = expedite
                     rates_model.interpreted = interpreted
-                if name:
-                    client_model.name = name
-                if email:
-                    client_model.email = email
+                if new_name:
+                    client_model.name = new_name
+                if new_email:
+                    client_model.email = new_email
                 session.commit()
 
     def delete_client(self, client_name):
@@ -185,8 +185,8 @@ class API:
             if kwargs["client_id"]:
                 stmt = (
                     select(ClientModel, RatesModel)
-                    .filter(ClientModel.id == kwargs["client_id"])
                     .join(RatesModel)
+                    .filter(ClientModel.id == kwargs["client_id"])
                 )
                 try:
                     scalars = session.execute(stmt).all()
@@ -200,20 +200,20 @@ class API:
                 except Exception as error:
                     logger.error(error)
 
-            if kwargs["job_rate"] and kwargs["quantity"]:
+            if kwargs.get("job_rate", "") and kwargs.get("quantity", ""):
                 new_dict["job_rate"] = kwargs["job_rate"]
                 new_dict["quantity"] = kwargs["quantity"]
                 new_dict["amount"] = truncate(
                     kwargs["job_rate"] * kwargs["quantity"], 2
                 )
 
-            elif kwargs["job_rate"]:
+            elif kwargs.get("job_rate", ""):
                 new_dict["job_rate"] = kwargs["job_rate"]
                 new_dict["amount"] = truncate(
                     kwargs["job_rate"] * jobs_model.quantity, 2
                 )
 
-            elif kwargs["quantity"]:
+            elif kwargs.get("quantity", ""):
                 new_dict["quantity"] = kwargs["quantity"]
                 new_dict["amount"] = truncate(
                     kwargs["quantity"] * jobs_model.job_rate, 2

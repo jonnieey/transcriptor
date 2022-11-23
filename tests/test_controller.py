@@ -56,7 +56,7 @@ def test_job(test_client):
         client_id=1,
         date_received="2022-05-05",
         job_number="56321",
-        job_type="Normal",
+        job_type="normal",
         total_quantity="42.12630",
         job_rate="0.40",
         quantity="21.06315",
@@ -108,9 +108,52 @@ class TestApi:
 
     def test_save_client(self, dbsession, test_client):
         self.api.save_client(test_client)
-        stmt = text("""SELECT * from Clients where name = 'Client'""")
-        client = dbsession.execute(stmt).first()
+        stmt = select(ClientModel).where(ClientModel.name == "Client")
+        client = dbsession.execute(stmt).scalar_one()
         assert client.name == "Client"
+
+    def test_list_clients(self, dbsession):
+        cols, rows = self.api.list_clients()
+        assert isinstance(cols, tuple)
+        assert isinstance(rows, list)
+        assert len(rows) == 1
+
+    def test_edit_client(self, dbsession, test_client):
+        new_name = "New Client"
+        new_email = "NewClient@gmail.com"
+        new_rates = (0.45, 0.65, 0.35)
+
+        self.api.edit_client(
+            client_name=test_client.name,
+            new_name=new_name,
+            new_email=new_email,
+            new_rates=new_rates,
+        )
+        stmt = select(ClientModel).where(ClientModel.id == 1)
+        new_client = dbsession.execute(stmt).scalar_one()
+
+        assert new_client.id == 1
+        assert new_client.name == new_name
+        assert new_client.email == new_email
+        assert new_client.rates_id == 1
+
+    def test_delete_client(self, dbsession):
+        name, email, rates = (
+            "name",
+            "email@gmail.com",
+            {"normal": 0.4, "expedite": 0.5, "interpreted": 0.3},
+        )
+        new_client = self.api.create_client(name, email, rates)
+        self.api.save_client(new_client)
+        stmt = select(ClientModel)
+        clients = dbsession.execute(stmt).all()
+
+        assert len(clients) == 2
+
+        self.api.delete_client(client_name=name)
+        clients = dbsession.execute(stmt).all()
+
+        assert len(clients) == 1
 
     def test_create_job(self):
         job_dict = {
@@ -125,6 +168,7 @@ class TestApi:
             "job_path": "somerandompath",
         }
         job = self.api.create_job(**job_dict)
+
         assert job is not None
         assert isinstance(job, JobModel)
 
@@ -132,5 +176,45 @@ class TestApi:
         self.api.save_job(test_job)
         stmt = text("""SELECT * from Jobs""")
         job = dbsession.execute(stmt).first()
+
         assert job is not None
         assert job.job_rate == 0.40
+
+    def test_list_jobs(self):
+        cols, rows = self.api.list_jobs()
+
+        assert isinstance(cols, tuple)
+        assert isinstance(rows, list)
+        assert len(rows) == 1
+
+    def test_edit_job(self, dbsession, test_job):
+        name, email, rates = (
+            "name",
+            "email@gmail.com",
+            {"normal": 0.45, "expedite": 0.55, "interpreted": 0.35},
+        )
+        client = self.api.create_client(name, email, rates)
+        self.api.save_client(client)
+        stmt = select(ClientModel).where(ClientModel.name == name)
+
+        new_client = dbsession.execute(stmt).scalar_one()
+        new_job_dict = {"job_id": 1, "client_id": new_client.id}
+        self.api.edit_job(**new_job_dict)
+
+        stmt = select(JobModel).where(JobModel.id == 1)
+        job = dbsession.execute(stmt).scalar_one()
+
+        assert job.job_rate == 0.45
+        assert job.client_id == 2
+
+    def test_delete_job(self, dbsession):
+        stmt = select(JobModel)
+        jobs = dbsession.execute(stmt).all()
+        stmt = select(JobModel).where(JobModel.id == 1)
+        jobs = dbsession.execute(stmt).all()
+
+        assert len(jobs) == 1
+        self.api.delete_job(job_id=1)
+        jobs = dbsession.execute(stmt).all()
+
+        assert len(jobs) == 0

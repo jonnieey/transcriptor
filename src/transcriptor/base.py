@@ -48,15 +48,20 @@ class Transcriptor(BaseTranscriptor):
         CONFIG_DIR = Path(user_config_dir(appname=APP_NAME))
         CONFIG_FILE = CONFIG_DIR.joinpath("config.yml")
 
-        if not CONFIG_FILE.exists() or (yaml.safe_load(CONFIG_FILE.open("r")) is None):
-            touch([CONFIG_FILE])
+        def save_default():
             config = self.default_config()
             self.add_config(config)
             return config
 
+        if not CONFIG_FILE.exists():
+            touch([CONFIG_FILE])
+            save_default()
+
         with open(CONFIG_FILE, "r") as fd:
             try:
                 obj_dict = yaml.safe_load(fd)
+                if obj_dict is None:
+                    save_default()
                 obj = ConfigModel(**obj_dict)
                 return obj
             except TypeError as error:
@@ -78,6 +83,7 @@ class Transcriptor(BaseTranscriptor):
             touch([PROFILE_FILE])
             profile = ProfileModel()
             self.add_profile(profile)
+            PROFILE_FILE.close()
             return profile
 
         with open(PROFILE_FILE, "r") as fd:

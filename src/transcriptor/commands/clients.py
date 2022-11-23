@@ -36,12 +36,17 @@ def create(name, email, **kwargs):
 
 
 @cli.command()
-@click.argument("client")
-@click.option("-n", "--name", help="New client name")
-@click.option("-e", "--email", help="New client email")
-@click.option("-r", "--rates", type=(float, float, float), help="New client rates")
-def edit(client, name, email, rates, **kwargs):
-    app.api.edit_client(client=client, name=name, email=email, rates=rates)
+@click.argument("client_name")
+@click.option("-n", "--new-name", help="New client name")
+@click.option("-e", "--new-email", help="New client email")
+@click.option("-r", "--new-rates", type=(float, float, float), help="New client rates")
+def edit(client_name, new_name, new_email, new_rates, **kwargs):
+    app.api.edit_client(
+        client_name=client_name,
+        new_name=new_name,
+        new_email=new_email,
+        new_rates=new_rates,
+    )
 
 
 @cli.command()
