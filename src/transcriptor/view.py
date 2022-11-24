@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from rich.console import Console
 from rich.table import Table
 
@@ -15,7 +17,22 @@ class ConsoleView:
             show_header=True, header_style="bold red", title_justify="center"
         )
 
-    def vertical_table(self, cols, rows, headers=["Option", "Value"], title=""):
+    def vertical_table(
+        self,
+        cols: Tuple[str],
+        rows,
+        headers: list = ["Option", "Value"],
+        title: str = "",
+    ):
+        """
+        Print vertical table in terminal
+
+        Arguments:
+            cols: tuple of strings
+            rows: list of tuples
+            headers: list of strings
+            title: table title
+        """
         self.table.title = title
 
         for header in headers:

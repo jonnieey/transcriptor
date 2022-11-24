@@ -23,8 +23,6 @@ class MyCLI(click.MultiCommand):
         return ns["cli"]
 
 
-cli = MyCLI(
-    help="This tool's subcommands are loaded from a " "plugin folder dynamically."
-)
+cli = MyCLI(help="Subcommands are loaded from a " "plugin folder dynamically.")
 if __name__ == "__main__":
     cli()

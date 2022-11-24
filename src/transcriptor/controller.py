@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from typing import IO, Tuple
 
 import yaml
 from sqlalchemy import select, text
@@ -13,7 +14,13 @@ logger = logging.getLogger(__name__)
 
 
 class API:
-    def __init__(self, base_dir, db_path="transcriptor.db"):
+    """
+    API for the transcriptor app.
+
+    Contains operation functions of the applications. Communication to DB, etc
+    """
+
+    def __init__(self, base_dir: str | Path, db_path: str = "transcriptor.db"):
 
         self.base_dir = Path(base_dir)
         mkdirp([self.base_dir])
@@ -22,15 +29,35 @@ class API:
         Base.metadata.create_all(self.db.engine)
 
     @property
-    def session(self):
+    def session(self) -> Session:
         return Session(self.db.engine)
 
-    def save_object(self, obj, file_object):
-        obj.save(file_object)
+    def save_object(self, obj, fd: IO[str]) -> object:
+        """
+        Save instance of object to file object
+
+        Arguments:
+            obj: Object. (Instance of a Model)
+            fd: File object
+
+        Returns:
+            Object. (Instance of a Model)
+        """
+        obj.save(fd)
         return obj
 
-    def load_object(self, obj, file_object):
-        obj_dict = yaml.safe_load(file_object)
+    def load_object(self, obj, fd: IO[str]) -> Optional[object]:
+        """
+        Load instance of object from file object
+
+        Arguments:
+            obj: Object. (Instance of a Model)
+            fd: File object
+
+        Returns:
+            Object. (Instance of a Model)
+        """
+        obj_dict = yaml.safe_load(fd)
         if obj_dict is None:
             return obj()
         try:
@@ -38,24 +65,64 @@ class API:
             return obj
         except TypeError as error:
             logger.error(error)
+            return None
 
-    def save_config(self, obj, file_object):
+    def save_config(self, obj: ConfigModel, fd: IO[str]) -> object:
+        """
+        Save configuration object to file
+
+        Arguments:
+            obj: Object. (Instance of a ConfigModel)
+            fd: File object
+
+        Returns:
+            ConfigModel instance
+        """
         logger.info("Save config")
-        config = self.save_object(obj, file_object)
+        config = self.save_object(obj, fd)
         return config
 
     # def load_config(self):
-    def load_config(self, fd):
+    def load_config(self, fd: IO[str]) -> object:
+        """
+        Load configuration object from file
+
+        Arguments:
+            fd: File object
+
+        Returns:
+            ConfigModel instance
+        """
         logger.info("Load config")
         config = self.load_object(ConfigModel, fd)
         return config
 
-    def save_profile(self, obj, fd):
+    def save_profile(self, obj: object, fd: IO[str]) -> object:
+        """
+        Save profile object to file
+
+        Arguments:
+            obj: Object. (Instance of a ProfileModel)
+            fd: File object
+
+        Returns:
+            ProfileModel instance
+        """
         logger.info("Save profile")
         profile = self.save_object(obj, fd)
         return profile
 
-    def load_profile(self, fd):
+    def load_profile(self, fd: IO[str]) -> object:
+        """
+        Load profile object from file
+
+        Arguments:
+            fd: File object
+
+        Returns:
+            ProfileModel instance
+        """
+
         profile = self.load_object(ProfileModel, fd)
         return profile
 
@@ -64,13 +131,31 @@ class API:
         name: str,
         email: str,
         rates: dict = {"normal": 0.40, "interpreted": 0.30, "expedite": 0.60},
-    ):
+    ) -> object:
+        """
+        Create client object
+
+        Arguments
+            name: Client's name.
+            email: Client's email.
+            rates: Client's rates. (dict) ex. {"normal": 0.40, "interpreted": 0.30, "expedite": 0.60}
+
+        Returns:
+            ClientModel object
+        """
+
         logger.info(f'Creating client "{name}"')
         rate_obj = RatesModel(**rates)
         client = ClientModel(name=name, email=email, rates=rate_obj)
         return client
 
-    def save_client(self, client: ClientModel):
+    def save_client(self, client: ClientModel) -> None:
+        """
+        Save client to database:
+
+        Arguments:
+            client: ClientModel object
+        """
         try:
             with self.session as session:
                 session.add(client)
@@ -79,8 +164,13 @@ class API:
         except Exception as error:
             logger.error(error)
 
-    def list_clients(self):
+    def list_clients(self) -> Tuple[tuple, list[tuple]]:
         """
+        Get clients in database.
+
+        Arguments:
+            None
+
         Returns:
             Tuple of (tuple(Columns), List[tuple(Row)]) .ex. ((id, Name), [(1, John), (2, Doe)])
         """
@@ -94,7 +184,20 @@ class API:
             rows = clients
             return (cols, rows)
 
-    def edit_client(self, client_name, new_name, new_email, new_rates):
+        return ((), [])
+
+    def edit_client(
+        self, client_name: str, new_name: str, new_email: str, new_rates: tuple
+    ) -> None:
+        """
+        Edit client attributes.
+
+        Arguments:
+            client_name: Name of client to modify/edit.
+            new_name: Client's new name
+            new_email: Clients new email
+            new_rates: Clients new rates. tuple. ex. (0.40, 0.60, 0.30)
+        """
         with self.session as session:
             scalars = session.execute(
                 select(ClientModel, RatesModel)
@@ -110,12 +213,19 @@ class API:
                     rates_model.expedite = expedite
                     rates_model.interpreted = interpreted
                 if new_name:
+                    # TODO move client's folder to match new name
                     client_model.name = new_name
                 if new_email:
                     client_model.email = new_email
                 session.commit()
 
-    def delete_client(self, client_name):
+    def delete_client(self, client_name) -> None:
+        """
+        Delete client from database.
+
+        Arguments:
+            client_name: Name of client to delete.
+        """
         with self.session as session:
             c = session.execute(
                 select(ClientModel).filter_by(name=f"{client_name}")
@@ -135,7 +245,25 @@ class API:
         date_due: str,
         job_path: str,
         note: str = "",
-    ):
+    ) -> object:
+        """
+        Create JobModel object.
+
+        Arguments:
+            client_id: Client's id
+            date_received: Date received
+            job_number: Job number
+            job_type: Job type
+            total_quantity: Job total quantity
+            job_rate: Job rate
+            quantity: Job quantity
+            date_due: Date due
+            job_path: Job path
+            note: Job note
+
+        Returns:
+            JobModel object
+        """
 
         logger.info(f"Creating new job {job_number}")
 
@@ -157,12 +285,27 @@ class API:
         )
         return job
 
-    def save_job(self, job):
+    def save_job(self, job: object) -> None:
+        """
+        Save job to database:
+
+        Arguments:
+            job: JobModel object
+        """
         with self.session as session:
             session.add(job)
             session.commit()
 
-    def list_jobs(self):
+    def list_jobs(self) -> Tuple[tuple, list[tuple]]:
+        """
+        Get jobs in database.
+
+        Arguments:
+            None
+
+        Returns:
+            Tuple of (tuple(Columns), List[tuple(Row)])
+        """
         stmt = str(
             select(ClientModel.name.label("Client Name"), JobModel).join(ClientModel)
         )
@@ -173,8 +316,16 @@ class API:
             cols = tuple(cols.keys())
             rows = jobs
             return (cols, rows)
+        return ((), [])
 
-    def edit_job(self, **kwargs):
+    def edit_job(self, **kwargs) -> None:
+        """
+        Edit job attributes.
+
+        Arguments:
+            **kwargs: keyword arguments with job attributes ex. job_number=2, quantity=40.0
+
+        """
         new_dict = {k: v for k, v in kwargs.items() if v is not None}
         stmt = select(JobModel).filter(JobModel.id == kwargs["job_id"])
 
@@ -183,15 +334,15 @@ class API:
             jobs_model = scalars[0]._asdict()["JobModel"]
 
             if kwargs["client_id"]:
-                stmt = (
+                stmt2 = (
                     select(ClientModel, RatesModel)
                     .join(RatesModel)
                     .filter(ClientModel.id == kwargs["client_id"])
                 )
                 try:
-                    scalars = session.execute(stmt).all()
-                    client_model = scalars[0]._asdict()["ClientModel"]
-                    rates_model = scalars[0]._asdict()["RatesModel"]
+                    scalars2 = session.execute(stmt2).all()
+                    client_model = scalars2[0]._asdict()["ClientModel"]
+                    rates_model = scalars2[0]._asdict()["RatesModel"]
                     new_dict["client_id"] = client_model.id
                     new_rate = rates_model.__dict__[jobs_model.job_type]
                     new_dict["job_rate"] = new_rate
@@ -224,7 +375,13 @@ class API:
 
             session.commit()
 
-    def delete_job(self, job_id):
+    def delete_job(self, job_id: int | str) -> None:
+        """
+        Delete job from database.
+
+        Arguments:
+            client_name: Name of client to delete.
+        """
         with self.session as session:
             job = session.execute(
                 select(JobModel).filter_by(id=f"{job_id}")

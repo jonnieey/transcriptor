@@ -3,7 +3,7 @@ import shutil
 import sys
 import zipfile
 from datetime import date
-from typing import Any, Dict
+from typing import Any, Callable, Dict, Optional
 
 from appdirs import user_config_dir, user_data_dir
 from sqlalchemy import select
@@ -25,7 +25,7 @@ class BaseTranscriptor:
 
 
 class Transcriptor(BaseTranscriptor):
-    def __init__(self, config=None):
+    def __init__(self, config: ConfigModel = None):
 
         self.config = config if config is not None else self.get_config()
         self.base_dir = Path(self.config.base_dir)
@@ -37,14 +37,27 @@ class Transcriptor(BaseTranscriptor):
         mkdirp([self.clients_dir])
 
     @staticmethod
-    def default_config():
+    def default_config() -> ConfigModel:
+        """
+        Generate default configuration file.
+
+        Returns:
+            ConfigModel object
+        """
         logger.info("Create default configuration")
         date_format = "%Y-%m-%d"
         base_dir = user_data_dir(appname="transcriptor3")
         config_obj = ConfigModel(date_format=date_format, base_dir=base_dir)
         return config_obj
 
-    def get_config(self):
+    # TODO refactor to specify config file
+    def get_config(self) -> ConfigModel:
+        """
+        Load configuration from file.
+
+        Returns:
+            ConfigModel object
+        """
         CONFIG_DIR = Path(user_config_dir(appname=APP_NAME))
         CONFIG_FILE = CONFIG_DIR.joinpath("config.yml")
 
@@ -68,37 +81,78 @@ class Transcriptor(BaseTranscriptor):
                 logger.error(error)
                 sys.exit(1)
 
-    def add_config(self, config: ConfigModel):
+    def add_config(self, config: ConfigModel) -> None:
+        """
+        Save configuration to default config file.
+
+        Arguments:
+            config: ConfigModel object
+        """
+
         CONFIG_FILE = Path(user_config_dir(appname=APP_NAME)).joinpath("config.yml")
         touch([CONFIG_FILE])
         with open(CONFIG_FILE, "w") as fd:
             config.save(fd)
 
-    def get_profile(self):
+    def get_profile(self) -> object | ProfileModel:
+        """
+        Load profile from file.
+
+        Returns:
+            ProfileModel object
+        """
         PROFILE_FILE = self.base_dir.joinpath("profile.yml")
 
-        if not PROFILE_FILE.exists() or (
-            yaml.safe_load(PROFILE_FILE.open("r")) is None
-        ):
-            touch([PROFILE_FILE])
+        def save_default():
             profile = ProfileModel()
             self.add_profile(profile)
-            PROFILE_FILE.close()
             return profile
 
-        with open(PROFILE_FILE, "r") as fd:
-            return self.api.load_profile(fd)
+        if not PROFILE_FILE.exists():
+            touch([PROFILE_FILE])
+            save_default()
 
-    def add_profile(self, profile: ProfileModel):
+        with open(PROFILE_FILE, "r") as fd:
+            try:
+                obj_dict = yaml.safe_load(fd)
+                if obj_dict is None:
+                    return save_default()
+                else:
+                    return self.api.load_profile(fd)
+            except TypeError as error:
+                logger.error(error)
+                return None
+
+    def add_profile(self, profile: ProfileModel) -> None:
+        """
+        Save profile object to default profile file.
+
+        Arguments:
+            profile: ProfileModel object
+        """
         PROFILE_FILE = self.base_dir.joinpath("profile.yml")
         with open(PROFILE_FILE, "w") as fd:
             profile.save(fd)
 
     @property
-    def profile(self):
+    def profile(self) -> object | ProfileModel:
         return self.get_profile()
 
-    def create_job_dir(self, client_name, job_num, date_r, date_due):
+    def create_job_dir(
+        self, client_name: str, job_num: str, date_r: str, date_due: str
+    ) -> Path:
+        """
+        Create job directory.
+
+        Arguments:
+            client_name: Name of client
+            job_num: Job number
+            date_r: Date received
+            date_due: Date due
+
+        Returns:
+            Path object
+        """
         job_dir = (
             self.base_dir.joinpath("clients")
             .joinpath(sc(client_name))
@@ -109,15 +163,42 @@ class Transcriptor(BaseTranscriptor):
         return job_dir
 
     @staticmethod
-    def mv_extract_job_file(job_file, job_dir):
+    def mv_extract_job_file(job_file: str | Path, job_dir: str | Path) -> None:
+        """
+        Move/Extract job file to jobs directory
+
+        Arguments:
+            job_file: Path object or path-like string to job file
+            job_dir: Path object or path-like string to job directory
+        """
         # TODO move file
         moved_file = shutil.copy(job_file, job_dir)
         if zipfile.is_zipfile(moved_file):
             zipfile.ZipFile(moved_file).extractall(job_dir)
 
-    def add_job(self, add_job_cb, client_name, job_file, date_received="", date_due=""):
+    def add_job(
+        self,
+        add_job_cb: Callable[
+            [str, ClientModel, RatesModel, str, str, str | Path], JobModel
+        ],
+        client_name: str,
+        job_file: str | Path,
+        date_received: str = "",
+        date_due: str = "",
+    ) -> None:
+        """
+        Add job to database
 
-        job_num = parse_job_number(job_file)
+        Arguments
+        add_job_cb: Job callback function. Function that gets job info.
+        client_name: Client's name
+        job_file: Job file
+        date_received: Date received
+        date_due: Date due
+
+        """
+
+        job_num = parse_job_number(str(job_file))
 
         with self.api.session as session:
             stmt = (
@@ -142,11 +223,11 @@ class Transcriptor(BaseTranscriptor):
                     # callback return JobModel object
 
                     job = add_job_cb(
-                        media_file=media_file,
-                        client=client,
-                        rates=rates,
-                        date_received=date_received,
-                        job_num=job_num,
-                        job_dir=job_dir,
+                        str(media_file),
+                        client,
+                        rates,
+                        date_received,
+                        job_num,
+                        job_dir,
                     )
                     self.api.save_job(job)

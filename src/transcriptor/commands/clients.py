@@ -17,13 +17,6 @@ def cli(**kwargs):
 
 
 @cli.command()
-def list(**kwargs):
-    cols, rows = app.api.list_clients()
-    if all([cols, rows]):
-        ConsoleView().vertical_table(cols, rows, headers=cols)
-
-
-@cli.command()
 @click.option("-n", "--name", prompt="Enter client name", help="Client name")
 @click.option("-e", "--email", prompt="Enter client email", help="Client email")
 def create(name, email, **kwargs):
@@ -36,11 +29,21 @@ def create(name, email, **kwargs):
 
 
 @cli.command()
+def list(**kwargs):
+    """List all clients"""
+    cols, rows = app.api.list_clients()
+    if all([cols, rows]):
+        ConsoleView().vertical_table(cols, rows, headers=cols)
+
+
+@cli.command()
 @click.argument("client_name")
 @click.option("-n", "--new-name", help="New client name")
 @click.option("-e", "--new-email", help="New client email")
 @click.option("-r", "--new-rates", type=(float, float, float), help="New client rates")
 def edit(client_name, new_name, new_email, new_rates, **kwargs):
+    """Edit client attributes"""
+
     app.api.edit_client(
         client_name=client_name,
         new_name=new_name,
@@ -52,4 +55,5 @@ def edit(client_name, new_name, new_email, new_rates, **kwargs):
 @cli.command()
 @click.argument("client_name")
 def delete(client_name, **kwargs):
+    """Delete client from database"""
     app.api.delete_client(client_name=client_name)

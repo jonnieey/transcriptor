@@ -2,6 +2,7 @@ import logging
 from datetime import date
 
 import click
+from transcriptor.models import ClientModel, RatesModel
 
 from transcriptor.base import Transcriptor
 from transcriptor.utils import *
@@ -56,7 +57,14 @@ def cli(**kwargs):
 def create(job_file, client_name, date_received, date_due, **kwargs):
     """Create job"""
 
-    def add_job_cb(media_file, client, rates, date_received, job_num, job_dir):
+    def add_job_cb(
+        media_file: str,
+        client: ClientModel,
+        rates: RatesModel,
+        date_received: str,
+        job_num: str,
+        job_dir: str | Path,
+    ):
 
         click.echo(media_file)
         work_on_file = click.prompt(
@@ -111,6 +119,7 @@ def create(job_file, client_name, date_received, date_due, **kwargs):
 
 @cli.command()
 def list(**kwargs):
+    """List all jobs"""
     cols, rows = app.api.list_jobs()
     if all([cols, rows]):
         ConsoleView().vertical_table(cols, rows, headers=cols)
@@ -131,10 +140,12 @@ def list(**kwargs):
 @click.option("-a", "--amount-paid", type=float, help="Specify amount paid")
 @click.option("-n", "--note", type=str, help="Specify note")
 def edit(**kwargs):
+    """Edit job attributes"""
     app.api.edit_job(**kwargs)
 
 
 @cli.command()
 @click.argument("job_id")
 def delete(job_id, **kwargs):
+    """Delete job from database"""
     app.api.delete_job(job_id)

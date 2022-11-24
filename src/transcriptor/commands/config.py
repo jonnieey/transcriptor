@@ -28,6 +28,7 @@ def show(**kwargs):
 @click.option("-b", "--base-dir", help="Specify base directory")
 @click.option("-d", "--date-format", help="Specify date format")
 def edit(**kwargs):
+    """Edit Configuration"""
     config = app.get_config()
     to_update_dict = {k: v for k, v in kwargs.items() if v is not None}
     config.__dict__.update(to_update_dict)

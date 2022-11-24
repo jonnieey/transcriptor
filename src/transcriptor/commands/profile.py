@@ -14,6 +14,7 @@ def cli(**kwargs):
 
 @cli.command()
 def show(**kwargs):
+    """Show profile"""
     profile = app.profile
     if profile:
         cols, rows = (profile.cols(), profile.rows())
@@ -26,6 +27,7 @@ def show(**kwargs):
 @click.option("-a", "--area", help="Specify area")
 @click.option("-c", "--country", help="Specify country")
 def edit(**kwargs):
+    """Edit profile"""
     profile = app.get_profile()
     to_update_dict = {k: v for k, v in kwargs.items() if v is not None}
     profile.__dict__.update(to_update_dict)
