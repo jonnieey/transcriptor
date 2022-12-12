@@ -1,4 +1,5 @@
 import logging
+import os
 import shutil
 import sys
 import zipfile
@@ -25,16 +26,26 @@ class BaseTranscriptor:
 
 
 class Transcriptor(BaseTranscriptor):
-    def __init__(self, config: ConfigModel = None):
+    config_class = ConfigModel
 
-        self.config = config if config is not None else self.get_config()
+    def __init__(self, config: ConfigModel = None):
+        self.config = self.make_config()
+
         self.base_dir = Path(self.config.base_dir)
         mkdirp([self.base_dir])
-
         self.api = API(self.base_dir)
 
         self.clients_dir = self.base_dir.joinpath("clients")
         mkdirp([self.clients_dir])
+
+    def make_config(self):
+        DEFAULT_BASE_DIR = user_data_dir(appname="transcriptor3")
+        DEFAULT_CONFIG = {"date_format": "%Y-%m-%d", "base_dir": f"{DEFAULT_BASE_DIR}"}
+        config = self.config_class(**DEFAULT_CONFIG)
+        env = os.environ.get("TRANS_ENV", "")
+        if env:
+            config.from_env(env)
+        return config
 
     @staticmethod
     def default_config() -> ConfigModel:
@@ -51,35 +62,36 @@ class Transcriptor(BaseTranscriptor):
         return config_obj
 
     # TODO refactor to specify config file
-    def get_config(self) -> ConfigModel:
-        """
-        Load configuration from file.
-
-        Returns:
-            ConfigModel object
-        """
-        CONFIG_DIR = Path(user_config_dir(appname=APP_NAME))
-        CONFIG_FILE = CONFIG_DIR.joinpath("config.yml")
-
-        def save_default():
-            config = self.default_config()
-            self.add_config(config)
-            return config
-
-        if not CONFIG_FILE.exists():
-            touch([CONFIG_FILE])
-            save_default()
-
-        with open(CONFIG_FILE, "r") as fd:
-            try:
-                obj_dict = yaml.safe_load(fd)
-                if obj_dict is None:
-                    save_default()
-                obj = ConfigModel(**obj_dict)
-                return obj
-            except TypeError as error:
-                logger.error(error)
-                sys.exit(1)
+    # def get_config(self) -> ConfigModel:
+    #     """
+    #     Load configuration from file.
+    #
+    #     Returns:
+    #         ConfigModel object
+    #     """
+    # CONFIG_DIR = Path(user_config_dir(appname=APP_NAME))
+    # CONFIG_FILE = CONFIG_DIR.joinpath("config.yml")
+    #
+    # def save_default():
+    #     config = self.default_config()
+    #     self.add_config(config)
+    #     return config
+    #
+    # if not CONFIG_FILE.exists():
+    #     touch([CONFIG_FILE])
+    #     save_default()
+    #
+    # with open(CONFIG_FILE, "r") as fd:
+    #     try:
+    #         obj_dict = yaml.safe_load(fd)
+    #         if obj_dict is None:
+    #             save_default()
+    #         obj = ConfigModel(**obj_dict)
+    #         return obj
+    #     except TypeError as error:
+    #         logger.error(error)
+    #         sys.exit(1)
+    # return ConfigModel()
 
     def add_config(self, config: ConfigModel) -> None:
         """

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from pathlib import Path
 
 import yaml
 from sqlalchemy import ForeignKey, String
@@ -41,6 +42,23 @@ class ConfigModel(Model):
 
     def save(self, file_object):
         yaml.safe_dump(dict(self), file_object, sort_keys=False)
+
+    def from_file(self, file_path: str | Path):
+        try:
+            with open(file_path, "r") as fd:
+                obj_dict = yaml.safe_load(fd)
+                self.__dict__.update(obj_dict)
+                return self
+        except FileNotFoundError as error:
+            with open(file_path, "w") as fd:
+                self.save(fd)
+                return self
+
+    def from_env(self, env: str):
+        if env.upper() in ["DEV", "DEVEL"]:
+            BASE_DIR = Path(__file__).parent.parent.parent.joinpath("dev_dir")
+            self.base_dir = str(BASE_DIR)
+        return self
 
     item_type = "config"
 

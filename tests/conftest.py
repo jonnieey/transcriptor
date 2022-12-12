@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -7,8 +8,11 @@ from sqlalchemy.orm import Session
 from transcriptor.database import Base, Database
 from transcriptor.utils import *
 
+os.environ["TRANS_ENV"] = "DEV"
+
 BASE_DIR = Path(__file__).parent.joinpath("data")
 mkdirp([BASE_DIR])
+print(os.environ)
 
 
 @pytest.fixture(scope="session")

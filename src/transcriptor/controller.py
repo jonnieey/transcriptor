@@ -20,7 +20,7 @@ class API:
     Contains operation functions of the applications. Communication to DB, etc
     """
 
-    def __init__(self, base_dir: str | Path, db_path: str = "transcriptor.db"):
+    def __init__(self, base_dir: str | Path = ".", db_path: str = "transcriptor.db"):
 
         self.base_dir = Path(base_dir)
         mkdirp([self.base_dir])

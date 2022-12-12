@@ -2,9 +2,9 @@ import logging
 from datetime import date
 
 import click
-from transcriptor.models import ClientModel, RatesModel
 
 from transcriptor.base import Transcriptor
+from transcriptor.models import ClientModel, RatesModel
 from transcriptor.utils import *
 from transcriptor.view import ConsoleView
 
