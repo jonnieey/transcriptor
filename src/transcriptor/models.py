@@ -56,7 +56,7 @@ class ConfigModel(Model):
 
     def from_env(self, env: str):
         if env.upper() in ["DEV", "DEVEL"]:
-            BASE_DIR = Path(__file__).parent.parent.parent.joinpath("dev_dir")
+            BASE_DIR = Path(__file__).parent.parent.parent.joinpath("dev-dir")
             self.base_dir = str(BASE_DIR)
         return self
 

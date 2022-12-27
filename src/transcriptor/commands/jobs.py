@@ -118,11 +118,21 @@ def create(job_file, client_name, date_received, date_due, **kwargs):
 
 
 @cli.command()
+@click.option("-c", "--client-id", type=int, help="Specify client id")
+@click.option("-R", "--date-received", type=str, help="Specify date received")
+@click.option("-n", "--job-number", type=str, help="Specify job number")
+@click.option("-t", "--job-type", type=str, help="Specify job type")
+@click.option("-s", "--status", type=str, help="Specify job status")
+@click.option("-D", "--date-due", type=str, help="Specify date due")
+@click.option("-q", "--quantity", type=float, help="Specify job quantity")
+@click.option("-r", "--job-rate", type=float, help="Specify job rate")
+@click.option("-S", "--date-submitted", type=str, help="Specify date submitted")
+@click.option("-a", "--amount-paid", type=float, help="Specify amount paid")
+@click.option("-n", "--note", type=str, help="Specify note")
 def list(**kwargs):
     """List all jobs"""
-    cols, rows = app.api.list_jobs()
-    if all([cols, rows]):
-        ConsoleView().vertical_table(cols, rows, headers=cols)
+    attr = {k: v for k, v in kwargs.items() if v is not None}
+    ConsoleView().print_job_table(app.api.list_jobs(attributes=attr))
 
 
 @cli.command()
@@ -132,7 +142,7 @@ def list(**kwargs):
 @click.option("-R", "--date-received", type=str, help="Specify date received")
 @click.option("-n", "--job-number", type=str, help="Specify job number")
 @click.option("-t", "--job-type", type=str, help="Specify job type")
-@click.option("-s", "--job-status", type=str, help="Specify job status")
+@click.option("-s", "--status", type=str, help="Specify job status")
 @click.option("-D", "--date-due", type=str, help="Specify date due")
 @click.option("-q", "--quantity", type=float, help="Specify job quantity")
 @click.option("-r", "--job-rate", type=float, help="Specify job rate")

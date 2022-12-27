@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from typing import Tuple
 
 from rich.console import Console
@@ -16,6 +17,34 @@ class ConsoleView:
         self.table = Table(
             show_header=True, header_style="bold red", title_justify="center"
         )
+
+    def print_job_table(self, job_table_rows):
+        job_objects = [job._mapping["JobModel"] for job in job_table_rows]
+        headers_list = [
+            "client_id",
+            "date_received",
+            "id",
+            "job_number",
+            "job_type",
+            "status",
+            "date_due",
+            "total_quantity",
+            "quantity",
+            "job_rate",
+            "date_submitted",
+            "amount",
+            "amount_paid",
+            "job_path",
+            "note",
+        ]
+        [self.table.add_column(tc(h)) for h in headers_list]
+        for idx, job in enumerate(job_objects):
+            job_dict = job.__dict__
+            job_dict.pop("_sa_instance_state")
+            # job_dict.pop("id")
+            r = sorted(job_dict.items(), key=lambda t: headers_list.index(t[0]))
+            self.table.add_row(*r2s([x[1] for x in r]))
+        self.console.print(self.table)
 
     def vertical_table(
         self,

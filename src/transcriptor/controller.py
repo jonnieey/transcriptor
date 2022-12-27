@@ -1,9 +1,10 @@
 import logging
 from pathlib import Path
-from typing import IO, Tuple
+from typing import IO, Any, List, Sequence, Tuple
 
 import yaml
 from sqlalchemy import select, text
+from sqlalchemy.engine.row import Row
 from sqlalchemy.orm import Session
 
 from transcriptor.database import Base, Database
@@ -296,7 +297,7 @@ class API:
             session.add(job)
             session.commit()
 
-    def list_jobs(self) -> Tuple[tuple, list[tuple]]:
+    def list_jobs(self, attributes={}) -> Sequence[Row[Tuple[JobModel]]]:
         """
         Get jobs in database.
 
@@ -306,17 +307,15 @@ class API:
         Returns:
             Tuple of (tuple(Columns), List[tuple(Row)])
         """
-        stmt = str(
-            select(ClientModel.name.label("Client Name"), JobModel).join(ClientModel)
-        )
-        jobs = self.execute_sql(stmt).fetchall()
-        if jobs:
-            cols = jobs[0]._asdict()
-            cols.pop("client_id")
-            cols = tuple(cols.keys())
-            rows = jobs
-            return (cols, rows)
-        return ((), [])
+        if not attributes:
+            stmt = select(JobModel)
+        else:
+            stmt = select(JobModel).filter_by(**attributes)
+
+        with self.session as session:
+            scalars = session.execute(stmt).fetchall()
+
+        return scalars
 
     def edit_job(self, **kwargs) -> None:
         """
@@ -397,3 +396,10 @@ class API:
     def execute_orm_stmt(self, stmt):
         with self.session as session:
             return session.execute(stmt)
+
+
+if __name__ == "__main__":
+    api = API(base_dir="/home/kamikaze/.local/share/transcriptor3")
+    print(len(api.list_jobs()))
+    print(dir(api.list_jobs()[0]))
+    # print([x._mapping["JobModel"] for x in api.list_jobs()])

@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 from sqlalchemy import select, text
+from sqlalchemy.engine.row import Row
 
 from transcriptor.controller import API
 from transcriptor.models import *
@@ -174,18 +175,18 @@ class TestApi:
 
     def test_save_job(self, dbsession, test_job):
         self.api.save_job(test_job)
-        stmt = text("""SELECT * from Jobs""")
+        stmt = select(JobModel)
         job = dbsession.execute(stmt).first()
 
         assert job is not None
-        assert job.job_rate == 0.40
+        assert job[0].job_rate == 0.40
 
     def test_list_jobs(self):
-        cols, rows = self.api.list_jobs()
+        job_scalars = self.api.list_jobs()
 
-        assert isinstance(cols, tuple)
-        assert isinstance(rows, list)
-        assert len(rows) == 1
+        assert isinstance(job_scalars, list)
+        assert isinstance(job_scalars[0], Row)
+        assert isinstance(job_scalars[0]._mapping["JobModel"], JobModel)
 
     def test_edit_job(self, dbsession, test_job):
         name, email, rates = (
