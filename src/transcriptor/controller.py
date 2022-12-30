@@ -153,7 +153,7 @@ class API:
         client = ClientModel(name=name, email=email, rates=rate_obj)
         return client
 
-    def save_client(self, client: ClientModel) -> None:
+    def save_client(self, client: object) -> None:
         """
         Save client to database:
 

@@ -22,8 +22,7 @@ def cli(**kwargs):
 def create(name, email, **kwargs):
     """Create new client"""
     try:
-        client = app.api.create_client(name=name, email=email)
-        app.api.save_client(client)
+        app.add_client(name=name, email=email)
     except Exception as error:
         logger.error(error)
 
