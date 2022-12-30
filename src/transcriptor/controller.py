@@ -1,8 +1,10 @@
 import logging
+from copy import deepcopy
 from pathlib import Path
 from typing import IO, Any, List, Sequence, Tuple
 
 import yaml
+from jinja2 import Environment, PackageLoader, select_autoescape
 from sqlalchemy import select, text
 from sqlalchemy.engine.row import Row
 from sqlalchemy.orm import Session
@@ -60,6 +62,7 @@ class API:
         """
         obj_dict = yaml.safe_load(fd)
         if obj_dict is None:
+            obj().save(fd)
             return obj()
         try:
             obj = obj(**obj_dict)
@@ -397,9 +400,51 @@ class API:
         with self.session as session:
             return session.execute(stmt)
 
+    def get_jobs_scalars_total(self, jobs_list: List[dict[str, Any]]):
+        amount = 0
+        amount_paid = 0
+        for job in jobs_list:
+            # job_obj = x._mapping["JobModel"]
+            amount += job.get("amount", 0)
+            amount_paid += job.get("amount_paid", 0)
+
+        return amount, amount_paid
+
+    def create_invoice_data(
+        self, client_id: int, period_start, period_end
+    ) -> tuple[Any, Any, Any]:
+        # job_rows = self.list_jobs(attributes={"client_id": client_id})
+        query = select(JobModel).filter(
+            JobModel.client_id == client_id,
+            JobModel.date_submitted > period_start,
+            JobModel.date_submitted <= period_end,
+        )
+        client_query = select(ClientModel).where(ClientModel.id == client_id)
+        with self.session as session:
+            job_rows = session.execute(query).scalars()
+            client_row = session.execute(client_query).scalars()
+
+            jobs_list = [job_row.__dict__ for job_row in job_rows]
+            totals = self.get_jobs_scalars_total(jobs_list)
+
+            client = client_row.all()[0].__dict__
+
+        return (client, jobs_list, totals)
+
 
 if __name__ == "__main__":
     api = API(base_dir="/home/kamikaze/.local/share/transcriptor3")
-    print(len(api.list_jobs()))
-    print(dir(api.list_jobs()[0]))
+    # print(len(api.list_jobs()))
+    # print(dir(api.list_jobs()[0]))
     # print([x._mapping["JobModel"] for x in api.list_jobs()])
+    # job_rows= api.list_jobs({"client_id": 2})
+    api.create_invoice_data(2, "2022-10-12", "2022-10-30")
+    # # print(api.get_jobs_scalars_total(jobs))
+    # jobs_list = []
+    #
+    # for job_row in job_rows:
+    #     job_dict = job_row._mapping["JobModel"].__dict__
+    #     jobs_list.append(job_dict)
+    #
+    # for job in jobs_list:
+    #     print(job["job_number"])

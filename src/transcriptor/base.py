@@ -3,11 +3,13 @@ import os
 import shutil
 import sys
 import zipfile
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Any, Callable, Dict, Optional
 
 from appdirs import user_config_dir, user_data_dir
+from jinja2 import Environment, PackageLoader, select_autoescape
 from sqlalchemy import select
+from weasyprint import HTML
 
 from transcriptor.controller import API
 from transcriptor.models import *
@@ -115,25 +117,11 @@ class Transcriptor(BaseTranscriptor):
         """
         PROFILE_FILE = self.base_dir.joinpath("profile.yml")
 
-        def save_default():
-            profile = ProfileModel()
-            self.add_profile(profile)
-            return profile
-
         if not PROFILE_FILE.exists():
             touch([PROFILE_FILE])
-            save_default()
 
-        with open(PROFILE_FILE, "r") as fd:
-            try:
-                obj_dict = yaml.safe_load(fd)
-                if obj_dict is None:
-                    return save_default()
-                else:
-                    return self.api.load_profile(fd)
-            except TypeError as error:
-                logger.error(error)
-                return None
+        with open(PROFILE_FILE, "r+") as fd:
+            return self.api.load_profile(fd)
 
     def add_profile(self, profile: ProfileModel) -> None:
         """
@@ -243,3 +231,48 @@ class Transcriptor(BaseTranscriptor):
                         job_dir,
                     )
                     self.api.save_job(job)
+
+    def create_invoice(self, client_id, period_start, period_end):
+        # client, jobs, totals =
+        INVOICE_COUNTER_FILE = self.base_dir.joinpath("invoice_counter.txt")
+        touch([INVOICE_COUNTER_FILE])
+        with open(INVOICE_COUNTER_FILE, "r") as fd:
+            count = fd.readline()
+            invoice_counter = 0 if count == "" else int(count)
+
+        client, jobs_list, (amount, amount_paid) = self.api.create_invoice_data(
+            client_id, period_start, period_end
+        )
+        profile = self.get_profile().__dict__
+        DATE_FMT = self.config.date_format
+
+        created = datetime.today()
+        due = created + timedelta(days=7)
+
+        context = {
+            "client": client,
+            "jobs": jobs_list,
+            "amount": amount,
+            "profile": profile,
+            "data": {
+                "created": created.strftime(DATE_FMT),
+                "due": due.strftime(DATE_FMT),
+                "invoice_number": f"{invoice_counter + 1:05}",
+            },
+        }
+        env = Environment(
+            loader=PackageLoader("transcriptor", "invoice_templates"),
+            autoescape=select_autoescape(["html", "xml"]),
+        )
+        template_file = "invoice.html"
+        template = env.get_template(template_file)
+        output_text = template.render(context)
+        HTML(string=output_text).write_pdf("test.pdf")
+
+        with open(INVOICE_COUNTER_FILE, "w") as fd:
+            fd.write(f"{invoice_counter + 1:05}")
+
+
+if __name__ == "__main__":
+    app = Transcriptor()
+    app.create_invoice(2, "2022-01-12", "2022-12-30")

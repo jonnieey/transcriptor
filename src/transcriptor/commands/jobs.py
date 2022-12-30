@@ -128,11 +128,14 @@ def create(job_file, client_name, date_received, date_due, **kwargs):
 @click.option("-r", "--job-rate", type=float, help="Specify job rate")
 @click.option("-S", "--date-submitted", type=str, help="Specify date submitted")
 @click.option("-a", "--amount-paid", type=float, help="Specify amount paid")
-@click.option("-n", "--note", type=str, help="Specify note")
+@click.option("-N", "--note", type=str, help="Specify note")
 def list(**kwargs):
     """List all jobs"""
     attr = {k: v for k, v in kwargs.items() if v is not None}
-    ConsoleView().print_job_table(app.api.list_jobs(attributes=attr))
+    jobs = app.api.list_jobs(attributes=attr)
+    total_amount, total_amount_paid = app.api.get_jobs_scalars_total(jobs)
+    total_dict = {"total_amount": total_amount, "total_amount_paid": total_amount_paid}
+    ConsoleView().print_job_table(jobs, **total_dict)
 
 
 @cli.command()
@@ -148,7 +151,7 @@ def list(**kwargs):
 @click.option("-r", "--job-rate", type=float, help="Specify job rate")
 @click.option("-S", "--date-submitted", type=str, help="Specify date submitted")
 @click.option("-a", "--amount-paid", type=float, help="Specify amount paid")
-@click.option("-n", "--note", type=str, help="Specify note")
+@click.option("-N", "--note", type=str, help="Specify note")
 def edit(**kwargs):
     """Edit job attributes"""
     app.api.edit_job(**kwargs)

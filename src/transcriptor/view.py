@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from typing import Tuple
 
+from rich import box
 from rich.console import Console
 from rich.table import Table
 
@@ -15,11 +16,17 @@ class ConsoleView:
     def __init__(self):
         self.console = Console()
         self.table = Table(
-            show_header=True, header_style="bold red", title_justify="center"
+            show_header=True,
+            header_style="bold red",
+            title_justify="center",
+            box=box.MARKDOWN,
         )
 
-    def print_job_table(self, job_table_rows):
-        job_objects = [job._mapping["JobModel"] for job in job_table_rows]
+    def print_job_table(self, job_scalars, **kwargs):
+        job_objects = [job._mapping["JobModel"] for job in job_scalars]
+        total_amount = kwargs.get("total_amount", None)
+        total_amount_paid = kwargs.get("total_amount_paid", None)
+
         headers_list = [
             "client_id",
             "date_received",
@@ -44,6 +51,20 @@ class ConsoleView:
             # job_dict.pop("id")
             r = sorted(job_dict.items(), key=lambda t: headers_list.index(t[0]))
             self.table.add_row(*r2s([x[1] for x in r]))
+
+        if total_amount or total_amount_paid:
+            total_row = []
+            for h in headers_list:
+                if h == "amount":
+                    total_row.append(str(total_amount))
+                elif h == "amount_paid":
+                    total_row.append(str(total_amount_paid))
+                else:
+                    total_row.append("")
+            total_row[0] = "TOTAL"
+            self.table.add_row()
+            self.table.add_row(*total_row)
+
         self.console.print(self.table)
 
     def vertical_table(
