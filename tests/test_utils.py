@@ -30,7 +30,7 @@ def test_truncate():
 def test_format_date():
     rs = "11.15"
     date_fmt = "%Y-%m-%d"
-    assert format_date(rs, date_fmt) == "2022-11-15"
+    assert format_date(rs, date_fmt) == f"{date.today().year}-11-15"
 
 
 def test_convert_cases():

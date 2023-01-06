@@ -25,10 +25,10 @@ def cli(**kwargs):
 @cli.command()
 @click.option("-c", "--client-id", type=int, required=True, help="Specify client id")
 @click.option(
-    "-s", "--period-start", type=int, required=True, help="Specify start of job period"
+    "-s", "--period-start", type=str, required=True, help="Specify start of job period"
 )
 @click.option(
-    "-e", "--period-end", type=int, required=True, help="Specify end of job period"
+    "-e", "--period-end", type=str, required=True, help="Specify end of job period"
 )
 def create(client_id, period_start, period_end, **kwargs):
     app.create_invoice(

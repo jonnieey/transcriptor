@@ -401,14 +401,16 @@ class API:
             return session.execute(stmt)
 
     def get_jobs_scalars_total(self, jobs_list: List[dict[str, Any]]):
+        # TODO get totals from sqlite
         amount = 0
         amount_paid = 0
         for job in jobs_list:
-            # job_obj = x._mapping["JobModel"]
+            if isinstance(job, Row):
+                job = job._mapping["JobModel"].__dict__
             amount += job.get("amount", 0)
             amount_paid += job.get("amount_paid", 0)
 
-        return amount, amount_paid
+        return (truncate(amount, 2), truncate(amount_paid, 2))
 
     def create_invoice_data(
         self, client_id: int, period_start, period_end

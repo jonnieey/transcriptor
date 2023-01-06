@@ -1,7 +1,6 @@
 from collections import OrderedDict
 from typing import Tuple
 
-from rich import box
 from rich.console import Console
 from rich.table import Table
 
@@ -19,7 +18,6 @@ class ConsoleView:
             show_header=True,
             header_style="bold red",
             title_justify="center",
-            box=box.MARKDOWN,
         )
 
     def print_job_table(self, job_scalars, **kwargs):

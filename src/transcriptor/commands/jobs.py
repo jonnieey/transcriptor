@@ -17,7 +17,7 @@ TODAY = date.today().strftime(DATE_FMT)
 
 
 def due_date_cb() -> str:
-    rdd = parse_due_date(click.get_current_context().params["file"])
+    rdd = parse_due_date(click.get_current_context().params["job_file"])
     return format_date(rdd, DATE_FMT)
 
 
@@ -121,8 +121,18 @@ def create(job_file, client_name, date_received, date_due, **kwargs):
 @click.option("-c", "--client-id", type=int, help="Specify client id")
 @click.option("-R", "--date-received", type=str, help="Specify date received")
 @click.option("-n", "--job-number", type=str, help="Specify job number")
-@click.option("-t", "--job-type", type=str, help="Specify job type")
-@click.option("-s", "--status", type=str, help="Specify job status")
+@click.option(
+    "-t",
+    "--job-type",
+    type=click.Choice(["Normal", "Interpreted", "Expedite"], case_sensitive=False),
+    help="Specify job type",
+)
+@click.option(
+    "-s",
+    "--status",
+    type=click.Choice(["Done", "Pending"], case_sensitive=False),
+    help="Specify job status",
+)
 @click.option("-D", "--date-due", type=str, help="Specify date due")
 @click.option("-q", "--quantity", type=float, help="Specify job quantity")
 @click.option("-r", "--job-rate", type=float, help="Specify job rate")
@@ -144,8 +154,18 @@ def list(**kwargs):
 @click.option("-c", "--client-id", type=int, help="Specify client id")
 @click.option("-R", "--date-received", type=str, help="Specify date received")
 @click.option("-n", "--job-number", type=str, help="Specify job number")
-@click.option("-t", "--job-type", type=str, help="Specify job type")
-@click.option("-s", "--status", type=str, help="Specify job status")
+@click.option(
+    "-t",
+    "--job-type",
+    type=click.Choice(["Normal", "Interpreted", "Expedite"], case_sensitive=False),
+    help="Specify job type",
+)
+@click.option(
+    "-s",
+    "--status",
+    type=click.Choice(["Done", "Pending"], case_sensitive=False),
+    help="Specify job status",
+)
 @click.option("-D", "--date-due", type=str, help="Specify date due")
 @click.option("-q", "--quantity", type=float, help="Specify job quantity")
 @click.option("-r", "--job-rate", type=float, help="Specify job rate")

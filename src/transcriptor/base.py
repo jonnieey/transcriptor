@@ -240,15 +240,19 @@ class Transcriptor(BaseTranscriptor):
 
     def create_invoice(self, client_id, period_start, period_end):
         # client, jobs, totals =
-        INVOICE_COUNTER_FILE = self.base_dir.joinpath("invoice_counter.txt")
+        client, jobs_list, (amount, amount_paid) = self.api.create_invoice_data(
+            client_id, period_start, period_end
+        )
+
+        CLIENT_DIR = self.base_dir.joinpath("clients").joinpath(sc(client["name"]))
+        INVOICES_DIR = CLIENT_DIR.joinpath("invoices")
+        INVOICE_COUNTER_FILE = INVOICES_DIR.joinpath("invoice_counter.txt")
         touch([INVOICE_COUNTER_FILE])
+
         with open(INVOICE_COUNTER_FILE, "r") as fd:
             count = fd.readline()
             invoice_counter = 0 if count == "" else int(count)
 
-        client, jobs_list, (amount, amount_paid) = self.api.create_invoice_data(
-            client_id, period_start, period_end
-        )
         profile = self.get_profile().__dict__
         DATE_FMT = self.config.date_format
 
@@ -273,7 +277,16 @@ class Transcriptor(BaseTranscriptor):
         template_file = "invoice.html"
         template = env.get_template(template_file)
         output_text = template.render(context)
-        HTML(string=output_text).write_pdf("test.pdf")
+
+        invoice_file_name = f"{created.strftime(DATE_FMT)}_{client['name']}_invoice"
+        html_invoice_file_name = f"{invoice_file_name}.html"
+        pdf_invoice_file_name = f"{invoice_file_name}.pdf"
+
+        with open(INVOICES_DIR.joinpath(html_invoice_file_name), "w") as fd:
+            fd.write(output_text)
+
+        invoice_file = str(INVOICES_DIR.joinpath(pdf_invoice_file_name))
+        HTML(string=output_text).write_pdf(invoice_file)
 
         with open(INVOICE_COUNTER_FILE, "w") as fd:
             fd.write(f"{invoice_counter + 1:05}")
@@ -281,4 +294,4 @@ class Transcriptor(BaseTranscriptor):
 
 if __name__ == "__main__":
     app = Transcriptor()
-    app.create_invoice(2, "2022-01-12", "2022-12-30")
+    app.create_invoice(2, "2022-01-01", "2022-12-31")
