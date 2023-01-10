@@ -172,3 +172,7 @@ def format_date(date_str: str, date_fmt: str):
         return date_obj.strftime(date_fmt)
     except ValueError:
         return ""
+
+
+def str_to_date(date_string: str, date_fmt):
+    return datetime.strptime(date_string, date_fmt)

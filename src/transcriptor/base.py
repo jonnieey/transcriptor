@@ -153,11 +153,16 @@ class Transcriptor(BaseTranscriptor):
         Returns:
             Path object
         """
+        DATE_FMT = self.config.date_format
+        date_r = str_to_date(date_r, DATE_FMT).strftime("%d_%a")
+        date_due = str_to_date(date_due, DATE_FMT).strftime("%d_%a")
+
         job_dir = (
             self.base_dir.joinpath("clients")
             .joinpath(sc(client_name))
             .joinpath(str(date.today().year))
-            .joinpath(f"{date_r}_{job_num}_DUE-{date_due}")
+            .joinpath(str(date.today().strftime("%B")))
+            .joinpath(f"{date_r}_{job_num}_DUE_{date_due}")
         )
         mkdirp([job_dir])
         return job_dir
