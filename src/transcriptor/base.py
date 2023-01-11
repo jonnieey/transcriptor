@@ -187,6 +187,36 @@ class Transcriptor(BaseTranscriptor):
         CLIENT_DIR = self.base_dir.joinpath("clients").joinpath(sc(name))
         mkdirp([CLIENT_DIR])
 
+    def select_job_template(self, template_init: str):
+        template_mapping = {
+            "zd": "Zoom Deposition Block Files.doc",
+            "nh": "Hearing Block Files.doc",
+            "zeo": "Zoom Examination Under Oath Block Files.doc",
+            "zh": "Zoom Hearing Block Files.doc",
+            "zus": "Zoom Unsworn Statement Block Files.doc",
+            "zwc": "Zoom Workers Comp Deposition Block Files.doc",
+            "tt": "Tape Transcript.doc",
+            "me": "Compulsory Medical Exam Template.doc",
+            "zdi": "Zoom Deposition Block File with Interpreter.doc",
+        }
+        template_path = (
+            Path(__file__)
+            .parent.joinpath("templates")
+            .joinpath(template_mapping[template_init])
+        )
+
+        return template_path
+
+    def next_non_existant_file(self, filename):
+        base_dir = str(Path(filename).parent.absolute())
+        nf = filename
+        root, ext = Path(nf).stem, Path(nf).suffix
+        i = 0
+        while Path(nf).exists():
+            i += 1
+            nf = f"{base_dir}/{root}_{i}{ext}"
+        return Path(nf)
+
     def add_job(
         self,
         add_job_cb: Callable[
@@ -210,6 +240,7 @@ class Transcriptor(BaseTranscriptor):
         """
 
         job_num = parse_job_number(str(job_file))
+        DATE_FMT = self.config.date_format
 
         with self.api.session as session:
             stmt = (
@@ -233,7 +264,7 @@ class Transcriptor(BaseTranscriptor):
                 for media_file in media_files:
                     # callback return JobModel object
 
-                    job = add_job_cb(
+                    job, job_temp_init = add_job_cb(
                         str(media_file),
                         client,
                         rates,
@@ -241,6 +272,15 @@ class Transcriptor(BaseTranscriptor):
                         job_num,
                         job_dir,
                     )
+                    job_template = self.select_job_template(job_temp_init)
+                    # TODO Copy numbered files for each task
+                    job_path = self.next_non_existant_file(
+                        job_dir.joinpath(
+                            f"{job_num} Due {str_to_date(date_due, DATE_FMT).strftime('%m.%d')}.doc",
+                        ),
+                    )
+                    shutil.copy(job_template, job_path)
+
                     self.api.save_job(job)
 
     def create_invoice(self, client_id, period_start, period_end):
@@ -299,4 +339,5 @@ class Transcriptor(BaseTranscriptor):
 
 if __name__ == "__main__":
     app = Transcriptor()
-    app.create_invoice(2, "2022-01-01", "2022-12-31")
+    # t(app.select_job_template("zd"))
+    print(app.next_non_existant_file("/home/kamikaze/foo.txt"))

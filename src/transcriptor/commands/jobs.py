@@ -81,7 +81,13 @@ def create(job_file, client_name, date_received, date_due, **kwargs):
                 show_choices=True,
             )
             total_quantity = get_media_duration(media_file)
-            quantity = click.prompt("Enter quantity of task", default=total_quantity)
+            quantity = parse_quantity(
+                click.prompt(
+                    "Enter quantity of task ex. ( 1/2, 1/4, 21.2, 40 ) ",
+                    default=str(total_quantity),
+                ),
+                total_quantity,
+            )
             job_template = click.prompt(
                 "Specify template type",
                 type=click.Choice(
@@ -106,7 +112,7 @@ def create(job_file, client_name, date_received, date_due, **kwargs):
                 "note": note,
             }
             job = app.api.create_job(**job_dict)
-            return job
+            return job, job_template
 
     app.add_job(
         add_job_cb=add_job_cb,

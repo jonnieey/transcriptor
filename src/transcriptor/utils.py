@@ -1,6 +1,7 @@
 import math
 import re
 from datetime import date, datetime
+from fractions import Fraction
 from pathlib import Path
 from typing import Match, Optional, Pattern
 
@@ -176,3 +177,33 @@ def format_date(date_str: str, date_fmt: str):
 
 def str_to_date(date_string: str, date_fmt):
     return datetime.strptime(date_string, date_fmt)
+
+
+def parse_quantity(
+    quantity: str | float | int, total_quantity: str | float | int
+) -> float:
+    if not quantity:
+        raise TypeError("Quantity is required")
+
+    if isinstance(quantity, (float, int)):
+        quantity = quantity
+
+    elif isinstance(quantity, str):
+        try:
+            f = Fraction(quantity)
+            if f > 1:
+                quantity = quantity
+            else:
+                if not total_quantity:
+                    raise TypeError("Total quantity required")
+                else:
+                    quantity = f * float(total_quantity)
+        except ValueError:
+            # logger
+            print("Valid fraction, int, float, str required")
+
+    return truncate(float(quantity), 2)
+
+
+if __name__ == "__main__":
+    print(parse_quantity(0, 50))
