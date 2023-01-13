@@ -205,7 +205,7 @@ class API:
         with self.session as session:
             scalars = session.execute(
                 select(ClientModel, RatesModel)
-                .filter_by(name=f"{client_name}")
+                .filter(ClientModel.name.like(f"%{client_name}%"))
                 .join(RatesModel)
             ).all()
             if scalars:

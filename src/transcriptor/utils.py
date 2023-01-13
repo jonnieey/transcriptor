@@ -1,6 +1,6 @@
 import math
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from fractions import Fraction
 from pathlib import Path
 from typing import Match, Optional, Pattern
@@ -179,6 +179,10 @@ def str_to_date(date_string: str, date_fmt):
     return datetime.strptime(date_string, date_fmt)
 
 
+def date_to_str(date_obj, date_fmt):
+    return date_obj.strftime(date_fmt)
+
+
 def parse_quantity(
     quantity: str | float | int, total_quantity: str | float | int
 ) -> float:
@@ -205,5 +209,24 @@ def parse_quantity(
     return truncate(float(quantity), 2)
 
 
+def rel_date(days: int):
+    """
+    Get relative date from today
+
+    Args:
+        days: number of days from/before today eg, 1 or -5
+
+    Return:
+        date object
+    """
+    today = datetime.today()
+    relative_date = today + timedelta(days=days)
+
+    return relative_date
+
+
+dts = date_to_str
+
+
 if __name__ == "__main__":
-    print(parse_quantity(0, 50))
+    print(dts(rel_date(-4), "%Y-%m-%d"))
