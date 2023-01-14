@@ -1,12 +1,11 @@
 import logging
 import os
 import shutil
-import sys
 import zipfile
 from datetime import date, datetime, timedelta
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict
 
-from appdirs import user_config_dir, user_data_dir
+from appdirs import user_data_dir
 from jinja2 import Environment, PackageLoader, select_autoescape
 from sqlalchemy import select
 from weasyprint import HTML
@@ -49,65 +48,6 @@ class Transcriptor(BaseTranscriptor):
             config.from_env(env)
         return config
 
-    @staticmethod
-    def default_config() -> ConfigModel:
-        """
-        Generate default configuration file.
-
-        Returns:
-            ConfigModel object
-        """
-        logger.info("Create default configuration")
-        date_format = "%Y-%m-%d"
-        base_dir = user_data_dir(appname="transcriptor3")
-        config_obj = ConfigModel(date_format=date_format, base_dir=base_dir)
-        return config_obj
-
-    # TODO refactor to specify config file
-    # def get_config(self) -> ConfigModel:
-    #     """
-    #     Load configuration from file.
-    #
-    #     Returns:
-    #         ConfigModel object
-    #     """
-    # CONFIG_DIR = Path(user_config_dir(appname=APP_NAME))
-    # CONFIG_FILE = CONFIG_DIR.joinpath("config.yml")
-    #
-    # def save_default():
-    #     config = self.default_config()
-    #     self.add_config(config)
-    #     return config
-    #
-    # if not CONFIG_FILE.exists():
-    #     touch([CONFIG_FILE])
-    #     save_default()
-    #
-    # with open(CONFIG_FILE, "r") as fd:
-    #     try:
-    #         obj_dict = yaml.safe_load(fd)
-    #         if obj_dict is None:
-    #             save_default()
-    #         obj = ConfigModel(**obj_dict)
-    #         return obj
-    #     except TypeError as error:
-    #         logger.error(error)
-    #         sys.exit(1)
-    # return ConfigModel()
-
-    def add_config(self, config: ConfigModel) -> None:
-        """
-        Save configuration to default config file.
-
-        Arguments:
-            config: ConfigModel object
-        """
-
-        CONFIG_FILE = Path(user_config_dir(appname=APP_NAME)).joinpath("config.yml")
-        touch([CONFIG_FILE])
-        with open(CONFIG_FILE, "w") as fd:
-            config.save(fd)
-
     def get_profile(self) -> object | ProfileModel:
         """
         Load profile from file.
@@ -122,17 +62,6 @@ class Transcriptor(BaseTranscriptor):
 
         with open(PROFILE_FILE, "r+") as fd:
             return self.api.load_profile(fd)
-
-    def add_profile(self, profile: ProfileModel) -> None:
-        """
-        Save profile object to default profile file.
-
-        Arguments:
-            profile: ProfileModel object
-        """
-        PROFILE_FILE = self.base_dir.joinpath("profile.yml")
-        with open(PROFILE_FILE, "w") as fd:
-            profile.save(fd)
 
     @property
     def profile(self) -> object | ProfileModel:

@@ -179,8 +179,14 @@ def str_to_date(date_string: str, date_fmt):
     return datetime.strptime(date_string, date_fmt)
 
 
+std = str_to_date
+
+
 def date_to_str(date_obj, date_fmt):
     return date_obj.strftime(date_fmt)
+
+
+dts = date_to_str
 
 
 def parse_quantity(
@@ -223,9 +229,6 @@ def rel_date(days: int):
     relative_date = today + timedelta(days=days)
 
     return relative_date
-
-
-dts = date_to_str
 
 
 if __name__ == "__main__":

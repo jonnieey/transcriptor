@@ -57,13 +57,13 @@ def create(job_file, client_name, date_received, date_due, **kwargs):
     """Create job"""
     try:
         if date_received != "" and type(int(date_received)) is int:
-            date_received = dts(rel_date(int(date_received)), "%Y-%m-%d")
+            date_received = dts(rel_date(int(date_received)), DATE_FMT)
     except ValueError:
         date_received = date_received
 
     try:
         if date_due != "" and type(int(date_due)) is int:
-            date_due = dts(rel_date(int(date_due)), "%Y-%m-%d")
+            date_due = dts(rel_date(int(date_due)), DATE_FMT)
     except ValueError:
         date_due = date_due
 

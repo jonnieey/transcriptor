@@ -1,10 +1,9 @@
 import logging
-from copy import deepcopy
 from pathlib import Path
 from typing import IO, Any, List, Sequence, Tuple
 
 import yaml
-from jinja2 import Environment, PackageLoader, select_autoescape
+from jinja2 import Environment, PackageLoader
 from sqlalchemy import select, text
 from sqlalchemy.engine.row import Row
 from sqlalchemy.orm import Session
