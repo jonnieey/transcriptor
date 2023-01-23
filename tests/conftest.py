@@ -12,7 +12,10 @@ os.environ["TRANS_ENV"] = "DEV"
 
 BASE_DIR = Path(__file__).parent.joinpath("data")
 mkdirp([BASE_DIR])
-print(os.environ)
+# print(os.environ)
+@pytest.fixture
+def base_dir():
+    return BASE_DIR
 
 
 @pytest.fixture(scope="session")

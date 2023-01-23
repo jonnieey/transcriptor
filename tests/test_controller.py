@@ -51,22 +51,6 @@ def test_client():
     return ClientModel(name=name, email=email, rates=rates)
 
 
-@pytest.fixture()
-def test_job(test_client):
-    job = JobModel(
-        client_id=1,
-        date_received="2022-05-05",
-        job_number="56321",
-        job_type="normal",
-        total_quantity="42.12630",
-        job_rate="0.40",
-        quantity="21.06315",
-        date_due="2022-06-01",
-        job_path="somerandompath",
-    )
-    return job
-
-
 class TestApi:
     def setup_class(self):
         shutil.rmtree(BASE_DIR, ignore_errors=True)
@@ -75,6 +59,20 @@ class TestApi:
 
     # def teardown_class(self):
     #     shutil.rmtree(BASE_DIR, ignore_errors=True)
+    @pytest.fixture()
+    def test_job(self, test_client):
+        job = self.api.create_job(
+            client_id=1,
+            date_received="2022-05-05",
+            job_number="56321",
+            job_type="normal",
+            total_quantity="42.12630",
+            job_rate="0.40",
+            quantity="21.06315",
+            date_due="2022-06-01",
+            job_path="somerandompath",
+        )
+        return job
 
     def test_save_config(self, test_config):
         fd = StringIO()
@@ -219,3 +217,18 @@ class TestApi:
         jobs = dbsession.execute(stmt).all()
 
         assert len(jobs) == 0
+
+    def test_execute_sql(self, dbsession, test_job):
+        self.api.save_job(test_job)
+        stmt = select(JobModel)
+        jobs = dbsession.execute(stmt).all()
+        assert len(jobs) == 1
+
+    def test_get_jobs_scalars_total(self, dbsession, test_job):
+        self.api.save_job(test_job)
+        stmt = select(JobModel)
+        jobs = dbsession.execute(stmt).scalars()
+        jobs_list = [job_row.__dict__ for job_row in jobs]
+        amount, amount_paid = self.api.get_jobs_scalars_total(jobs_list)
+        assert amount == 16.84  # Two jobs
+        assert amount_paid == 0.0
