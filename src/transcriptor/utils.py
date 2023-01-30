@@ -263,6 +263,42 @@ def list_of_tuples_to_csv(l):
     return "".join(csv_builder.csv_string)
 
 
+def list_of_rows_to_csv(scalar, headers=[], omit=[]):
+    m = []
+    for idx, row in enumerate(scalar):
+        client_dict = {}
+        for idx, _ in enumerate(row):
+            client_dict.update(row[idx].__dict__)
+
+        client_dict.pop("_sa_instance_state")
+        for _ in omit:
+            client_dict.pop(_)
+        client_dict = sorted(client_dict.items(), key=lambda t: headers.index(t[0]))
+        m.append(dict(client_dict))
+    return dict_to_csv(m)
+
+
 if __name__ == "__main__":
-    l = (("id", "Name"), [(1, "John"), (2, "Doe")])
-    print(list_of_tuples_to_csv(l))
+    from transcriptor.base import Transcriptor
+
+    app = Transcriptor()
+    headers = [
+        "client_id",
+        "date_received",
+        "id",
+        "job_number",
+        "job_type",
+        "status",
+        "date_due",
+        "total_quantity",
+        "quantity",
+        "job_rate",
+        "date_submitted",
+        "amount",
+        "amount_paid",
+        "job_path",
+        "note",
+    ]
+    # headers = ["id", 'name', "email", "normal", "expedite", "interpreted"]
+    jobs = app.api.list_jobs()
+    print(list_of_rows_to_csv(jobs, headers=headers))

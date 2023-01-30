@@ -68,11 +68,12 @@ class Profiles(Container):
 class SideBar(Vertical):
     def compose(self):
         clients = trans_app.api.list_clients()
-        # clients_names = [client[1] for client in clients[1]]
         yield Vertical(
             *[
-                Button(client[1], id=f"client_{client[0]}", classes="client_button")
-                for client in clients[1]
+                Button(
+                    client[0].name, id=f"client-{client[0].id}", classes="client_button"
+                )
+                for client in clients
             ]
         )
 
@@ -81,10 +82,46 @@ class Clients(Container):
     def compose(self):
         table = DataTable()
         clients = trans_app.api.list_clients()
+        headers = ["id", "name", "email", "normal", "expedite", "interpreted"]
         if clients:
-            clients_csv = list_of_tuples_to_csv(clients)
+            clients_csv = list_of_rows_to_csv(
+                clients, headers=headers, omit=["rates_id"]
+            )
             rows = csv.reader(io.StringIO(clients_csv))
-            table.add_columns(*next(rows))
+            table.add_columns(*[tc(n) for n in next(rows)])
+            table.add_rows(rows)
+        yield table
+
+
+class Jobs(Container):
+    def __init__(self, jobs_scalar):
+        super().__init__()
+        self.jobs_scalar = jobs_scalar
+
+    def compose(self):
+        table = DataTable()
+        jobs = self.jobs_scalar
+        headers = [
+            "client_id",
+            "date_received",
+            "id",
+            "job_number",
+            "job_type",
+            "status",
+            "date_due",
+            "total_quantity",
+            "quantity",
+            "job_rate",
+            "date_submitted",
+            "amount",
+            "amount_paid",
+            "job_path",
+            "note",
+        ]
+        if jobs:
+            jobs_csv = list_of_rows_to_csv(jobs, headers=headers)
+            rows = csv.reader(io.StringIO(jobs_csv))
+            table.add_columns(*[tc(n) for n in next(rows)])
             table.add_rows(rows)
         yield table
 
@@ -137,6 +174,7 @@ class TranscriptorTUI(App):
     #
     def on_button_pressed(self, event):
         button_id = event.button.id
+        button_class = event.button.classes
         assert button_id is not None
         #
         if button_id == "config":
@@ -156,6 +194,25 @@ class TranscriptorTUI(App):
             for child in body.children:
                 child.remove()
             body.mount(Clients())
+
+        elif button_id == "jobs":
+            body = self.query_one("#body")
+            for child in body.children:
+                child.remove()
+
+            jobs = trans_app.api.list_jobs()
+            body.mount(Jobs(jobs))
+
+        if "client_button" in button_class:
+            client_id = button_id.partition("-")[-1]
+            print(client_id)
+
+            body = self.query_one("#body")
+            for child in body.children:
+                child.remove()
+
+            jobs = trans_app.api.list_jobs(attributes={"client_id": client_id})
+            body.mount(Jobs(jobs))
 
     #
     #     if button_id == "profile":
