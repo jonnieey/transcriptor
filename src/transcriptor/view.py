@@ -3,6 +3,7 @@ from typing import Tuple
 
 from rich.console import Console
 from rich.table import Table
+from sqlalchemy.engine.row import Row
 
 from transcriptor.utils import tc
 
@@ -87,8 +88,20 @@ class ConsoleView:
             self.table.add_column(tc(header))
 
         for idx, row in enumerate(rows):
-            if isinstance(row, str):
+            if isinstance(row, Row):
+                client_dict = {}
+                client_dict.update(row[0].__dict__)
+                client_dict.update(row[1].__dict__)
+                client_dict.pop("_sa_instance_state")
+                client_dict.pop("rates_id")
+                client_dict = sorted(
+                    client_dict.items(), key=lambda t: headers.index(t[0])
+                )
+                self.table.add_row(*r2s([x[1] for x in client_dict]))
+
+            elif isinstance(row, str):
                 self.table.add_row(tc(cols[idx]), row)
+
             elif isinstance(row, dict):
                 self.table.add_row(*r2s(row.values()))
             else:

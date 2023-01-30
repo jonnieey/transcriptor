@@ -179,16 +179,22 @@ class API:
             (('id', 'name', 'email', 'normal', 'expedite', 'interpreted') [(1, 'Victor Wachai', 'victorwachai@gmail.com', 1, 1, 0.4, 0.6, 0.3)])
         """
 
-        stmt = """SELECT c.id, c.name, c.email, r.normal, r.expedite, r.interpreted FROM "Clients" c JOIN "Rates" r ON r.id = c.rates_id """
-        clients = self.execute_sql(stmt).fetchall()
-        if clients:
-            cols = clients[0]._asdict()
-            # cols.pop("rates_id")
-            cols = tuple(cols.keys())
-            rows = clients
-            return (cols, rows)
+        # stmt = """SELECT c.id, c.name, c.email, r.normal, r.expedite, r.interpreted FROM "Clients" c JOIN "Rates" r ON r.id = c.rates_id """
+        # clients = self.execute_sql(stmt).fetchall()
+        # if clients:
+        #     cols = clients[0]._asdict()
+        #     # cols.pop("rates_id")
+        #     cols = tuple(cols.keys())
+        #     rows = clients
+        #     return (cols, rows)
+        #
+        # return ((), [])
+        stmt = select(ClientModel, RatesModel).join(RatesModel)
 
-        return ((), [])
+        with self.session as session:
+            scalars = session.execute(stmt).fetchall()
+
+        return scalars
 
     def edit_client(
         self, client_name: str, new_name: str, new_email: str, new_rates: tuple
@@ -440,7 +446,8 @@ if __name__ == "__main__":
     # print(dir(api.list_jobs()[0]))
     # print([x._mapping["JobModel"] for x in api.list_jobs()])
     # job_rows= api.list_jobs({"client_id": 2})
-    api.create_invoice_data(2, "2022-10-12", "2022-10-30")
+    # api.create_invoice_data(2, "2022-10-12", "2022-10-30")
+    print(api.list_clients())
     # # print(api.get_jobs_scalars_total(jobs))
     # jobs_list = []
     #

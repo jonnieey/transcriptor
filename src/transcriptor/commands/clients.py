@@ -30,10 +30,10 @@ def create(name, email, **kwargs):
 @cli.command()
 def list(**kwargs):
     """List all clients"""
-    cols, rows = app.api.list_clients()
-    print(cols, rows)
-    if all([cols, rows]):
-        ConsoleView().vertical_table(cols, rows, headers=cols)
+    cols = ["id", "name", "email", "normal", "expedite", "interpreted"]
+    scalars = app.api.list_clients()
+    if scalars:
+        ConsoleView().vertical_table(cols, scalars, headers=cols)
 
 
 @cli.command()

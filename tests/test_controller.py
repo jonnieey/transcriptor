@@ -112,10 +112,10 @@ class TestApi:
         assert client.name == "Client"
 
     def test_list_clients(self, dbsession):
-        cols, rows = self.api.list_clients()
-        assert isinstance(cols, tuple)
-        assert isinstance(rows, list)
-        assert len(rows) == 1
+        scalar = self.api.list_clients()
+        assert isinstance(scalar, list)
+        assert isinstance(scalar[0], Row)
+        assert len(scalar) == 1
 
     def test_edit_client(self, dbsession, test_client):
         new_name = "New Client"
