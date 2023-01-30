@@ -1,3 +1,4 @@
+import csv
 import math
 import re
 from datetime import date, datetime, timedelta
@@ -231,5 +232,37 @@ def rel_date(days: int):
     return relative_date
 
 
+class CSVTextBuilder:
+    def __init__(self):
+        self.csv_string = []
+
+    def write(self, row):
+        self.csv_string.append(row)
+
+
+def dict_to_csv(dic):
+    csv_builder = CSVTextBuilder()
+    fieldnames = dic[0].keys()
+
+    writer = csv.DictWriter(csv_builder, fieldnames=fieldnames)
+    writer.writeheader()
+    for row in dic:
+        writer.writerow(row)
+    return "".join(csv_builder.csv_string)
+
+
+def list_of_tuples_to_csv(l):
+    csv_builder = CSVTextBuilder()
+    fieldnames = l[0]
+    writer = csv.writer(csv_builder)
+    writer.writerow(fieldnames)
+
+    for obj in l[1]:
+        writer.writerow(obj)
+
+    return "".join(csv_builder.csv_string)
+
+
 if __name__ == "__main__":
-    print(dts(rel_date(-4), "%Y-%m-%d"))
+    l = (("id", "Name"), [(1, "John"), (2, "Doe")])
+    print(list_of_tuples_to_csv(l))

@@ -7,6 +7,7 @@ from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from transcriptor.database import Base
+from transcriptor.utils import touch
 
 
 class Model(ABC):
@@ -50,6 +51,7 @@ class ConfigModel(Model):
                 self.__dict__.update(obj_dict)
                 return self
         except FileNotFoundError as error:
+            touch([file_path])
             with open(file_path, "w") as fd:
                 self.save(fd)
                 return self

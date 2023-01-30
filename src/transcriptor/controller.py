@@ -175,14 +175,15 @@ class API:
             None
 
         Returns:
-            Tuple of (tuple(Columns), List[tuple(Row)]) .ex. ((id, Name), [(1, John), (2, Doe)])
+            Tuple of (tuple(Columns), List[tuple(Row)]) .ex.
+            (('id', 'name', 'email', 'normal', 'expedite', 'interpreted') [(1, 'Victor Wachai', 'victorwachai@gmail.com', 1, 1, 0.4, 0.6, 0.3)])
         """
 
-        stmt = """SELECT * FROM "Clients" JOIN "Rates" ON "Rates".id = "Clients".rates_id """
+        stmt = """SELECT c.id, c.name, c.email, r.normal, r.expedite, r.interpreted FROM "Clients" c JOIN "Rates" r ON r.id = c.rates_id """
         clients = self.execute_sql(stmt).fetchall()
         if clients:
             cols = clients[0]._asdict()
-            cols.pop("rates_id")
+            # cols.pop("rates_id")
             cols = tuple(cols.keys())
             rows = clients
             return (cols, rows)

@@ -5,7 +5,7 @@ import zipfile
 from datetime import date, datetime, timedelta
 from typing import Any, Callable, Dict
 
-from appdirs import user_data_dir
+from appdirs import user_config_dir, user_data_dir
 from jinja2 import Environment, PackageLoader, select_autoescape
 from sqlalchemy import select
 from weasyprint import HTML
@@ -36,36 +36,47 @@ class Transcriptor(BaseTranscriptor):
         mkdirp([self.base_dir])
         self.api = API(self.base_dir)
 
+        self.profile_file = self.base_dir.joinpath("profile.yml")
+        self.make_profile()
+
         self.clients_dir = self.base_dir.joinpath("clients")
         mkdirp([self.clients_dir])
 
     def make_config(self):
-        DEFAULT_BASE_DIR = user_data_dir(appname="transcriptor3")
+        DEFAULT_BASE_DIR = Path(user_data_dir(appname=APP_NAME))
         DEFAULT_CONFIG = {"date_format": "%Y-%m-%d", "base_dir": f"{DEFAULT_BASE_DIR}"}
+        DEFAULT_CONFIG_DIR = Path(user_config_dir(appname=APP_NAME))
+        self.config_file = DEFAULT_CONFIG_DIR.joinpath("config.yml")
+
         config = self.config_class(**DEFAULT_CONFIG)
+        config.from_file(self.config_file)
+
         env = os.environ.get("TRANS_ENV", "")
         if env:
             config.from_env(env)
         return config
 
-    def get_profile(self) -> object | ProfileModel:
+    def save_config(self):
+        with open(self.config_file, "w") as fd:
+            self.config.save(fd)
+
+    def save_profile(self):
+        with open(self.profile_file, "w") as fd:
+            self.profile.save(fd)
+
+    def make_profile(self):
         """
         Load profile from file.
 
         Returns:
             ProfileModel object
         """
-        PROFILE_FILE = self.base_dir.joinpath("profile.yml")
 
-        if not PROFILE_FILE.exists():
-            touch([PROFILE_FILE])
+        if not self.profile_file.exists():
+            touch([self.profile_file])
 
-        with open(PROFILE_FILE, "r+") as fd:
-            return self.api.load_profile(fd)
-
-    @property
-    def profile(self) -> object | ProfileModel:
-        return self.get_profile()
+        with open(self.profile_file, "r+") as fd:
+            self.profile = self.api.load_profile(fd)
 
     def create_job_dir(
         self, client_name: str, job_num: str, date_r: str, date_due: str
@@ -227,7 +238,7 @@ class Transcriptor(BaseTranscriptor):
             count = fd.readline()
             invoice_counter = 0 if count == "" else int(count)
 
-        profile = self.get_profile().__dict__
+        profile = self.profile.__dict__
         DATE_FMT = self.config.date_format
 
         created = datetime.today()
@@ -268,5 +279,5 @@ class Transcriptor(BaseTranscriptor):
 
 if __name__ == "__main__":
     app = Transcriptor()
+    print(app.config)
     # t(app.select_job_template("zd"))
-    print(app.next_non_existant_file("/home/kamikaze/foo.txt"))

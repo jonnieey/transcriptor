@@ -31,6 +31,7 @@ def create(name, email, **kwargs):
 def list(**kwargs):
     """List all clients"""
     cols, rows = app.api.list_clients()
+    print(cols, rows)
     if all([cols, rows]):
         ConsoleView().vertical_table(cols, rows, headers=cols)
 
