@@ -167,7 +167,7 @@ class API:
         except Exception as error:
             logger.error(error)
 
-    def list_clients(self) -> Tuple[tuple, list[tuple]]:
+    def list_clients(self) -> Sequence[Row[Tuple[ClientModel, RatesModel]]]:
         """
         Get clients in database.
 

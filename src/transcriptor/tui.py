@@ -6,6 +6,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import Button, DataTable, Footer, Header, Input, Static
+from textual.binding import Binding
 
 from transcriptor.base import Transcriptor
 from transcriptor.utils import *
@@ -78,6 +79,17 @@ class SideBar(Vertical):
         )
 
 
+class RightSideBar(Vertical):
+    def compose(self):
+        actions = ["create-invoice"]
+        yield Vertical(
+            *[
+                Button(tc(action), id=f"{action}", classes="client_button")
+                for action in actions
+            ]
+        )
+
+
 class Clients(Container):
     def compose(self):
         table = DataTable()
@@ -91,6 +103,16 @@ class Clients(Container):
             table.add_columns(*[tc(n) for n in next(rows)])
             table.add_rows(rows)
         yield table
+
+
+class GenInvoice(Container):
+    def compose(self):
+        fields = ["date_from", "date_to"]
+        for idx, field in enumerate(fields):
+            yield Static(
+                tc(field), name=f"{field}", id=f"field-{idx}", classes="pop-up"
+            )
+            yield Input(id=f"value-{idx}", classes="pop-up")
 
 
 class Jobs(Container):
@@ -123,7 +145,14 @@ class Jobs(Container):
             rows = csv.reader(io.StringIO(jobs_csv))
             table.add_columns(*[tc(n) for n in next(rows)])
             table.add_rows(rows)
+        # yield Button(label="create_invoice", id="create-invoice")
         yield table
+
+    # def on_button_pressed(self, event):
+    #     button_id = event.button.id
+    #
+    #     assert button_id is not None
+    #
 
 
 class MenuBar(Horizontal):
@@ -140,22 +169,36 @@ class TranscriptorTUI(App):
     CSS_PATH = "layout.css"
 
     BINDINGS = [
-        ("q", "quit", "Quit"),
-        ("ctrl+b", "toggle_sidebar", "Sidebar"),
+        Binding("q", "quit", "Quit"),
+        Binding("ctrl+b", "toggle_sidebar", "Sidebar"),
+        Binding("ctrl+l", "toggle_right_sidebar", "RightSideBar"),
     ]
 
     show_sidebar = reactive(False)
 
     def compose(self):
         yield Container(SideBar(), id="side_bar", classes="-hidden")
+        yield Container(RightSideBar(), id="right_side_bar", classes="-hidden")
         yield Container(MenuBar(), id="menu_bar")
         yield Container(id="body")
         yield Header()
         yield Footer()
 
-    def action_toggle_sidebar(self) -> None:
+    def action_toggle_sidebar(self):
         sidebar = self.query_one("#side_bar")
         self.set_focus(None)
+
+        if sidebar.has_class("-hidden"):
+            sidebar.remove_class("-hidden")
+        else:
+            if sidebar.query("*:focus"):
+                self.screen.set_focus(None)
+            sidebar.add_class("-hidden")
+
+    def action_toggle_right_sidebar(self):
+        sidebar = self.query_one("#right_side_bar")
+        self.set_focus(None)
+
         if sidebar.has_class("-hidden"):
             sidebar.remove_class("-hidden")
         else:
@@ -205,7 +248,6 @@ class TranscriptorTUI(App):
 
         if "client_button" in button_class:
             client_id = button_id.partition("-")[-1]
-            print(client_id)
 
             body = self.query_one("#body")
             for child in body.children:
@@ -214,24 +256,8 @@ class TranscriptorTUI(App):
             jobs = trans_app.api.list_jobs(attributes={"client_id": client_id})
             body.mount(Jobs(jobs))
 
-    #
-    #     if button_id == "profile":
-    #         w = self.query_one("#big")
-    #         for child in w.children:
-    #             child.remove()
-    #         self.query_one(Container).mount(Profile())
-    #         ### Find out how to clear container
-    # # def on_mount(self) -> None:
-    # #     table = self.query_one(DataTable)
-    # #     rows = csv.reader(io.StringIO(dict_to_csv([config.__dict__])))
-    # #     table.add_columns(*next(rows))
-    # #     table.add_rows(rows)
-    #
 
+if __name__ == "__main__":
 
-# if __name__ == "__main__":
-#     # print( dict_to_csv([config.__dict__]))
-#
-# print(dir(Container()))
-app = TranscriptorTUI()
-app.run()
+    app = TranscriptorTUI()
+    app.run()

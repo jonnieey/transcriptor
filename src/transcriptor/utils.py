@@ -279,26 +279,4 @@ def list_of_rows_to_csv(scalar, headers=[], omit=[]):
 
 
 if __name__ == "__main__":
-    from transcriptor.base import Transcriptor
-
-    app = Transcriptor()
-    headers = [
-        "client_id",
-        "date_received",
-        "id",
-        "job_number",
-        "job_type",
-        "status",
-        "date_due",
-        "total_quantity",
-        "quantity",
-        "job_rate",
-        "date_submitted",
-        "amount",
-        "amount_paid",
-        "job_path",
-        "note",
-    ]
-    # headers = ["id", 'name', "email", "normal", "expedite", "interpreted"]
-    jobs = app.api.list_jobs()
-    print(list_of_rows_to_csv(jobs, headers=headers))
+    pass

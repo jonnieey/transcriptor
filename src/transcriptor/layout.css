@@ -1,9 +1,15 @@
+Screen {
+    align: center middle;
+    layers: below above;
+}
+
 #menu_bar {
     dock: top;
     width: 100%;
     height: 9%;
     offset: 0% 20%;
     background: red;
+    layer: below;
 }
 .menu_button {
     width: 1fr;
@@ -11,6 +17,7 @@
     background: red;
     color: white;
     align-vertical: middle;
+    layer: below;
 }
 #side_bar {
     dock: left;
@@ -18,18 +25,46 @@
     width: 12%;
     offset: 0% 16%;
     height: 85%;
+    display: block;
+    layer: below;
 }
 
 #side_bar.-hidden {
-    offset-x: -100%;
+    /* offset-x: -100%; */
+    display: none;
+}
+#right_side_bar {
+    dock: right;
+    background: black;
+    width: 12%;
+    offset: 0% 16%;
+    height: 85%;
+    display: block;
+    layer: below;
+}
+
+#right_side_bar.-hidden {
+    display: none;
 }
 
 .client_button {
     width: 95%;
     background: red;
+    layer: below;
 
 }
 #body {
     background: dodgerblue;
     offset: 0% 5%;
+    layer: below;
+}
+
+#invoice-layer {
+    layer: above;
+    background: darkcyan;
+    layer: above;
+}
+.pop-up {
+    background: darkcyan;
+    layer: above;
 }
