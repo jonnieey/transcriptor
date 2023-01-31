@@ -1,0 +1,3 @@
+include src/transcriptor/commands/*
+include src/transcriptor/templates/*
+include src/transcriptor/invoice_templates/*
