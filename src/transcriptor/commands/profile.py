@@ -9,7 +9,6 @@ app = Transcriptor()
 @click.group()
 def cli(**kwargs):
     """Profile actions."""
-    pass
 
 
 @cli.command()

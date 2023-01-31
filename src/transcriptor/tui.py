@@ -1,12 +1,11 @@
 import csv
 import io
-import json
 
-from textual.app import App, ComposeResult
+from textual.app import App
+from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import Button, DataTable, Footer, Header, Input, Static
-from textual.binding import Binding
 
 from transcriptor.base import Transcriptor
 from transcriptor.utils import *

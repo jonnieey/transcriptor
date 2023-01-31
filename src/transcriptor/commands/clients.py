@@ -13,7 +13,6 @@ app = Transcriptor()
 @click.group()
 def cli(**kwargs):
     """Clients actions."""
-    pass
 
 
 @cli.command()

@@ -1,14 +1,11 @@
-import copy
-import json
 import shutil
-import uuid
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
 
 import pytest
 import yaml
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.engine.row import Row
 
 from transcriptor.controller import API

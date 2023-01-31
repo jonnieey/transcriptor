@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import IO, Any, List, Sequence, Tuple
 
 import yaml
-from jinja2 import Environment, PackageLoader
 from sqlalchemy import select, text
 from sqlalchemy.engine.row import Row
 from sqlalchemy.orm import Session
@@ -179,16 +178,6 @@ class API:
             (('id', 'name', 'email', 'normal', 'expedite', 'interpreted') [(1, 'Victor Wachai', 'victorwachai@gmail.com', 1, 1, 0.4, 0.6, 0.3)])
         """
 
-        # stmt = """SELECT c.id, c.name, c.email, r.normal, r.expedite, r.interpreted FROM "Clients" c JOIN "Rates" r ON r.id = c.rates_id """
-        # clients = self.execute_sql(stmt).fetchall()
-        # if clients:
-        #     cols = clients[0]._asdict()
-        #     # cols.pop("rates_id")
-        #     cols = tuple(cols.keys())
-        #     rows = clients
-        #     return (cols, rows)
-        #
-        # return ((), [])
         stmt = select(ClientModel, RatesModel).join(RatesModel)
 
         with self.session as session:

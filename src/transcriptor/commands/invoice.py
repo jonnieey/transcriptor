@@ -4,9 +4,6 @@ from datetime import date
 import click
 
 from transcriptor.base import Transcriptor
-from transcriptor.models import ClientModel, RatesModel
-from transcriptor.utils import *
-from transcriptor.view import ConsoleView
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +16,6 @@ TODAY = date.today().strftime(DATE_FMT)
 @click.group()
 def cli(**kwargs):
     """Invoice actions."""
-    pass
 
 
 @cli.command()

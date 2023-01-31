@@ -30,7 +30,7 @@ class Transcriptor(BaseTranscriptor):
     config_class = ConfigModel
 
     def __init__(self, config: ConfigModel = None):
-        self.config = self.make_config()
+        self.config = config if config is not None else self.make_config()
 
         self.base_dir = Path(self.config.base_dir)
         mkdirp([self.base_dir])

@@ -1,7 +1,6 @@
-import json
 import uuid
 from collections.abc import Iterable
-from io import BytesIO, StringIO
+from io import StringIO
 from pathlib import Path
 
 import pytest

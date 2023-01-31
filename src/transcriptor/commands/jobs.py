@@ -24,7 +24,6 @@ def due_date_cb() -> str:
 @click.group()
 def cli(**kwargs):
     """Job actions."""
-    pass
 
 
 @cli.command()
