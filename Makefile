@@ -10,7 +10,7 @@ help:  ## Print this help.
 all: lint tests checks
 
 .PHONY: lint
-lint: lint-black lint-isort  ## Run linting tools on the code.
+lint: lint-black lint-isort lint-flake  ## Run linting tools on the code.
 
 .PHONY: lint-black
 lint-black:  ## Lint the code using black.
@@ -19,6 +19,10 @@ lint-black:  ## Lint the code using black.
 .PHONY: lint-isort
 lint-isort:  ## Sort the imports using isort.
 	python -m isort $(PY_SRC)
+
+.PHONY: lint-flake
+lint-flake:
+	python -m  autoflake -ir --exclude tests/fixtures --remove-all-unused-imports $(PY_SRC)
 
 .PHONY: tests
 tests: run-tests clean-tests
