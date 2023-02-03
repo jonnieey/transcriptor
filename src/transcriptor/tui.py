@@ -256,7 +256,10 @@ class TranscriptorTUI(App):
             body.mount(Jobs(jobs))
 
 
-if __name__ == "__main__":
-
+def main():
     app = TranscriptorTUI()
     app.run()
+
+
+if __name__ == "__main__":
+    main()
