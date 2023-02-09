@@ -121,8 +121,8 @@ class Transcriptor(BaseTranscriptor):
         if zipfile.is_zipfile(moved_file):
             zipfile.ZipFile(moved_file).extractall(job_dir)
 
-    def add_client(self, name: str, email: str) -> None:
-        new_client = self.api.create_client(name, email)
+    def add_client(self, name: str, email: str, rates: dict) -> None:
+        new_client = self.api.create_client(name, email, rates)
         self.api.save_client(new_client)
         CLIENT_DIR = self.base_dir.joinpath("clients").joinpath(sc(name))
         mkdirp([CLIENT_DIR])

@@ -12,6 +12,20 @@ from transcriptor.utils import *
 
 trans_app = Transcriptor()
 
+def parse_form(query_keys, query_values):
+        return_value = {}
+        for query_key in query_keys:
+            for query_value in query_values:
+                if (
+                    query_key.id.partition("-")[-1]
+                    == query_value.id.partition("-")[-1]
+                ):
+                    return_value[query_key.name] = query_value.value
+                    break
+        return return_value
+
+def remove_children(query):
+    [child.remove() for child in query.children]
 
 class Configs(Container):
     def compose(self):
@@ -27,15 +41,8 @@ class Configs(Container):
         if button_id == "save_config_button":
             query_keys = self.query(Static)
             query_values = self.query(Input)
-
-            for query_key in query_keys:
-                for query_value in query_values:
-                    if (
-                        query_key.id.partition("-")[-1]
-                        == query_value.id.partition("-")[-1]
-                    ):
-                        trans_app.config.__dict__[query_key.name] = query_value.value
-                        break
+            update_dict = parse_form(query_keys, query_values)
+            trans_app.config.__dict__.update(update_dict)
             trans_app.save_config()
 
 
@@ -53,15 +60,8 @@ class Profiles(Container):
         if button_id == "save_profile_button":
             query_keys = self.query(Static)
             query_values = self.query(Input)
-
-            for query_key in query_keys:
-                for query_value in query_values:
-                    if (
-                        query_key.id.partition("-")[-1]
-                        == query_value.id.partition("-")[-1]
-                    ):
-                        trans_app.profile.__dict__[query_key.name] = query_value.value
-                        break
+            update_dict = parse_form(query_keys, query_values)
+            trans_app.profile.__dict__.update(update_dict)
             trans_app.save_profile()
 
 
@@ -103,6 +103,33 @@ class Clients(Container):
             table.add_rows(rows)
         yield table
 
+class AddClient(Container):
+    def compose(self):
+        fields = ["Name", "Email"]
+        rates = {"Normal": "0.4", "Expedite": "0.6", "Interpreted": "0.3"}
+
+        for idx, field in enumerate(fields):
+            yield Static(
+                tc(field), name=f"{field}-static", id=f"{field}-static", classes="pop-up"
+            )
+            yield Input(name=f"{field}", id=f"{field}-value", classes="pop-up")
+        #
+        yield Horizontal(
+                *[ Vertical( Static(name=f"{rate}-static", classes="pop-up"),
+                        Input(name=f"{rate}", value=rates[rate], id=f"{rate}-value", classes='pop-up'),
+                    classes="column"
+                ) for rate in rates]
+            )
+        yield Horizontal(Button("Add", id="add_client_button"))
+
+
+class ClientActions(Container):
+    def compose(self):
+        actions = ["Add Job", "Create Invoice"]
+
+        yield Horizontal(
+            *[ Button(label=f"{action}", id=f"{action}", classes="footer_button") for action in actions]
+        )
 
 class GenInvoice(Container):
     def compose(self):
@@ -115,9 +142,9 @@ class GenInvoice(Container):
 
 
 class Jobs(Container):
-    def __init__(self, jobs_scalar):
+    def __init__(self, jobs_scalar=None):
         super().__init__()
-        self.jobs_scalar = jobs_scalar
+        self.jobs_scalar = jobs_scalar if jobs_scalar is not None else trans_app.api.list_jobs()
 
     def compose(self):
         table = DataTable()
@@ -144,23 +171,21 @@ class Jobs(Container):
             rows = csv.reader(io.StringIO(jobs_csv))
             table.add_columns(*[tc(n) for n in next(rows)])
             table.add_rows(rows)
-        # yield Button(label="create_invoice", id="create-invoice")
         yield table
-
-    # def on_button_pressed(self, event):
-    #     button_id = event.button.id
-    #
-    #     assert button_id is not None
-    #
 
 
 class MenuBar(Horizontal):
     def compose(self):
+        fields = ["config", "profile", "clients", "jobs"]
         yield Horizontal(
-            Button(label="config", id="config", classes="menu_button"),
-            Button("profile", id="profile", classes="menu_button"),
-            Button("clients", id="clients", classes="menu_button"),
-            Button("jobs", id="jobs", classes="menu_button"),
+            *[Button(f"{field}", id=f"{field}", classes="menu_button") for field in fields]
+        )
+
+class FooterBar(Horizontal):
+    def compose(self):
+        yield Horizontal(
+            Button(label="Add Client", id="add_client", classes="footer_button"),
+            Button("Delete Client", id="del_client", classes="footer_button"),
         )
 
 
@@ -175,11 +200,13 @@ class TranscriptorTUI(App):
 
     show_sidebar = reactive(False)
 
+    
     def compose(self):
         yield Container(SideBar(), id="side_bar", classes="-hidden")
         yield Container(RightSideBar(), id="right_side_bar", classes="-hidden")
         yield Container(MenuBar(), id="menu_bar")
         yield Container(id="body")
+        yield Container(FooterBar(), id="footer_bar")
         yield Header()
         yield Footer()
 
@@ -205,55 +232,56 @@ class TranscriptorTUI(App):
                 self.screen.set_focus(None)
             sidebar.add_class("-hidden")
 
-    # def compose(self) -> ComposeResult:
-    #     yield Horizontal(
-    #             Vertical(Button(label="config", id="config"), classes="column"),
-    #             Vertical(Button("profile", id="profile"), classes="column"),
-    #             Vertical(Button("clients", id="clients"), classes="column"),
-    #             Vertical(Button("jobs", id="jobs"), classes="column"),
-    #             classes="title_bar")
-    #     yield Container(Config(), id="big")
-    #
     def on_button_pressed(self, event):
         button_id = event.button.id
         button_class = event.button.classes
         assert button_id is not None
         #
-        if button_id == "config":
-            body = self.query_one("#body")
-            for child in body.children:
-                child.remove()
-            body.mount(Configs())
+        button_mapping = {
+                "config": Configs,
+                "profile": Profiles,
+                "clients": Clients,
+                "jobs": Jobs
+            }
 
-        elif button_id == "profile":
+        if button_id in ["config", "profile", "clients", "jobs"]:
             body = self.query_one("#body")
-            for child in body.children:
-                child.remove()
-            body.mount(Profiles())
-
-        elif button_id == "clients":
-            body = self.query_one("#body")
-            for child in body.children:
-                child.remove()
-            body.mount(Clients())
-
-        elif button_id == "jobs":
-            body = self.query_one("#body")
-            for child in body.children:
-                child.remove()
-
-            jobs = trans_app.api.list_jobs()
-            body.mount(Jobs(jobs))
+            footer_bar = self.query_one("#footer_bar")
+            remove_children(body)
+            body.mount(button_mapping[button_id]())
+            remove_children(footer_bar)
+            footer_bar.mount(FooterBar())
 
         if "client_button" in button_class:
             client_id = button_id.partition("-")[-1]
 
             body = self.query_one("#body")
-            for child in body.children:
-                child.remove()
-
+            footer_bar = self.query_one("#footer_bar")
+            remove_children(body)
+            remove_children(footer_bar)
             jobs = trans_app.api.list_jobs(attributes={"client_id": client_id})
             body.mount(Jobs(jobs))
+            footer_bar.mount(ClientActions())
+            # body.mount(ClientActions())
+        if button_id in ["add_client"]:
+            body = self.query_one("#body")
+            remove_children(body)
+            body.mount(AddClient())
+
+        if button_id == "add_client_button":
+            query_keys = self.query(Static)
+            query_values = self.query(Input)
+
+            client_dict = {"rates": {}}
+            for query_value in query_values:
+                if query_value.name in ["Normal", "Expedite", "Interpreted"]:
+                    client_dict['rates'].update({query_value.name.lower():query_value.value})
+                else:
+                    client_dict.update({query_value.name.lower():query_value.value})
+            # trans_app.add_client(**client_dict)
+            body = self.query_one("#body")
+            remove_children(body)
+            body.mount(Clients())
 
 
 def main():

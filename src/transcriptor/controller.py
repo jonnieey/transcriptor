@@ -146,7 +146,7 @@ class API:
             ClientModel object
         """
 
-        logger.info(f'Creating client "{name}"')
+        # logger.info(f'Creating client "{name}"')
         rate_obj = RatesModel(**rates)
         client = ClientModel(name=name, email=email, rates=rate_obj)
         return client
