@@ -54,6 +54,8 @@ sc = lambda s: convert_case(s, " ", "_")
 nc = lambda s: convert_case(s, "_", " ")
 kc = lambda s: convert_case(s, " ", "-")
 tc = lambda s: nc(s).title()
+ks = lambda s: convert_case(s, "-", "_")
+sk = lambda s: convert_case(s, "_", "-")
 
 
 def parse_job_number(file: str) -> str:

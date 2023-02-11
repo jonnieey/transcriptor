@@ -186,7 +186,11 @@ class API:
         return scalars
 
     def edit_client(
-        self, client_name: str, new_name: str, new_email: str, new_rates: tuple
+        self,
+        client_name: str,
+        new_name: str = "",
+        new_email: str = "",
+        new_rates: tuple = (),
     ) -> None:
         """
         Edit client attributes.
