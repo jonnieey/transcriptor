@@ -8,6 +8,7 @@ from typing import Match, Optional, Pattern
 
 from audioread import audio_open
 from magic import from_file
+from prompt_toolkit.validation import Validator
 
 
 def touch(file_paths: list[Path | str]) -> None:
@@ -280,5 +281,74 @@ def list_of_rows_to_csv(scalar, headers=[], omit=[]):
     return dict_to_csv(m)
 
 
-if __name__ == "__main__":
-    pass
+def is_valid_email(text):
+    match = re.match(r"^(\w|\.|\_|\-)+[@](\w|\_|\-|\.)+[.]\w{2,3}$", text)
+    return all([match])
+
+
+def is_valid_string(text):
+    text = text.strip()
+    return all(
+        [
+            len(text) > 1,
+            text is not None,
+            text != "",
+        ]
+    )
+
+
+def is_valid_float(text):
+    match = re.match(r"^[-+]?[0-9]*\.?[0-9]+$", text)
+    return all([match])
+
+
+def is_valid_yes_no(text):
+    return text.strip().lower() in ["yes", "y", "no", "n"]
+
+
+def is_in_choices(text, choices):
+    return text.strip() in choices
+
+
+def is_work_choices(text):
+    return is_in_choices(text, ["Normal", "Interpreted", "Expedite"])
+
+
+def is_template_choices(text):
+    return is_in_choices(text, ["nd", "nh", "ne", "zd", "zh", "ze", "zdi", "tt", "me"])
+
+
+def is_valid_file(text):
+    path = Path(text)
+    return all([path.exists(), not path.is_dir()])
+
+
+def is_valid_date(text):
+    match = re.match(r"([0-9]{2}[/-]){2}[0-9]{4}", text)
+    return all([match])
+
+
+def is_gt_0(text):
+    if text != "":
+        return (int(text)) > 0
+
+
+def MyValidator(func, error_mesage, mve=True):
+    return Validator.from_callable(func, error_mesage, move_cursor_to_end=mve)
+
+
+name_validator = MyValidator(is_valid_string, "Invalid name")
+email_validator = MyValidator(is_valid_email, "Invalid email")
+float_validator = MyValidator(is_valid_float, "Invalid rate")
+job_file_validator = MyValidator(is_valid_file, "File does not exist")
+yes_no_validator = MyValidator(
+    is_valid_yes_no, "Invalid input, expects [Y, Yes, N, No]"
+)
+work_validator = MyValidator(
+    is_work_choices, "Valid choices [Normal, Interpreted, Expedite]"
+)
+template_type_validator = MyValidator(
+    is_template_choices, "Valid choices [nd, nh, ne, zd, zh, ze, zdi, tt, me]"
+)
+date_validator = MyValidator(is_valid_date, "Invalid date")
+gt0_validator = MyValidator(is_gt_0, "Is less than 0")

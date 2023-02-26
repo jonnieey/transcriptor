@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 from pathlib import Path
 from typing import IO, Any, List, Sequence, Tuple
 
@@ -166,7 +167,9 @@ class API:
         except Exception as error:
             logger.error(error)
 
-    def list_clients(self) -> Sequence[Row[Tuple[ClientModel, RatesModel]]]:
+    def list_clients(
+        self, client_id: str = ""
+    ) -> Sequence[Row[Tuple[ClientModel, RatesModel]]]:
         """
         Get clients in database.
 
@@ -178,60 +181,69 @@ class API:
             (('id', 'name', 'email', 'normal', 'expedite', 'interpreted') [(1, 'Victor Wachai', 'victorwachai@gmail.com', 1, 1, 0.4, 0.6, 0.3)])
         """
 
-        stmt = select(ClientModel, RatesModel).join(RatesModel)
+        if client_id == "":
+            stmt = select(ClientModel, RatesModel).join(RatesModel)
+        else:
+            stmt = (
+                select(ClientModel, RatesModel)
+                .filter(ClientModel.id == client_id)
+                .join(RatesModel)
+            )
 
         with self.session as session:
-            scalars = session.execute(stmt).fetchall()
+            scalars = session.execute(stmt).all()
 
         return scalars
 
     def edit_client(
         self,
-        client_name: str,
-        new_name: str = "",
-        new_email: str = "",
-        new_rates: tuple = (),
+        client_id: str,
+        name: str = "",
+        email: str = "",
+        rates: tuple = (),
     ) -> None:
         """
         Edit client attributes.
 
         Arguments:
             client_name: Name of client to modify/edit.
-            new_name: Client's new name
-            new_email: Clients new email
-            new_rates: Clients new rates. tuple. ex. (0.40, 0.60, 0.30)
+            name: Client's new name
+            email: Clients new email
+            rates: Clients new rates. tuple. ex. (0.40, 0.60, 0.30)
         """
         with self.session as session:
             scalars = session.execute(
                 select(ClientModel, RatesModel)
-                .filter(ClientModel.name.like(f"%{client_name}%"))
+                .filter(ClientModel.id == client_id)
                 .join(RatesModel)
             ).all()
             if scalars:
                 client_model = scalars[0]._asdict()["ClientModel"]
                 rates_model = scalars[0]._asdict()["RatesModel"]
-                if new_rates:
-                    normal, expedite, interpreted = new_rates
-                    rates_model.normal = normal
-                    rates_model.expedite = expedite
-                    rates_model.interpreted = interpreted
-                if new_name:
+                if rates:
+                    if "normal" in rates:
+                        rates_model.normal = rates["normal"]
+                    if "expedite" in rates:
+                        rates_model.expedite = rates["expedite"]
+                    if "interpreted" in rates:
+                        rates_model.interpreted = rates["interpreted"]
+                if name:
                     # TODO move client's folder to match new name
-                    client_model.name = new_name
-                if new_email:
-                    client_model.email = new_email
+                    client_model.name = name
+                if email:
+                    client_model.email = email
                 session.commit()
 
-    def delete_client(self, client_name) -> None:
+    def delete_client(self, client_id) -> None:
         """
         Delete client from database.
 
         Arguments:
-            client_name: Name of client to delete.
+            client_id: client id to delete.
         """
         with self.session as session:
             c = session.execute(
-                select(ClientModel).filter_by(name=f"{client_name}")
+                select(ClientModel).filter_by(id=f"{client_id}")
             ).scalar_one()
             session.delete(c)
             session.commit()
@@ -319,6 +331,12 @@ class API:
 
         return scalars
 
+    def get_job(self, job_id):
+        stmt = select(JobModel).filter(JobModel.id == job_id)
+        with self.session as session:
+            scalars = session.execute(stmt).fetchone()
+        return [scalars]
+
     def edit_job(self, **kwargs) -> None:
         """
         Edit job attributes.
@@ -334,7 +352,7 @@ class API:
             scalars = session.execute(stmt).all()
             jobs_model = scalars[0]._asdict()["JobModel"]
 
-            if kwargs["client_id"]:
+            if kwargs.get("client_id", ""):
                 stmt2 = (
                     select(ClientModel, RatesModel)
                     .join(RatesModel)
@@ -356,19 +374,19 @@ class API:
                 new_dict["job_rate"] = kwargs["job_rate"]
                 new_dict["quantity"] = kwargs["quantity"]
                 new_dict["amount"] = truncate(
-                    kwargs["job_rate"] * kwargs["quantity"], 2
+                    Decimal(kwargs["job_rate"]) * Decimal(kwargs["quantity"]), 2
                 )
 
             elif kwargs.get("job_rate", ""):
                 new_dict["job_rate"] = kwargs["job_rate"]
                 new_dict["amount"] = truncate(
-                    kwargs["job_rate"] * jobs_model.quantity, 2
+                    Decimal(kwargs["job_rate"]) * Decimal(jobs_model.quantity), 2
                 )
 
             elif kwargs.get("quantity", ""):
                 new_dict["quantity"] = kwargs["quantity"]
                 new_dict["amount"] = truncate(
-                    kwargs["quantity"] * jobs_model.job_rate, 2
+                    Decimal(kwargs["quantity"]) * Decimal(jobs_model.job_rate), 2
                 )
 
             for k, v in new_dict.items():

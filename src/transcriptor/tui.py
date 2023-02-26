@@ -12,20 +12,20 @@ from transcriptor.utils import *
 
 trans_app = Transcriptor()
 
+
 def parse_form(query_keys, query_values):
-        return_value = {}
-        for query_key in query_keys:
-            for query_value in query_values:
-                if (
-                    query_key.id.partition("-")[-1]
-                    == query_value.id.partition("-")[-1]
-                ):
-                    return_value[query_key.name] = query_value.value
-                    break
-        return return_value
+    return_value = {}
+    for query_key in query_keys:
+        for query_value in query_values:
+            if query_key.id.partition("-")[-1] == query_value.id.partition("-")[-1]:
+                return_value[query_key.name] = query_value.value
+                break
+    return return_value
+
 
 def remove_children(query):
     [child.remove() for child in query.children]
+
 
 class Configs(Container):
     def compose(self):
@@ -103,6 +103,7 @@ class Clients(Container):
             table.add_rows(rows)
         yield table
 
+
 class AddClient(Container):
     def compose(self):
         fields = ["Name", "Email"]
@@ -110,16 +111,28 @@ class AddClient(Container):
 
         for idx, field in enumerate(fields):
             yield Static(
-                tc(field), name=f"{field}-static", id=f"{field}-static", classes="pop-up"
+                tc(field),
+                name=f"{field}-static",
+                id=f"{field}-static",
+                classes="pop-up",
             )
             yield Input(name=f"{field}", id=f"{field}-value", classes="pop-up")
         #
         yield Horizontal(
-                *[ Vertical( Static(name=f"{rate}-static", classes="pop-up"),
-                        Input(name=f"{rate}", value=rates[rate], id=f"{rate}-value", classes='pop-up'),
-                    classes="column"
-                ) for rate in rates]
-            )
+            *[
+                Vertical(
+                    Static(name=f"{rate}-static", classes="pop-up"),
+                    Input(
+                        name=f"{rate}",
+                        value=rates[rate],
+                        id=f"{rate}-value",
+                        classes="pop-up",
+                    ),
+                    classes="column",
+                )
+                for rate in rates
+            ]
+        )
         yield Horizontal(Button("Add", id="add_client_button"))
 
 
@@ -128,8 +141,12 @@ class ClientActions(Container):
         actions = ["Add Job", "Create Invoice"]
 
         yield Horizontal(
-            *[ Button(label=f"{action}", id=f"{action}", classes="footer_button") for action in actions]
+            *[
+                Button(label=f"{action}", id=f"{action}", classes="footer_button")
+                for action in actions
+            ]
         )
+
 
 class GenInvoice(Container):
     def compose(self):
@@ -144,7 +161,9 @@ class GenInvoice(Container):
 class Jobs(Container):
     def __init__(self, jobs_scalar=None):
         super().__init__()
-        self.jobs_scalar = jobs_scalar if jobs_scalar is not None else trans_app.api.list_jobs()
+        self.jobs_scalar = (
+            jobs_scalar if jobs_scalar is not None else trans_app.api.list_jobs()
+        )
 
     def compose(self):
         table = DataTable()
@@ -178,8 +197,12 @@ class MenuBar(Horizontal):
     def compose(self):
         fields = ["config", "profile", "clients", "jobs"]
         yield Horizontal(
-            *[Button(f"{field}", id=f"{field}", classes="menu_button") for field in fields]
+            *[
+                Button(f"{field}", id=f"{field}", classes="menu_button")
+                for field in fields
+            ]
         )
+
 
 class FooterBar(Horizontal):
     def compose(self):
@@ -200,7 +223,6 @@ class TranscriptorTUI(App):
 
     show_sidebar = reactive(False)
 
-    
     def compose(self):
         yield Container(SideBar(), id="side_bar", classes="-hidden")
         yield Container(RightSideBar(), id="right_side_bar", classes="-hidden")
@@ -238,11 +260,11 @@ class TranscriptorTUI(App):
         assert button_id is not None
         #
         button_mapping = {
-                "config": Configs,
-                "profile": Profiles,
-                "clients": Clients,
-                "jobs": Jobs
-            }
+            "config": Configs,
+            "profile": Profiles,
+            "clients": Clients,
+            "jobs": Jobs,
+        }
 
         if button_id in ["config", "profile", "clients", "jobs"]:
             body = self.query_one("#body")
@@ -275,9 +297,11 @@ class TranscriptorTUI(App):
             client_dict = {"rates": {}}
             for query_value in query_values:
                 if query_value.name in ["Normal", "Expedite", "Interpreted"]:
-                    client_dict['rates'].update({query_value.name.lower():query_value.value})
+                    client_dict["rates"].update(
+                        {query_value.name.lower(): query_value.value}
+                    )
                 else:
-                    client_dict.update({query_value.name.lower():query_value.value})
+                    client_dict.update({query_value.name.lower(): query_value.value})
             # trans_app.add_client(**client_dict)
             body = self.query_one("#body")
             remove_children(body)

@@ -1,9 +1,16 @@
 import cmd
+import json
+import os
 import shlex
 import textwrap
+from pathlib import Path
+
+from prompt_toolkit import prompt
+from prompt_toolkit.validation import Validator
 
 from transcriptor.base import Transcriptor
-from transcriptor.utils import ks
+from transcriptor.models import ClientModel, RatesModel
+from transcriptor.utils import *
 from transcriptor.view import ConsoleView
 
 app = Transcriptor()
@@ -28,6 +35,10 @@ class TranscriptorCMD(cmd.Cmd):
         """Exit"""
         return True
 
+    def do_clear(self, arg):
+        """Clear screen"""
+        os.system("clear")
+
     def precmd(self, arg):
         """Capture help commands and parse method docstring using textwrap"""
 
@@ -46,19 +57,48 @@ class TranscriptorCMD(cmd.Cmd):
 
     def config_show(self, arg):
         """
-        Configuration actions
+        Show configuration
+        Ex.
+           show config
         """
         config = app.config
         cols, rows = (config.cols(), config.rows())
         ConsoleView().vertical_table(cols, rows)
 
     def profile_show(self, arg):
+        """
+        Show profile
+        Ex.
+           show profile
+        """
         profile = app.profile
         if profile:
             cols, rows = (profile.cols(), profile.rows())
             ConsoleView().vertical_table(cols, rows)
 
+    def clients_show(self, argv):
+        """
+        Show clients
+        Ex.
+            show clients
+            show clients 1
+        """
+        cols = ["id", "name", "email", "normal", "expedite", "interpreted"]
+        if len(argv) > 1:
+            scalars = app.api.list_clients(argv[1])
+        else:
+            scalars = app.api.list_clients()
+
+        if scalars:
+            ConsoleView().vertical_table(cols, scalars, headers=cols)
+
     def jobs_show(self, arg):
+        """
+        List jobs
+        Ex.
+            show jobs
+        """
+        # TODO Filter jobs with app.api.list_jobs(attributes={})
         jobs = app.api.list_jobs()
         total_amount, total_amount_paid = app.api.get_jobs_scalars_total(jobs)
         total_dict = {
@@ -67,18 +107,13 @@ class TranscriptorCMD(cmd.Cmd):
         }
         ConsoleView().print_job_table(jobs, **total_dict)
 
-    def clients_show(self, arg):
-        cols = ["id", "name", "email", "normal", "expedite", "interpreted"]
-        scalars = app.api.list_clients()
-        if scalars:
-            ConsoleView().vertical_table(cols, scalars, headers=cols)
-
     def do_show(self, arg):
         """
         Show objects
             Ex:
             >> show profile
             >> show jobs
+            >> show config
         """
         if arg:
             argv = shlex.split(arg)
@@ -86,7 +121,29 @@ class TranscriptorCMD(cmd.Cmd):
             eval(f"self.{klass}_show({argv})")
 
     def yaml_update(self, argv, fields, obj):
-        argc = len(argv)
+        update_dict = {}
+        invalid_fields = []
+
+        dict_start = argv.find("{")
+        dict_end = argv.rfind("}")
+
+        if dict_start != -1 and dict_end != -1:
+            dict_str = argv[dict_start : dict_end + 1]
+
+            try:
+                raw_dict = json.loads(dict_str)
+                new_dict = {ks(k): v for k, v in raw_dict.items() if k in fields}
+                update_dict.update(new_dict)
+                obj.__dict__.update(update_dict)
+
+            except (AttributeError, ValueError, json.decoder.JSONDecodeError) as e:
+                print("Invalid dict representation")
+                print(e)
+
+            finally:
+                return
+
+        argv = shlex.split(argv)
         update_values = argv[1:]
 
         if len(update_values) % 2 != 0 or len(update_values) == 0:
@@ -95,8 +152,6 @@ class TranscriptorCMD(cmd.Cmd):
 
         it = iter(update_values)
         args_dict = dict(zip(it, it))
-        update_dict = {}
-        invalid_fields = []
 
         for k, v in args_dict.items():
             if k not in fields:
@@ -122,19 +177,111 @@ class TranscriptorCMD(cmd.Cmd):
 
     def client_update(self, argv):
         # update client <client-id> <attr> <attr-value> <attr> <attr-value>
-        fields = ["new-name", "new-email", "new-rates"]
+        fields = ["name", "email", "rates"]
+        update_dict = {}
 
-        argc = len(argv)
+        try:
+            client_id = shlex.split(argv)[1]
+            isinstance(int(client_id), int)
+            update_dict["client_id"] = client_id
+        except ValueError:
+            print("Invalid client id, expects a number")
+            return
 
-        # TODO Update controller.edit_client to use client-id
-        # try:
-        #     isinstance(int(argv[1]), int)
-        # client_id = argv[1]
-        client_name = argv[1]
-        # except ValueError:
-        #     print("Invalid client id, expects a number")
-        #     return
+        dict_start = argv.find("{")
+        dict_end = argv.rfind("}")
 
+        if dict_start != -1 and dict_end != -1:
+            dict_str = argv[dict_start : dict_end + 1]
+
+            try:
+                raw_dict = json.loads(dict_str)
+                new_dict = {ks(k): v for k, v in raw_dict.items() if k in fields}
+                update_dict.update(new_dict)
+                app.api.edit_client(**update_dict)
+
+            except (AttributeError, ValueError, json.decoder.JSONDecodeError) as e:
+                print("Invalid dict representation")
+                print(e)
+
+            finally:
+                return
+        else:
+
+            argv = shlex.split(argv)
+            update_values = argv[2:]
+
+            if len(update_values) % 2 != 0 or len(update_values) == 0:
+                print("Not enough args and values")
+                return
+
+            it = iter(update_values)
+            args_dict = dict(zip(it, it))
+            invalid_fields = []
+
+            for k, v in args_dict.items():
+                if k not in fields:
+                    invalid_fields.append(k)
+
+                if v.strip().startswith("[") and v.strip().endswith("]"):
+                    try:
+                        update_dict[ks(k)] = json.loads(v)
+                    except json.decoder.JSONDecodeError:
+                        print("Cannot convert to python object")
+                        continue
+                else:
+                    update_dict[ks(k)] = v
+
+            if invalid_fields != []:
+                print(f"Invalid attributes:  {', '.join(invalid_fields)}")
+
+            app.api.edit_client(**update_dict)
+
+    def job_update(self, argv):
+        # update job <job-id> <attr> <attr-value> <attr> <attr-value>
+        fields = [
+            "client-id",
+            "date-received",
+            "job-number",
+            "job-type",
+            "status",
+            "date-due",
+            "quantity",
+            "job-rate",
+            "date-submitted",
+            "amount-paid",
+            "note",
+        ]
+        update_dict = {}
+
+        try:
+            job_id = shlex.split(argv)[1]
+            isinstance(int(job_id), int)
+            update_dict["job_id"] = job_id
+        except ValueError:
+            print("Invalid job id, expects a number")
+            return
+
+        dict_start = argv.find("{")
+        dict_end = argv.rfind("}")
+
+        if dict_start != -1 and dict_end != -1:
+            dict_str = argv[dict_start : dict_end + 1]
+
+            try:
+                raw_dict = json.loads(dict_str)
+                new_dict = {ks(k): v for k, v in raw_dict.items() if k in fields}
+                update_dict.update(new_dict)
+                app.api.edit_job(**update_dict)
+
+            except (AttributeError, ValueError, json.decoder.JSONDecodeError) as e:
+                print("Invalid dict representation")
+                print(e)
+
+            finally:
+                return
+
+        argv = shlex.split(argv)
         update_values = argv[2:]
 
         if len(update_values) % 2 != 0 or len(update_values) == 0:
@@ -143,21 +290,25 @@ class TranscriptorCMD(cmd.Cmd):
 
         it = iter(update_values)
         args_dict = dict(zip(it, it))
-        update_dict = {}
         invalid_fields = []
 
         for k, v in args_dict.items():
             if k not in fields:
                 invalid_fields.append(k)
+
+            if v.strip().startswith("[") and v.strip().endswith("]"):
+                try:
+                    update_dict[ks(k)] = json.loads(v)
+                except json.decoder.JSONDecodeError:
+                    print("Cannot convert to python object")
+                    continue
             else:
                 update_dict[ks(k)] = v
 
         if invalid_fields != []:
             print(f"Invalid attributes:  {', '.join(invalid_fields)}")
 
-        update_dict["client_name"] = client_name
-
-        app.api.edit_client(**update_dict)
+        app.api.edit_job(**update_dict)
 
     def do_update(self, arg):
         """
@@ -169,7 +320,174 @@ class TranscriptorCMD(cmd.Cmd):
         if arg:
             argv = shlex.split(arg)
             klass = argv[0]
-            eval(f"self.{klass}_update({argv})")
+            eval(f"self.{klass}_update({'arg'})")
+
+    def client_add(self, args):
+        # name, email, rates
+        name = prompt(
+            "Enter Client's name: ",
+            validator=name_validator,
+            validate_while_typing=True,
+        )
+
+        email = prompt(
+            "Enter client's email: ",
+            validator=email_validator,
+            validate_while_typing=True,
+        )
+
+        print("Rates:")
+
+        rates = {
+            "normal": float(
+                prompt("    Normal: ", default="0.40", validator=float_validator)
+            ),
+            "expedite": float(
+                prompt("    Expedite: ", default="0.60", validator=float_validator)
+            ),
+            "interpreted": float(
+                prompt("    Interpreted: ", default="0.30", validator=float_validator)
+            ),
+        }
+
+        app.add_client(name, email, rates)
+
+    def job_add(self, arg):
+        # add job <job-file-path>
+        argv = shlex.split(arg)
+        argc = len(argv)
+
+        clients = [
+            client._mapping["ClientModel"].name for client in app.api.list_clients()
+        ]
+
+        def client_exists(text):
+            return text.strip().lower() in list(map(lambda x: x.lower(), clients))
+
+        is_valid_client = Validator.from_callable(
+            client_exists,
+            error_message="Client doesn't exist",
+            move_cursor_to_end=True,
+        )
+
+        if argc == 1:
+            self.clients_show("")
+            client_name = clients[
+                int(prompt("Enter client number: ", validator=gt0_validator)) - 1
+            ]
+            job_file = prompt("Enter job file path: ", validator=job_file_validator)
+
+        elif argc == 2:
+            client_name = argv[1]
+            job_file = prompt("Enter job file path: ", validator=job_file_validator)
+
+        elif argc >= 3:
+            if is_valid_file(argv[2]):
+                client_name = argv[1]
+                job_file = argv[2]
+            else:
+                print("File does not exist")
+                return
+
+        date_fmt = app.config.date_format
+        date_received = prompt(f"Date received {date_fmt}: ", validator=date_validator)
+        date_due = prompt(f"Date due {date_fmt}: ", validator=date_validator)
+
+        def add_job_cb(
+            media_file: str,
+            client: ClientModel,
+            rates: RatesModel,
+            date_received: str,
+            job_num: str,
+            job_dir: str | Path,
+        ):
+
+            print(media_file)
+            work_on_file = prompt(
+                f"Work on this file [{job_file}]: ", validator=yes_no_validator
+            )
+            if work_on_file.lower() == "y":
+                job_type = prompt("Specify job type: ", validator=work_validator)
+                job_rate = rates.__dict__.get(job_type.lower(), 0.40)
+
+                total_quantity = get_media_duration(media_file)
+                quantity = parse_quantity(
+                    prompt(
+                        "Enter quantity of task: ",
+                        default=str(total_quantity),
+                    ),
+                    total_quantity,
+                )
+                job_template = prompt(
+                    "Specify template type: ", validator=template_type_validator
+                )
+                note = prompt("Notes: ")
+
+                job_dict = {
+                    "client_id": client.id,
+                    "date_received": date_received,
+                    "job_number": job_num,
+                    "job_type": job_type,
+                    "total_quantity": total_quantity,
+                    "job_rate": job_rate,
+                    "quantity": quantity,
+                    "date_due": date_due,
+                    "job_path": str(job_dir),
+                    "note": note,
+                }
+                job = app.api.create_job(**job_dict)
+                return job, job_template
+
+        app.add_job(
+            add_job_cb=add_job_cb,
+            client_name=client_name,
+            job_file=job_file,
+            date_received=date_received,
+            date_due=date_due,
+        )
+
+    def do_add(self, arg):
+        """
+        Add objects
+        Ex.
+            add client
+        """
+        if arg:
+            argv = shlex.split(arg)
+            klass = argv[0]
+            eval(f"self.{klass}_add({'arg'})")
+
+    def client_delete(self, arg):
+        cols = ["id", "name", "email", "normal", "expedite", "interpreted"]
+        argv = shlex.split(arg)
+        if len(argv) > 1:
+
+            scalars = app.api.list_clients(argv[1])
+            ConsoleView().vertical_table(cols, scalars, headers=cols)
+
+            confirm = input(f"Are you sure you want to delete this client [Y/N]: ")
+            if confirm.lower() == "y":
+                app.api.delete_client(argv[1])
+
+    def job_delete(self, arg):
+        argv = shlex.split(arg)
+        job = app.api.get_job(argv[1])
+        ConsoleView().print_job_table(job)
+
+        confirm = input(f"Are you sure you want to delete this job [Y/N]: ")
+        if confirm.lower() == "y":
+            app.api.delete_job(argv[1])
+
+    def do_delete(self, arg):
+        """
+        Delete object
+        Ex.
+            delete client 1
+        """
+        if arg:
+            argv = shlex.split(arg)
+            klass = argv[0]
+            eval(f"self.{klass}_delete({'arg'})")
 
 
 if __name__ == "__main__":

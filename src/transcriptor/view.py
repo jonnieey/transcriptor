@@ -71,6 +71,7 @@ class ConsoleView:
         rows,
         headers: list = ["Option", "Value"],
         title: str = "",
+        typ: str = "",
     ):
         """
         Print vertical table in terminal
@@ -90,7 +91,11 @@ class ConsoleView:
             if isinstance(row, Row):
                 client_dict = {}
                 client_dict.update(row[0].__dict__)
-                client_dict.update(row[1].__dict__)
+                sr = row[1].__dict__
+                # Remove id of second row, it replaces id of 1st row
+                # TODO resolve hacky method
+                sr.pop("id")
+                client_dict.update(sr)
                 client_dict.pop("_sa_instance_state")
                 client_dict.pop("rates_id")
                 client_dict = sorted(
