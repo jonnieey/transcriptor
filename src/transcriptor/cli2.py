@@ -118,7 +118,10 @@ class TranscriptorCMD(cmd.Cmd):
         if arg:
             argv = shlex.split(arg)
             klass = argv[0]
-            eval(f"self.{klass}_show({argv})")
+            try:
+                eval(f"self.{klass}_show({argv})")
+            except AttributeError:
+                pass
 
     def yaml_update(self, argv, fields, obj):
         update_dict = {}
@@ -305,8 +308,8 @@ class TranscriptorCMD(cmd.Cmd):
             else:
                 update_dict[ks(k)] = v
 
-        if invalid_fields != []:
-            print(f"Invalid attributes:  {', '.join(invalid_fields)}")
+        # if invalid_fields != []:
+        #     print(f"Invalid attributes:  {', '.join(invalid_fields)}")
 
         app.api.edit_job(**update_dict)
 
@@ -320,7 +323,10 @@ class TranscriptorCMD(cmd.Cmd):
         if arg:
             argv = shlex.split(arg)
             klass = argv[0]
-            eval(f"self.{klass}_update({'arg'})")
+            try:
+                eval(f"self.{klass}_update({'arg'})")
+            except AttributeError:
+                pass
 
     def client_add(self, args):
         # name, email, rates
@@ -455,7 +461,10 @@ class TranscriptorCMD(cmd.Cmd):
         if arg:
             argv = shlex.split(arg)
             klass = argv[0]
-            eval(f"self.{klass}_add({'arg'})")
+            try:
+                eval(f"self.{klass}_add({'arg'})")
+            except AttributeError:
+                pass
 
     def client_delete(self, arg):
         cols = ["id", "name", "email", "normal", "expedite", "interpreted"]
@@ -487,8 +496,28 @@ class TranscriptorCMD(cmd.Cmd):
         if arg:
             argv = shlex.split(arg)
             klass = argv[0]
-            eval(f"self.{klass}_delete({'arg'})")
+            try:
+                eval(f"self.{klass}_delete({'arg'})")
+            except AttributeError:
+                pass
+
+    def do_invoice(self, arg):
+        self.clients_show("")
+        date_fmt = app.config.date_format
+        client_id = prompt("Enter client number: ", validator=gt0_validator)
+        period_start = prompt(f"Date from {date_fmt}: ", validator=date_validator)
+        period_end = prompt(f"Date from {date_fmt}: ", validator=date_validator)
+
+        app.create_invoice(
+            client_id=client_id,
+            period_start=period_start,
+            period_end=period_end,
+        )
+
+
+def main():
+    TranscriptorCMD().cmdloop()
 
 
 if __name__ == "__main__":
-    TranscriptorCMD().cmdloop()
+    main()
