@@ -120,10 +120,10 @@ class TestApi:
         new_rates = (0.45, 0.65, 0.35)
 
         self.api.edit_client(
-            client_name=test_client.name,
-            new_name=new_name,
-            new_email=new_email,
-            new_rates=new_rates,
+            client_id=1,
+            name=new_name,
+            email=new_email,
+            rates=new_rates,
         )
         stmt = select(ClientModel).where(ClientModel.id == 1)
         new_client = dbsession.execute(stmt).scalar_one()
@@ -146,7 +146,7 @@ class TestApi:
 
         assert len(clients) == 2
 
-        self.api.delete_client(client_name=name)
+        self.api.delete_client(client_id=1)
         clients = dbsession.execute(stmt).all()
 
         assert len(clients) == 1
@@ -191,10 +191,10 @@ class TestApi:
         )
         client = self.api.create_client(name, email, rates)
         self.api.save_client(client)
-        stmt = select(ClientModel).where(ClientModel.name == name)
+        stmt = select(ClientModel)
 
         new_client = dbsession.execute(stmt).scalar_one()
-        new_job_dict = {"job_id": 1, "client_id": new_client.id}
+        new_job_dict = {"job_id": 1, "client_id": new_client.id, "job_rate": 0.45}
         self.api.edit_job(**new_job_dict)
 
         stmt = select(JobModel).where(JobModel.id == 1)
