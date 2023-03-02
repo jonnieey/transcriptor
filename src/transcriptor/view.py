@@ -98,10 +98,10 @@ class ConsoleView:
                 client_dict.update(sr)
                 client_dict.pop("_sa_instance_state")
                 client_dict.pop("rates_id")
-                client_dict = sorted(
+                client_sorted_dict = sorted(
                     client_dict.items(), key=lambda t: headers.index(t[0])
                 )
-                self.table.add_row(*r2s([x[1] for x in client_dict]))
+                self.table.add_row(*r2s([x[1] for x in client_sorted_dict]))
 
             elif isinstance(row, str):
                 self.table.add_row(tc(cols[idx]), row)

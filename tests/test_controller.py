@@ -1,231 +1,137 @@
 import shutil
-from datetime import datetime
-from io import StringIO
+import tempfile
 from pathlib import Path
 
-import pytest
-import yaml
-from sqlalchemy import select
-from sqlalchemy.engine.row import Row
+from sqlalchemy import Row, inspect, select
 
 from transcriptor.controller import API
-from transcriptor.models import *
-from transcriptor.utils import *
-
-TODAY = datetime.today()
-YEAR = TODAY.year
-
-BASE_DIR = Path(__file__).parent.joinpath("data")
+from transcriptor.models import ClientModel, JobModel, RatesModel
 
 
-def config():
-    date_format = "%m-%d-%Y"
-    base_dir = str(BASE_DIR)
-    config = ConfigModel(date_format, base_dir)
-    return config
-
-
-@pytest.fixture(name="test_config")
-def test_config():
-    return config()
-
-
-@pytest.fixture()
-def test_profile():
-    first_name = "Fname"
-    last_name = "Lname"
-    area = "Area"
-    country = "Country"
-    return ProfileModel(first_name, last_name, area, country)
-
-
-@pytest.fixture()
-def test_client():
-    name = "Client"
-    email = "clientemail@gmail.com"
-    rates = {"normal": 0.4, "expedite": 0.5, "interpreted": 0.3}
-    rates = RatesModel(**rates)
-    return ClientModel(name=name, email=email, rates=rates)
-
-
-class TestApi:
+class TestAPI:
     def setup_class(self):
-        shutil.rmtree(BASE_DIR, ignore_errors=True)
-        BASE_DIR.mkdir(parents=True, exist_ok=True)
-        self.api = API(config().base_dir)
+        self.temp_dir = tempfile.mkdtemp()
+        self.api = API(self.temp_dir)
 
-    # def teardown_class(self):
-    #     shutil.rmtree(BASE_DIR, ignore_errors=True)
-    @pytest.fixture()
-    def test_job(self, test_client):
-        job = self.api.create_job(
-            client_id=1,
-            date_received="2022-05-05",
-            job_number="56321",
-            job_type="normal",
-            total_quantity="42.12630",
-            job_rate="0.40",
-            quantity="21.06315",
-            date_due="2022-06-01",
-            job_path="somerandompath",
-        )
-        return job
+    def teardown_class(self):
+        shutil.rmtree(self.temp_dir)
 
-    def test_save_config(self, test_config):
-        fd = StringIO()
-        self.api.save_config(test_config, fd)
-        assert test_config == ConfigModel(**yaml.safe_load(fd.getvalue()))
+    def test_API_init(self):
+        # with TemporaryDirectory() as temp_dir:
+        # api = API(base_dir=base_dir)
+        assert Path(self.temp_dir).exists()
+        assert Path(self.temp_dir).joinpath("transcriptor.db").exists()
 
-    def test_load_config(self, test_config):
-        fd = StringIO()
-        self.api.save_config(test_config, fd)
-        assert test_config == self.api.load_config(fd.getvalue())
+        inspector = inspect(self.api.db.engine)
+        assert "Rates" in inspector.get_table_names()
+        assert "Clients" in inspector.get_table_names()
+        assert "Jobs" in inspector.get_table_names()
 
-    def test_save_profile(self, test_profile):
-        fd = StringIO()
-        self.api.save_profile(test_profile, fd)
-        assert test_profile == ProfileModel(**yaml.safe_load(fd.getvalue()))
+    def test_client(self):
 
-    def test_load_profile(self, test_profile):
-        fd = StringIO()
-        self.api.save_profile(test_profile, fd)
-        assert test_profile == self.api.load_profile(fd.getvalue())
+        stmt = select(ClientModel)
+        assert self.api.session.execute(stmt).all() == []
 
-    def test_create_client(self):
-        name, email, rates = (
-            "name",
-            "email@gmail.com",
-            {"normal": 0.4, "expedite": 0.5, "interpreted": 0.3},
-        )
-        client = self.api.create_client(name, email, rates)
-        assert isinstance(client, ClientModel)
-        assert client.name == "name"
-        assert client.id == None  # Not commited to db thus None
+        # Create a new client
+        client = self.api.create_client(name="Alice", email="alice@example.com")
 
-    def test_save_client(self, dbsession, test_client):
-        self.api.save_client(test_client)
-        stmt = select(ClientModel).where(ClientModel.name == "Client")
-        client = dbsession.execute(stmt).scalar_one()
-        assert client.name == "Client"
+        # Save the client
+        self.api.save_client(client)
 
-    def test_list_clients(self, dbsession):
-        scalar = self.api.list_clients()
-        assert isinstance(scalar, list)
-        assert isinstance(scalar[0], Row)
-        assert len(scalar) == 1
+        assert self.api.session.execute(stmt).all() != []
 
-    def test_edit_client(self, dbsession, test_client):
-        new_name = "New Client"
-        new_email = "NewClient@gmail.com"
-        new_rates = (0.45, 0.65, 0.35)
+        # List all clients
+        clients = self.api.list_clients()
+        assert isinstance(clients, list)
+        assert len(clients) == 1
+        assert type(clients[0]) == Row
+        assert clients[0]._mapping["ClientModel"].name == "Alice"
 
+        # get a client
+        client = self.api.list_clients(client_id=1)
+        assert isinstance(client, list)
+
+        # Edit the client's name and email
         self.api.edit_client(
             client_id=1,
-            name=new_name,
-            email=new_email,
-            rates=new_rates,
+            name="Alice Smith",
+            email="alice.smith@example.com",
         )
+
         stmt = select(ClientModel).where(ClientModel.id == 1)
-        new_client = dbsession.execute(stmt).scalar_one()
+        updated_client = self.api.session.execute(stmt).scalar_one()
 
-        assert new_client.id == 1
-        assert new_client.name == new_name
-        assert new_client.email == new_email
-        assert new_client.rates_id == 1
+        # Check that the client's name and email have been updated
+        assert updated_client.name == "Alice Smith"
+        assert updated_client.email == "alice.smith@example.com"
 
-    def test_delete_client(self, dbsession):
-        name, email, rates = (
-            "name",
-            "email@gmail.com",
-            {"normal": 0.4, "expedite": 0.5, "interpreted": 0.3},
+        # Edit the client's rates
+        self.api.edit_client(
+            client_id=1,
+            rates={"normal": 0.50, "expedite": 0.70, "interpreted": 0.40},
         )
-        new_client = self.api.create_client(name, email, rates)
-        self.api.save_client(new_client)
-        stmt = select(ClientModel)
-        clients = dbsession.execute(stmt).all()
 
-        assert len(clients) == 2
+        # Check that the client's rates have been updated
+        stmt = select(RatesModel).filter_by(client=updated_client)
+        updated_rates = self.api.session.execute(stmt).scalar_one()
 
+        assert updated_rates.normal == 0.50
+        assert updated_rates.expedite == 0.70
+        assert updated_rates.interpreted == 0.40
+
+        # delete the client
         self.api.delete_client(client_id=1)
-        clients = dbsession.execute(stmt).all()
+        stmt = select(ClientModel)
+        assert self.api.session.execute(stmt).all() == []
 
-        assert len(clients) == 1
+    def test_job(self):
 
-    def test_create_job(self):
-        job_dict = {
-            "client_id": 1,
-            "date_received": "2022-05-05",
-            "job_number": "56321",
-            "job_type": "Normal",
-            "total_quantity": "42.12630",
-            "job_rate": "0.40",
-            "quantity": "21.06315",
-            "date_due": "2022-06-01",
-            "job_path": "somerandompath",
-        }
-        job = self.api.create_job(**job_dict)
+        stmt = select(JobModel)
+        assert self.api.session.execute(stmt).all() == []
 
-        assert job is not None
+        # Create a new job
+        job = self.api.create_job(
+            client_id=1,
+            date_received="2020-01-01",
+            job_number="123456",
+            job_type="normal",
+            total_quantity=10,
+            job_rate=0.4,
+            quantity=5,
+            date_due="2020-01-02",
+            job_path="path/to/file",
+            note="note",
+        )
         assert isinstance(job, JobModel)
 
-    def test_save_job(self, dbsession, test_job):
-        self.api.save_job(test_job)
-        stmt = select(JobModel)
-        job = dbsession.execute(stmt).first()
+        # Save the job
+        self.api.save_job(job)
 
-        assert job is not None
-        assert job[0].job_rate == 0.40
+        assert self.api.session.execute(stmt).all() != []
 
-    def test_list_jobs(self):
-        job_scalars = self.api.list_jobs()
+        # List all jobs
+        jobs = self.api.list_jobs()
 
-        assert isinstance(job_scalars, list)
-        assert isinstance(job_scalars[0], Row)
-        assert isinstance(job_scalars[0]._mapping["JobModel"], JobModel)
-
-    def test_edit_job(self, dbsession, test_job):
-        name, email, rates = (
-            "name",
-            "email@gmail.com",
-            {"normal": 0.45, "expedite": 0.55, "interpreted": 0.35},
-        )
-        client = self.api.create_client(name, email, rates)
-        self.api.save_client(client)
-        stmt = select(ClientModel)
-
-        new_client = dbsession.execute(stmt).scalar_one()
-        new_job_dict = {"job_id": 1, "client_id": new_client.id, "job_rate": 0.45}
-        self.api.edit_job(**new_job_dict)
-
-        stmt = select(JobModel).where(JobModel.id == 1)
-        job = dbsession.execute(stmt).scalar_one()
-
-        assert job.job_rate == 0.45
-        assert job.client_id == 2
-
-    def test_delete_job(self, dbsession):
-        stmt = select(JobModel)
-        jobs = dbsession.execute(stmt).all()
-        stmt = select(JobModel).where(JobModel.id == 1)
-        jobs = dbsession.execute(stmt).all()
-
+        assert isinstance(jobs, list)
         assert len(jobs) == 1
+        assert type(jobs[0]) == Row
+        assert jobs[0]._mapping["JobModel"].note == "note"
+
+        # Edit the job
+        self.api.edit_job(job_id=1, quantity=15, client_id=1, note="Note2")
+
+        # Retrieve the job from the database to verify that it was updated correctly
+        stmt = select(JobModel).where(JobModel.id == 1)
+        updated_job_model = self.api.session.execute(stmt).scalar_one()
+
+        assert updated_job_model.job_type == "normal"
+        assert updated_job_model.quantity == 15
+        assert updated_job_model.job_rate == 0.4
+        assert updated_job_model.amount == 2.0
+        assert updated_job_model.client_id == 1
+        assert updated_job_model.note == "Note2"
+
+        # delete the job
         self.api.delete_job(job_id=1)
-        jobs = dbsession.execute(stmt).all()
-
-        assert len(jobs) == 0
-
-    def test_execute_sql(self, dbsession, test_job):
-        self.api.save_job(test_job)
         stmt = select(JobModel)
-        jobs = dbsession.execute(stmt).all()
-        assert len(jobs) == 1
-
-    def test_get_jobs_scalars_total(self, dbsession, test_job):
-        self.api.save_job(test_job)
-        stmt = select(JobModel)
-        jobs = dbsession.execute(stmt).scalars()
-        jobs_list = [job_row.__dict__ for job_row in jobs]
-        amount, amount_paid = self.api.get_jobs_scalars_total(jobs_list)
-        assert amount == 16.84  # Two jobs
-        assert amount_paid == 0.0
+        assert self.api.session.execute(stmt).all() == []

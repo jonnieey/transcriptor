@@ -1,26 +1,31 @@
 import os
+import tempfile
 from pathlib import Path
 
 import pytest
 from sqlalchemy.orm import Session
 
 from transcriptor.database import Base, Database
-from transcriptor.utils import *
 
 os.environ["TRANS_ENV"] = "DEV"
 
-BASE_DIR = Path(__file__).parent.joinpath("data")
-mkdirp([BASE_DIR])
-# print(os.environ)
-@pytest.fixture
+# BASE_DIR = Path(__file__).parent.joinpath("data")
+# mkdirp([BASE_DIR])
+# # print(os.environ)
+
+# @pytest.fixture
+@pytest.fixture(scope="session")
 def base_dir():
-    return BASE_DIR
+    temp_dir = tempfile.mkdtemp()
+    return temp_dir
 
 
 @pytest.fixture(scope="session")
-def engine():
+def engine(base_dir):
     # return create_engine(f"sqlite:///{BASE_DIR}/transcriptor_test.db")
-    return Database(f"{BASE_DIR}/transcriptor.db").engine
+    # temp_dir = tempfile.mkdtemp()
+    db_path = Path(base_dir).joinpath("transcriptor.db")
+    return Database(f"{db_path}").engine
 
 
 @pytest.fixture(scope="session")

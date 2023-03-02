@@ -135,7 +135,7 @@ class TranscriptorCMD(cmd.Cmd):
 
             try:
                 raw_dict = json.loads(dict_str)
-                new_dict = {ks(k): v for k, v in raw_dict.items() if k in fields}
+                new_dict = {sc(k): v for k, v in raw_dict.items() if k in fields}
                 update_dict.update(new_dict)
                 obj.__dict__.update(update_dict)
 
@@ -160,7 +160,7 @@ class TranscriptorCMD(cmd.Cmd):
             if k not in fields:
                 invalid_fields.append(k)
             else:
-                update_dict[ks(k)] = v
+                update_dict[sc(k)] = v
 
         if invalid_fields != []:
             print(f"Invalid attributes:  {', '.join(invalid_fields)}")
@@ -174,7 +174,7 @@ class TranscriptorCMD(cmd.Cmd):
         self.yaml_update(argv, fields, obj)
 
     def profile_update(self, argv):
-        fields = ["first_name", "last_name", "area", "country"]
+        fields = ["first-name", "last-name", "area", "country"]
         obj = app.profile
         self.yaml_update(argv, fields, obj)
 
@@ -199,7 +199,7 @@ class TranscriptorCMD(cmd.Cmd):
 
             try:
                 raw_dict = json.loads(dict_str)
-                new_dict = {ks(k): v for k, v in raw_dict.items() if k in fields}
+                new_dict = {sc(k): v for k, v in raw_dict.items() if k in fields}
                 update_dict.update(new_dict)
                 app.api.edit_client(**update_dict)
 
@@ -228,12 +228,12 @@ class TranscriptorCMD(cmd.Cmd):
 
                 if v.strip().startswith("[") and v.strip().endswith("]"):
                     try:
-                        update_dict[ks(k)] = json.loads(v)
+                        update_dict[sc(k)] = json.loads(v)
                     except json.decoder.JSONDecodeError:
                         print("Cannot convert to python object")
                         continue
                 else:
-                    update_dict[ks(k)] = v
+                    update_dict[sc(k)] = v
 
             if invalid_fields != []:
                 print(f"Invalid attributes:  {', '.join(invalid_fields)}")
@@ -273,7 +273,7 @@ class TranscriptorCMD(cmd.Cmd):
 
             try:
                 raw_dict = json.loads(dict_str)
-                new_dict = {ks(k): v for k, v in raw_dict.items() if k in fields}
+                new_dict = {sc(k): v for k, v in raw_dict.items() if k in fields}
                 update_dict.update(new_dict)
                 app.api.edit_job(**update_dict)
 
@@ -301,12 +301,12 @@ class TranscriptorCMD(cmd.Cmd):
 
             if v.strip().startswith("[") and v.strip().endswith("]"):
                 try:
-                    update_dict[ks(k)] = json.loads(v)
+                    update_dict[sc(k)] = json.loads(v)
                 except json.decoder.JSONDecodeError:
                     print("Cannot convert to python object")
                     continue
             else:
-                update_dict[ks(k)] = v
+                update_dict[sc(k)] = v
 
         # if invalid_fields != []:
         #     print(f"Invalid attributes:  {', '.join(invalid_fields)}")

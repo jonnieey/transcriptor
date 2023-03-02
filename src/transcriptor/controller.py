@@ -1,7 +1,6 @@
 import logging
-from decimal import Decimal
 from pathlib import Path
-from typing import IO, Any, List, Sequence, Tuple
+from typing import IO, Any, List, Optional, Sequence, Tuple
 
 import yaml
 from sqlalchemy import select, text
@@ -9,8 +8,14 @@ from sqlalchemy.engine.row import Row
 from sqlalchemy.orm import Session
 
 from transcriptor.database import Base, Database
-from transcriptor.models import *
-from transcriptor.utils import *
+from transcriptor.models import (
+    ClientModel,
+    ConfigModel,
+    JobModel,
+    ProfileModel,
+    RatesModel,
+)
+from transcriptor.utils import mkdirp, truncate
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +38,10 @@ class API:
     @property
     def session(self) -> Session:
         return Session(self.db.engine)
+
+    @session.setter
+    def session(self, session):
+        self.db.session = session
 
     def save_object(self, obj, fd: IO[str]) -> object:
         """
@@ -61,11 +70,11 @@ class API:
         """
         obj_dict = yaml.safe_load(fd)
         if obj_dict is None:
-            obj().save(fd)
-            return obj()
+            new_obj = obj()
+            new_obj.save(fd)
+            return new_obj
         try:
-            obj = obj(**obj_dict)
-            return obj
+            return obj(**obj_dict)
         except TypeError as error:
             logger.error(error)
             return None
@@ -174,11 +183,10 @@ class API:
         Get clients in database.
 
         Arguments:
-            None
+            client_id: Client's id. (str)
 
         Returns:
-            Tuple of (tuple(Columns), List[tuple(Row)]) .ex.
-            (('id', 'name', 'email', 'normal', 'expedite', 'interpreted') [(1, 'Victor Wachai', 'victorwachai@gmail.com', 1, 1, 0.4, 0.6, 0.3)])
+            List of tuples (ClientObject, RateRobject)
         """
 
         if client_id == "":
@@ -200,27 +208,24 @@ class API:
         client_id: str,
         name: str = "",
         email: str = "",
-        rates: tuple = (),
+        rates: dict = {},
     ) -> None:
         """
         Edit client attributes.
 
         Arguments:
-            client_name: Name of client to modify/edit.
+            client_id: Id of client to modify/edit.
             name: Client's new name
-            email: Clients new email
-            rates: Clients new rates. tuple. ex. (0.40, 0.60, 0.30)
+            email: Client's new email
+            rates: Client's new rates. Dictionary with keys "normal", "expedite", "interpreted".
         """
         with self.session as session:
-            scalars = session.execute(
-                select(ClientModel, RatesModel)
-                .filter(ClientModel.id == client_id)
-                .join(RatesModel)
-            ).all()
-            if scalars:
-                client_model = scalars[0]._asdict()["ClientModel"]
-                rates_model = scalars[0]._asdict()["RatesModel"]
+            client = session.execute(
+                select(ClientModel).filter(ClientModel.id == client_id)
+            ).scalar_one()
+            if client:
                 if rates:
+                    rates_model = client.rates
                     if "normal" in rates:
                         rates_model.normal = rates["normal"]
                     if "expedite" in rates:
@@ -229,9 +234,9 @@ class API:
                         rates_model.interpreted = rates["interpreted"]
                 if name:
                     # TODO move client's folder to match new name
-                    client_model.name = name
+                    client.name = name
                 if email:
-                    client_model.email = email
+                    client.email = email
                 session.commit()
 
     def delete_client(self, client_id) -> None:
@@ -345,52 +350,57 @@ class API:
             **kwargs: keyword arguments with job attributes ex. job_number=2, quantity=40.0
 
         """
-        new_dict = {k: v for k, v in kwargs.items() if v is not None}
-        stmt = select(JobModel).filter(JobModel.id == kwargs["job_id"])
+        job_id = kwargs.get("job_id")
+        if not job_id:
+            raise ValueError("job_id is required")
 
         with self.session as session:
-            scalars = session.execute(stmt).all()
-            jobs_model = scalars[0]._asdict()["JobModel"]
+            job_model = (
+                session.query(JobModel).filter(JobModel.id == job_id).one_or_none()
+            )
+            if not job_model:
+                raise ValueError(f"Job with id={job_id} does not exist")
 
-            if kwargs.get("client_id", ""):
-                stmt2 = (
-                    select(ClientModel, RatesModel)
+            # Update job attributes
+            for attr, value in kwargs.items():
+                if attr == "job_id":
+                    continue
+                if value is not None:
+                    setattr(job_model, attr, value)
+
+            # Update calculated attributes
+            if "client_id" in kwargs or "job_rate" in kwargs or "quantity" in kwargs:
+                client_id = kwargs.get("client_id") or job_model.client_id
+                if not client_id:
+                    raise ValueError("client_id is required")
+
+                query = (
+                    session.query(ClientModel, RatesModel)
                     .join(RatesModel)
-                    .filter(ClientModel.id == kwargs["client_id"])
+                    .filter(ClientModel.id == client_id)
+                    .one_or_none()
                 )
-                try:
-                    scalars2 = session.execute(stmt2).all()
-                    client_model = scalars2[0]._asdict()["ClientModel"]
-                    rates_model = scalars2[0]._asdict()["RatesModel"]
-                    new_dict["client_id"] = client_model.id
-                    new_rate = rates_model.__dict__[jobs_model.job_type]
-                    new_dict["job_rate"] = new_rate
-                    new_dict["amount"] = truncate(new_rate * jobs_model.quantity, 2)
+                if query is not None:
+                    client_model, rates_model = query
 
-                except Exception as error:
-                    logger.error(error)
+                    if not client_model or not rates_model:
+                        raise ValueError(
+                            f"Client with id={client_id} does not exist or has no rates"
+                        )
 
-            if kwargs.get("job_rate", "") and kwargs.get("quantity", ""):
-                new_dict["job_rate"] = kwargs["job_rate"]
-                new_dict["quantity"] = kwargs["quantity"]
-                new_dict["amount"] = truncate(
-                    Decimal(kwargs["job_rate"]) * Decimal(kwargs["quantity"]), 2
-                )
+                    job_rate = kwargs.get("job_rate") or job_model.job_rate
+                    quantity = kwargs.get("quantity") or job_model.quantity
+                    if not job_rate or not quantity:
+                        raise ValueError("job_rate and quantity are required")
 
-            elif kwargs.get("job_rate", ""):
-                new_dict["job_rate"] = kwargs["job_rate"]
-                new_dict["amount"] = truncate(
-                    Decimal(kwargs["job_rate"]) * Decimal(jobs_model.quantity), 2
-                )
+                    job_type = job_model.job_type
+                    new_rate = getattr(rates_model, job_type)
+                    new_amount = round(new_rate * quantity, 2)
 
-            elif kwargs.get("quantity", ""):
-                new_dict["quantity"] = kwargs["quantity"]
-                new_dict["amount"] = truncate(
-                    Decimal(kwargs["quantity"]) * Decimal(jobs_model.job_rate), 2
-                )
-
-            for k, v in new_dict.items():
-                jobs_model.__setattr__(f"{k}", v)
+                    setattr(job_model, "client_id", client_id)
+                    setattr(job_model, "job_rate", job_rate)
+                    setattr(job_model, "quantity", quantity)
+                    setattr(job_model, "amount", new_amount)
 
             session.commit()
 

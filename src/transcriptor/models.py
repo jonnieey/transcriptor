@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
 import yaml
@@ -27,10 +28,15 @@ class Model(ABC):
         return self.__dict__.values()
 
 
+class Environment(Enum):
+    DEV = "dev"
+    DEVEL = "devel"
+
+
 @dataclass
 class ConfigModel(Model):
-    date_format: str
-    base_dir: str
+    date_format: str = ""
+    base_dir: str = ""
 
     def __iter__(self):
         yield from self.__dict__.items()
@@ -48,7 +54,8 @@ class ConfigModel(Model):
         try:
             with open(file_path, "r") as fd:
                 obj_dict = yaml.safe_load(fd)
-                self.__dict__.update(obj_dict)
+                for attr, value in obj_dict.items():
+                    setattr(self, attr, value)
                 return self
         except FileNotFoundError as error:
             touch([file_path])
@@ -57,7 +64,7 @@ class ConfigModel(Model):
                 return self
 
     def from_env(self, env: str):
-        if env.upper() in ["DEV", "DEVEL"]:
+        if env.lower() == Environment.DEV.value:
             BASE_DIR = Path(__file__).parent.parent.parent.joinpath("dev-dir")
             self.base_dir = str(BASE_DIR)
         return self
@@ -83,6 +90,19 @@ class ProfileModel(Model):
 
     def save(self, file_object):
         yaml.safe_dump(dict(self), file_object, sort_keys=False)
+
+    def from_file(self, file_path: str | Path):
+        try:
+            with open(file_path, "r") as fd:
+                obj_dict = yaml.safe_load(fd)
+                for attr, value in obj_dict.items():
+                    setattr(self, attr, value)
+                return self
+        except FileNotFoundError as error:
+            touch([file_path])
+            with open(file_path, "w") as fd:
+                self.save(fd)
+                return self
 
     item_type = "profile"
 

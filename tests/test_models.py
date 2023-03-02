@@ -1,91 +1,55 @@
-import uuid
-from collections.abc import Iterable
-from io import StringIO
+import tempfile
+import unittest
 from pathlib import Path
 
-import pytest
-import yaml
-
-from transcriptor.models import *
+from transcriptor.models import ConfigModel, ProfileModel
 
 
-@pytest.fixture()
-def test_config_model():
-    date_format = "%Y-%m-%d"
-    base_dir = str(Path(__file__).parent.joinpath("data"))
-    return ConfigModel(date_format, base_dir)
+class TestConfigModel(unittest.TestCase):
+    def test_ConfigModel(self):
+        # Test setting and getting attributes
+        config = ConfigModel(date_format="%Y-%m-%d", base_dir="/home/user")
+        self.assertEqual(config.get("date_format"), "%Y-%m-%d")
+        self.assertEqual(config.get("base_dir"), "/home/user")
+        config.set("base_dir", "/mnt/data")
+        self.assertEqual(config.get("base_dir"), "/mnt/data")
+
+        # Test saving and loading from a file
+        with tempfile.NamedTemporaryFile(mode="w+", delete=False) as f:
+            config.save(f)
+            f.seek(0)
+            loaded_config = ConfigModel().from_file(f.name)
+            self.assertEqual(loaded_config.get("date_format"), "%Y-%m-%d")
+            self.assertEqual(loaded_config.get("base_dir"), "/mnt/data")
+
+        # Test loading from environment variables
+        dev_config = ConfigModel().from_env("dev")
+        self.assertEqual(
+            dev_config.get("base_dir"),
+            str(Path(__file__).parent.parent.joinpath("dev-dir")),
+        )
 
 
-@pytest.fixture()
-def test_profile_model():
-    first_name = "Test"
-    last_name = "Profile"
-    area = "Area"
-    country = "Country"
-    return ProfileModel(first_name, last_name, area, country)
+class TestProfileModel(unittest.TestCase):
+    def test_ProfileModel(self):
+        # Test setting and getting attributes
+        profile = ProfileModel(
+            first_name="first_name",
+            last_name="last_name",
+            area="area",
+            country="country",
+        )
+        self.assertEqual(profile.get("first_name"), "first_name")
+        self.assertEqual(profile.get("last_name"), "last_name")
+        self.assertEqual(profile.get("area"), "area")
+        self.assertEqual(profile.get("country"), "country")
+        profile.set("area", "my area")
+        self.assertEqual(profile.get("area"), "my area")
 
-
-@pytest.fixture()
-def test_client_model():
-    name = "Client"
-    email = "clientemail@gmail.com"
-    rates = {"Normal": 0.4, "Expedite": 0.5, "Interpreted": 0.3}
-    return ClientModel(client_id, name, email, rates)
-
-
-@pytest.fixture()
-def test_job_model():
-    job = JobModel(
-        job_id=str(uuid.uuid4()),
-        client_id=str(uuid.uuid4()),
-        date_received="2022-05-05",
-        job_number="56321",
-        job_type="Normal",
-        total_quantity="42.12630",
-        job_rate="0.40",
-        quantity="21.06315",
-        date_due="2022-06-01",
-        job_path="somerandompath",
-    )
-    return job
-
-
-class TestConfigModel:
-    def test_base_dir_is_str(self, test_config_model):
-        assert isinstance(test_config_model.base_dir, str)
-
-    def test_is_iterable(self, test_config_model):
-        assert isinstance(test_config_model, Iterable)
-
-    def test_get_attribute(self, test_config_model):
-        assert test_config_model.get("date_format") == "%Y-%m-%d"
-        assert test_config_model.date_format == "%Y-%m-%d"
-
-    def test_set_attribute(self, test_config_model):
-        test_config_model.date_format = "%m-%d-%Y"
-        assert test_config_model.date_format != "%Y-%m-%d"
-        assert test_config_model.date_format == "%m-%d-%Y"
-
-    def test_save(self, test_config_model):
-        fd = StringIO()
-        test_config_model.save(fd)
-        assert test_config_model == ConfigModel(**yaml.safe_load(fd.getvalue()))
-
-
-class TestProfileModel:
-    def test_is_iterable(self, test_profile_model):
-        assert isinstance(test_profile_model, Iterable)
-
-    def test_get_attribute(self, test_profile_model):
-        assert test_profile_model.country == "Country"
-        assert test_profile_model.get("area") == "Area"
-
-    def test_set_attribute(self, test_profile_model):
-        test_profile_model.country = "Country2"
-        assert test_profile_model.country != "Country"
-        assert test_profile_model.country == "Country2"
-
-    def test_save(self, test_profile_model):
-        fd = StringIO()
-        test_profile_model.save(fd)
-        assert test_profile_model == ProfileModel(**yaml.safe_load(fd.getvalue()))
+        # Test saving and loading from a file
+        with tempfile.NamedTemporaryFile(mode="w+", delete=False) as f:
+            profile.save(f)
+            f.seek(0)
+            loaded_profile = ProfileModel().from_file(f.name)
+            self.assertEqual(loaded_profile.get("area"), "my area")
+            self.assertEqual(loaded_profile.get("first_name"), "first_name")
