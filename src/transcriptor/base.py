@@ -196,40 +196,37 @@ class Transcriptor(BaseTranscriptor):
                 .filter(ClientModel.name.like(f"%{client_name}%"))
                 .join(RatesModel)
             )
-            scalars = session.execute(stmt).all()
+            scalars = session.execute(stmt).one()
             # TODO Handle multiple clients with almost same name
             # Only one client found
-            if len(scalars) == 1:
-                client = scalars[0]._asdict()["ClientModel"]
-                rates = scalars[0]._asdict()["RatesModel"]
+            client = scalars._mapping["ClientModel"]
+            rates = scalars._mapping["RatesModel"]
 
-                job_dir = self.create_job_dir(
-                    client.name, job_num, date_received, date_due
+            job_dir = self.create_job_dir(client.name, job_num, date_received, date_due)
+            self.mv_extract_job_file(job_file, job_dir)
+
+            media_files = get_media_files(job_dir)
+            for media_file in media_files:
+                # callback return JobModel object
+
+                job, job_temp_init = add_job_cb(
+                    str(media_file),
+                    client,
+                    rates,
+                    date_received,
+                    job_num,
+                    job_dir,
                 )
-                self.mv_extract_job_file(job_file, job_dir)
+                job_template = self.select_job_template(job_temp_init)
+                # TODO Copy numbered files for each task
+                job_path = self.next_non_existant_file(
+                    job_dir.joinpath(
+                        f"{job_num} Due {str_to_date(date_due, DATE_FMT).strftime('%m.%d')}.doc",
+                    ),
+                )
+                shutil.copy(job_template, job_path)
 
-                media_files = get_media_files(job_dir)
-                for media_file in media_files:
-                    # callback return JobModel object
-
-                    job, job_temp_init = add_job_cb(
-                        str(media_file),
-                        client,
-                        rates,
-                        date_received,
-                        job_num,
-                        job_dir,
-                    )
-                    job_template = self.select_job_template(job_temp_init)
-                    # TODO Copy numbered files for each task
-                    job_path = self.next_non_existant_file(
-                        job_dir.joinpath(
-                            f"{job_num} Due {str_to_date(date_due, DATE_FMT).strftime('%m.%d')}.doc",
-                        ),
-                    )
-                    shutil.copy(job_template, job_path)
-
-                    self.api.save_job(job)
+                self.api.save_job(job)
 
     def create_invoice(self, client_id, period_start, period_end):
         # client, jobs, totals =
