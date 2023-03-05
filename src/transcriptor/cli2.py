@@ -10,20 +10,46 @@ from prompt_toolkit.validation import Validator
 
 from transcriptor.base import Transcriptor
 from transcriptor.models import ClientModel, RatesModel
-from transcriptor.utils import *
+from transcriptor.utils import (
+    date_validator,
+    email_validator,
+    float_validator,
+    get_media_duration,
+    gt0_validator,
+    is_valid_file,
+    job_file_validator,
+    name_validator,
+    parse_quantity,
+    sc,
+    template_type_validator,
+    work_validator,
+    yes_no_validator,
+)
 from transcriptor.view import ConsoleView
-
-app = Transcriptor()
 
 
 class TranscriptorCMD(cmd.Cmd):
     prompt = "(trans) "
 
+    def __init__(self, app=None):
+        super().__init__()
+        if app is None:
+            self.app = Transcriptor()
+        else:
+            self.app = app
+
     def do_EOF(self, arg):
         """
         Exit
         """
+        print("\n** Exiting program, bye **\n")
         return True
+
+    def do_help(self, arg):
+        if not arg:
+            return cmd.Cmd.do_help(self, arg)
+        else:
+            print("Custom command helpline")
 
     def postloop(self):
         print()
@@ -33,11 +59,20 @@ class TranscriptorCMD(cmd.Cmd):
 
     def do_exit(self, arg):
         """Exit"""
+        print("\n** Exiting program, bye **\n")
+        return True
+
+    def do_quit(self, arg):
+        """Exit"""
+        print("\n** Exiting program, bye **\n")
         return True
 
     def do_clear(self, arg):
         """Clear screen"""
         os.system("clear")
+
+    def print_help(self):
+        print("Usage: transcriptor <command>")
 
     def precmd(self, arg):
         """Capture help commands and parse method docstring using textwrap"""
@@ -61,7 +96,7 @@ class TranscriptorCMD(cmd.Cmd):
         Ex.
            show config
         """
-        config = app.config
+        config = self.app.config
         cols, rows = (config.cols(), config.rows())
         ConsoleView().vertical_table(cols, rows)
 
@@ -71,10 +106,13 @@ class TranscriptorCMD(cmd.Cmd):
         Ex.
            show profile
         """
-        profile = app.profile
+        profile = self.app.profile
         if profile:
             cols, rows = (profile.cols(), profile.rows())
             ConsoleView().vertical_table(cols, rows)
+        else:
+            print("** Profile doesn't exist **.")
+            return
 
     def clients_show(self, argv):
         """
@@ -85,12 +123,16 @@ class TranscriptorCMD(cmd.Cmd):
         """
         cols = ["id", "name", "email", "normal", "expedite", "interpreted"]
         if len(argv) > 1:
-            scalars = app.api.list_clients(argv[1])
+            scalars = self.app.api.list_clients(argv[1])
         else:
-            scalars = app.api.list_clients()
+            scalars = self.app.api.list_clients()
 
         if scalars:
             ConsoleView().vertical_table(cols, scalars, headers=cols)
+            return 0
+        else:
+            print("** No Clients **")
+            return 1
 
     def jobs_show(self, arg):
         """
@@ -99,8 +141,8 @@ class TranscriptorCMD(cmd.Cmd):
             show jobs
         """
         # TODO Filter jobs with app.api.list_jobs(attributes={})
-        jobs = app.api.list_jobs()
-        total_amount, total_amount_paid = app.api.get_jobs_scalars_total(jobs)
+        jobs = self.app.api.list_jobs()
+        total_amount, total_amount_paid = self.app.api.get_jobs_scalars_total(jobs)
         total_dict = {
             "total_amount": total_amount,
             "total_amount_paid": total_amount_paid,
@@ -166,16 +208,16 @@ class TranscriptorCMD(cmd.Cmd):
             print(f"Invalid attributes:  {', '.join(invalid_fields)}")
 
         obj.__dict__.update(update_dict)
-        eval(f"app.save_{argv[0]}()")
+        eval(f"self.app.save_{argv[0]}()")
 
     def config_update(self, argv):
         fields = ["base-dir", "date-format"]
-        obj = app.config
+        obj = self.app.config
         self.yaml_update(argv, fields, obj)
 
     def profile_update(self, argv):
         fields = ["first-name", "last-name", "area", "country"]
-        obj = app.profile
+        obj = self.app.profile
         self.yaml_update(argv, fields, obj)
 
     def client_update(self, argv):
@@ -201,7 +243,7 @@ class TranscriptorCMD(cmd.Cmd):
                 raw_dict = json.loads(dict_str)
                 new_dict = {sc(k): v for k, v in raw_dict.items() if k in fields}
                 update_dict.update(new_dict)
-                app.api.edit_client(**update_dict)
+                self.app.api.edit_client(**update_dict)
 
             except (AttributeError, ValueError, json.decoder.JSONDecodeError) as e:
                 print("Invalid dict representation")
@@ -238,7 +280,7 @@ class TranscriptorCMD(cmd.Cmd):
             if invalid_fields != []:
                 print(f"Invalid attributes:  {', '.join(invalid_fields)}")
 
-            app.api.edit_client(**update_dict)
+            self.app.api.edit_client(**update_dict)
 
     def job_update(self, argv):
         # update job <job-id> <attr> <attr-value> <attr> <attr-value>
@@ -275,7 +317,7 @@ class TranscriptorCMD(cmd.Cmd):
                 raw_dict = json.loads(dict_str)
                 new_dict = {sc(k): v for k, v in raw_dict.items() if k in fields}
                 update_dict.update(new_dict)
-                app.api.edit_job(**update_dict)
+                self.app.api.edit_job(**update_dict)
 
             except (AttributeError, ValueError, json.decoder.JSONDecodeError) as e:
                 print("Invalid dict representation")
@@ -311,7 +353,7 @@ class TranscriptorCMD(cmd.Cmd):
         # if invalid_fields != []:
         #     print(f"Invalid attributes:  {', '.join(invalid_fields)}")
 
-        app.api.edit_job(**update_dict)
+        self.app.api.edit_job(**update_dict)
 
     def do_update(self, arg):
         """
@@ -330,33 +372,40 @@ class TranscriptorCMD(cmd.Cmd):
 
     def client_add(self, args):
         # name, email, rates
-        name = prompt(
-            "Enter Client's name: ",
-            validator=name_validator,
-            validate_while_typing=True,
-        )
+        try:
+            name = prompt(
+                "Enter Client's name: ",
+                validator=name_validator,
+                validate_while_typing=True,
+            )
 
-        email = prompt(
-            "Enter client's email: ",
-            validator=email_validator,
-            validate_while_typing=True,
-        )
+            email = prompt(
+                "Enter client's email: ",
+                validator=email_validator,
+                validate_while_typing=True,
+            )
 
-        print("Rates:")
+            print("Rates:")
 
-        rates = {
-            "normal": float(
-                prompt("    Normal: ", default="0.40", validator=float_validator)
-            ),
-            "expedite": float(
-                prompt("    Expedite: ", default="0.60", validator=float_validator)
-            ),
-            "interpreted": float(
-                prompt("    Interpreted: ", default="0.30", validator=float_validator)
-            ),
-        }
+            rates = {
+                "normal": float(
+                    prompt("    Normal: ", default="0.40", validator=float_validator)
+                ),
+                "expedite": float(
+                    prompt("    Expedite: ", default="0.60", validator=float_validator)
+                ),
+                "interpreted": float(
+                    prompt(
+                        "    Interpreted: ", default="0.30", validator=float_validator
+                    )
+                ),
+            }
 
-        app.add_client(name, email, rates)
+            self.app.add_client(name, email, rates)
+
+        except (KeyboardInterrupt, EOFError):
+            print("**")
+            return True
 
     def job_add(self, arg):
         # add job <job-file-path>
@@ -364,8 +413,13 @@ class TranscriptorCMD(cmd.Cmd):
         argc = len(argv)
 
         clients = [
-            client._mapping["ClientModel"].name for client in app.api.list_clients()
+            client._mapping["ClientModel"].name
+            for client in self.app.api.list_clients()
         ]
+
+        if not clients:
+            print("** No clients, add clients first")
+            return
 
         def client_exists(text):
             return text.strip().lower() in list(map(lambda x: x.lower(), clients))
@@ -376,81 +430,89 @@ class TranscriptorCMD(cmd.Cmd):
             move_cursor_to_end=True,
         )
 
-        if argc == 1:
-            self.clients_show("")
-            client_name = clients[
-                int(prompt("Enter client number: ", validator=gt0_validator)) - 1
-            ]
-            job_file = prompt("Enter job file path: ", validator=job_file_validator)
+        try:
+            if argc == 1:
+                if self.clients_show("") == 1:
+                    return
+                client_name = clients[
+                    int(prompt("Enter client number: ", validator=gt0_validator)) - 1
+                ]
+                job_file = prompt("Enter job file path: ", validator=job_file_validator)
 
-        elif argc == 2:
-            client_name = argv[1]
-            job_file = prompt("Enter job file path: ", validator=job_file_validator)
-
-        elif argc >= 3:
-            if is_valid_file(argv[2]):
+            elif argc == 2:
                 client_name = argv[1]
-                job_file = argv[2]
-            else:
-                print("File does not exist")
-                return
+                job_file = prompt("Enter job file path: ", validator=job_file_validator)
 
-        date_fmt = app.config.date_format
-        date_received = prompt(f"Date received {date_fmt}: ", validator=date_validator)
-        date_due = prompt(f"Date due {date_fmt}: ", validator=date_validator)
+            elif argc >= 3:
+                if is_valid_file(argv[2]):
+                    client_name = argv[1]
+                    job_file = argv[2]
+                else:
+                    print("File does not exist")
+                    return
 
-        def add_job_cb(
-            media_file: str,
-            client: ClientModel,
-            rates: RatesModel,
-            date_received: str,
-            job_num: str,
-            job_dir: str | Path,
-        ):
-
-            print(media_file)
-            work_on_file = prompt(
-                f"Work on this file [{job_file}]: ", validator=yes_no_validator
+            date_fmt = self.app.config.date_format
+            date_received = prompt(
+                f"Date received {date_fmt}: ", validator=date_validator
             )
-            if work_on_file.lower() == "y":
-                job_type = prompt("Specify job type: ", validator=work_validator)
-                job_rate = rates.__dict__.get(job_type.lower(), 0.40)
+            date_due = prompt(f"Date due {date_fmt}: ", validator=date_validator)
 
-                total_quantity = get_media_duration(media_file)
-                quantity = parse_quantity(
-                    prompt(
-                        "Enter quantity of task: ",
-                        default=str(total_quantity),
-                    ),
-                    total_quantity,
+            def add_job_cb(
+                media_file: str,
+                client: ClientModel,
+                rates: RatesModel,
+                date_received: str,
+                job_num: str,
+                job_dir: str | Path,
+            ):
+
+                print(media_file)
+                work_on_file = prompt(
+                    f"Work on this file [{job_file}]: ", validator=yes_no_validator
                 )
-                job_template = prompt(
-                    "Specify template type: ", validator=template_type_validator
-                )
-                note = prompt("Notes: ")
+                if work_on_file.lower() == "y":
+                    job_type = prompt("Specify job type: ", validator=work_validator)
+                    job_rate = rates.__dict__.get(job_type.lower(), 0.40)
 
-                job_dict = {
-                    "client_id": client.id,
-                    "date_received": date_received,
-                    "job_number": job_num,
-                    "job_type": job_type,
-                    "total_quantity": total_quantity,
-                    "job_rate": job_rate,
-                    "quantity": quantity,
-                    "date_due": date_due,
-                    "job_path": str(job_dir),
-                    "note": note,
-                }
-                job = app.api.create_job(**job_dict)
-                return job, job_template
+                    total_quantity = get_media_duration(media_file)
+                    quantity = parse_quantity(
+                        prompt(
+                            "Enter quantity of task: ",
+                            default=str(total_quantity),
+                        ),
+                        total_quantity,
+                    )
+                    job_template = prompt(
+                        "Specify template type: ", validator=template_type_validator
+                    )
+                    note = prompt("Notes: ")
 
-        app.add_job(
-            add_job_cb=add_job_cb,
-            client_name=client_name,
-            job_file=job_file,
-            date_received=date_received,
-            date_due=date_due,
-        )
+                    job_dict = {
+                        "client_id": client.id,
+                        "date_received": date_received,
+                        "job_number": job_num,
+                        "job_type": job_type,
+                        "total_quantity": total_quantity,
+                        "job_rate": job_rate,
+                        "quantity": quantity,
+                        "date_due": date_due,
+                        "job_path": str(job_dir),
+                        "note": note,
+                    }
+                    job = self.app.api.create_job(**job_dict)
+                    return job, job_template
+
+            self.app.add_job(
+                add_job_cb=add_job_cb,
+                client_name=client_name,
+                job_file=job_file,
+                date_received=date_received,
+                date_due=date_due,
+            )
+
+        except (KeyboardInterrupt, EOFError):
+            print("**")
+            return True
 
     def do_add(self, arg):
         """
@@ -469,23 +531,38 @@ class TranscriptorCMD(cmd.Cmd):
     def client_delete(self, arg):
         cols = ["id", "name", "email", "normal", "expedite", "interpreted"]
         argv = shlex.split(arg)
-        if len(argv) > 1:
 
-            scalars = app.api.list_clients(argv[1])
-            ConsoleView().vertical_table(cols, scalars, headers=cols)
+        try:
+            if len(argv) > 1:
+                scalars = self.app.api.list_clients(argv[1])
+                ConsoleView().vertical_table(cols, scalars, headers=cols)
+                client_id = int(argv[1])
+            else:
+                scalars = self.app.api.list_clients()
+                clients = [client._mapping["ClientModel"].name for client in scalars]
+                ConsoleView().vertical_table(cols, scalars, headers=cols)
+                client_id = prompt("Enter client number: ", validator=gt0_validator)
+                print()
+                ConsoleView().vertical_table(
+                    cols, self.app.api.list_clients(client_id), headers=cols
+                )
 
             confirm = input(f"Are you sure you want to delete this client [Y/N]: ")
             if confirm.lower() == "y":
-                app.api.delete_client(argv[1])
+                self.app.api.delete_client(argv[1])
+
+        except (KeyboardInterrupt, EOFError):
+            print("**")
+            return
 
     def job_delete(self, arg):
         argv = shlex.split(arg)
-        job = app.api.get_job(argv[1])
+        job = self.app.api.get_job(argv[1])
         ConsoleView().print_job_table(job)
 
         confirm = input(f"Are you sure you want to delete this job [Y/N]: ")
         if confirm.lower() == "y":
-            app.api.delete_job(argv[1])
+            self.app.api.delete_job(argv[1])
 
     def do_delete(self, arg):
         """
@@ -502,21 +579,31 @@ class TranscriptorCMD(cmd.Cmd):
                 pass
 
     def do_invoice(self, arg):
-        self.clients_show("")
-        date_fmt = app.config.date_format
-        client_id = prompt("Enter client number: ", validator=gt0_validator)
-        period_start = prompt(f"Date from {date_fmt}: ", validator=date_validator)
-        period_end = prompt(f"Date from {date_fmt}: ", validator=date_validator)
+        if self.clients_show("") == 1:
+            return
+        date_fmt = self.app.config.date_format
 
-        app.create_invoice(
-            client_id=client_id,
-            period_start=period_start,
-            period_end=period_end,
-        )
+        try:
+            client_id = prompt("Enter client number: ", validator=gt0_validator)
+            period_start = prompt(f"Date from {date_fmt}: ", validator=date_validator)
+            period_end = prompt(f"Date from {date_fmt}: ", validator=date_validator)
+
+            self.app.create_invoice(
+                client_id=client_id,
+                period_start=period_start,
+                period_end=period_end,
+            )
+        except (KeyboardInterrupt, EOFError):
+            print("**")
+            return
 
 
 def main():
-    TranscriptorCMD().cmdloop()
+    try:
+        TranscriptorCMD().cmdloop()
+    except (KeyboardInterrupt, EOFError):
+        print("\n** Exiting program, bye **\n")
+        return True
 
 
 if __name__ == "__main__":
