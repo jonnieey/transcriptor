@@ -481,7 +481,7 @@ def is_valid_date(text):
     Retuns:
         True if the string is a valid date, otherwise False.
     """
-    match = re.match(r"([0-9]{2}[./-]){2}[0-9]{4}", text)
+    match = re.match(r"([0-9]{2,4}[./-]){2}[0-9]{2,4}", text)
     return all([match])
 
 

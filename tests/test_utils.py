@@ -455,8 +455,8 @@ class TestValidatorFunctions(unittest.TestCase):
     def test_is_valid_date(self):
         self.assertIsInstance(is_valid_date("01/01/2020"), bool)
         self.assertTrue(is_valid_date("01/01/2020"))
-        self.assertFalse(is_valid_date("01/01/20"))
+        self.assertTrue(is_valid_date("01/01/20"))
         self.assertTrue(is_valid_date("01-01-2020"))
-        self.assertFalse(is_valid_date("01-01-20"))
+        self.assertTrue(is_valid_date("01-01-20"))
         self.assertTrue(is_valid_date("01.01.2020"))
-        self.assertFalse(is_valid_date("01.01.20"))
+        self.assertTrue(is_valid_date("01.01.20"))
