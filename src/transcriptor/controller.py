@@ -1,4 +1,6 @@
 import logging
+import shutil
+from decimal import Decimal
 from pathlib import Path
 from typing import IO, Any, List, Optional, Sequence, Tuple
 
@@ -15,7 +17,7 @@ from transcriptor.models import (
     ProfileModel,
     RatesModel,
 )
-from transcriptor.utils import mkdirp, truncate
+from transcriptor.utils import mkdirp, sc, truncate
 
 logger = logging.getLogger(__name__)
 
@@ -355,8 +357,11 @@ class API:
             raise ValueError("job_id is required")
 
         with self.session as session:
-            job_model = (
-                session.query(JobModel).filter(JobModel.id == job_id).one_or_none()
+            job_model, client_model = (
+                session.query(JobModel, ClientModel)
+                .join(ClientModel)
+                .filter(JobModel.id == job_id)
+                .one_or_none()
             )
             if not job_model:
                 raise ValueError(f"Job with id={job_id} does not exist")
@@ -369,7 +374,8 @@ class API:
                     setattr(job_model, attr, value)
 
             # Update calculated attributes
-            if "client_id" in kwargs or "job_rate" in kwargs or "quantity" in kwargs:
+            # or "job_rate" in kwargs or "quantity" in kwargs:
+            if "client_id" in kwargs:
                 client_id = kwargs.get("client_id") or job_model.client_id
                 if not client_id:
                     raise ValueError("client_id is required")
@@ -381,26 +387,58 @@ class API:
                     .one_or_none()
                 )
                 if query is not None:
-                    client_model, rates_model = query
+                    new_client_model, new_rates_model = query
 
-                    if not client_model or not rates_model:
+                    if not new_client_model or not new_rates_model:
                         raise ValueError(
                             f"Client with id={client_id} does not exist or has no rates"
                         )
+                    if "job_rate" in kwargs:
+                        new_job_rate = kwargs.get("job_rate")
+                    else:
+                        new_job_rate = getattr(
+                            new_rates_model, job_model.job_type.lower()
+                        )
 
-                    job_rate = kwargs.get("job_rate") or job_model.job_rate
-                    quantity = kwargs.get("quantity") or job_model.quantity
-                    if not job_rate or not quantity:
+                    if "quantity" in kwargs:
+                        new_quantity = kwargs.get("quantity")
+                    else:
+                        new_quantity = job_model.quantity
+
+                    if not new_job_rate or not new_quantity:
                         raise ValueError("job_rate and quantity are required")
 
-                    job_type = job_model.job_type
-                    new_rate = getattr(rates_model, job_type)
-                    new_amount = round(new_rate * quantity, 2)
+                    new_amount = round(Decimal(new_job_rate) * Decimal(new_quantity), 2)
+
+                    setattr(job_model, "job_rate", new_job_rate)
+                    setattr(job_model, "quantity", new_quantity)
+                    setattr(job_model, "amount", new_amount)
 
                     setattr(job_model, "client_id", client_id)
-                    setattr(job_model, "job_rate", job_rate)
-                    setattr(job_model, "quantity", quantity)
-                    setattr(job_model, "amount", new_amount)
+
+                    original_dir = Path(job_model.job_path)
+                    # split path into parts
+                    nd = list(original_dir.parts)
+                    # replace part after clients (client_name) with new client
+                    nd[nd.index("clients") + 1] = sc(new_client_model.name)
+                    # convert new list back to path object
+                    new_job_dir = Path(*nd)
+                    shutil.copytree(original_dir, new_job_dir, dirs_exist_ok=True)
+                    setattr(job_model, "job_path", str(new_job_dir))
+                    shutil.rmtree(original_dir, ignore_errors=True)
+
+            elif "job_rate" in kwargs or "quantity" in kwargs:
+                job_rate = kwargs.get("job_rate") or job_model.job_rate
+                quantity = kwargs.get("quantity") or job_model.quantity
+                if not job_rate or not quantity:
+                    raise ValueError("job_rate and quantity are required")
+
+                job_type = job_model.job_type
+                new_amount = round(Decimal(job_rate) * Decimal(quantity), 2)
+
+                setattr(job_model, "job_rate", job_rate)
+                setattr(job_model, "quantity", quantity)
+                setattr(job_model, "amount", new_amount)
 
             session.commit()
 

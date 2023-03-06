@@ -86,6 +86,11 @@ class TestAPI:
 
     def test_job(self):
 
+        client = self.api.create_client(name="Alice", email="alice@example.com")
+
+        # Save the client
+        self.api.save_client(client)
+
         stmt = select(JobModel)
         assert self.api.session.execute(stmt).all() == []
 
@@ -99,7 +104,7 @@ class TestAPI:
             job_rate=0.4,
             quantity=5,
             date_due="2020-01-02",
-            job_path="path/to/file",
+            job_path=f"path/to/clients/clientname/year/month/jobdir",
             note="note",
         )
         assert isinstance(job, JobModel)
@@ -116,9 +121,10 @@ class TestAPI:
         assert len(jobs) == 1
         assert type(jobs[0]) == Row
         assert jobs[0]._mapping["JobModel"].note == "note"
+        assert jobs[0]._mapping["JobModel"].amount == 2.0
 
-        # Edit the job
-        self.api.edit_job(job_id=1, quantity=15, client_id=1, note="Note2")
+        # Edit the job (update quantity)
+        self.api.edit_job(job_id=1, quantity="15", note="Note2")
 
         # Retrieve the job from the database to verify that it was updated correctly
         stmt = select(JobModel).where(JobModel.id == 1)
@@ -127,9 +133,16 @@ class TestAPI:
         assert updated_job_model.job_type == "normal"
         assert updated_job_model.quantity == 15
         assert updated_job_model.job_rate == 0.4
-        assert updated_job_model.amount == 2.0
+        # amount is updated  if quantity or rate is updated
+        assert updated_job_model.amount == 6.0
         assert updated_job_model.client_id == 1
         assert updated_job_model.note == "Note2"
+
+        # Edit the job (update rate)
+        self.api.edit_job(job_id=1, job_rate=0.55, note="Note2")
+        updated_job_model = self.api.session.execute(stmt).scalar_one()
+        assert updated_job_model.job_rate == 0.55
+        assert updated_job_model.amount == 8.25
 
         # delete the job
         self.api.delete_job(job_id=1)
