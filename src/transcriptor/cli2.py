@@ -81,6 +81,7 @@ add_client_parser.add_argument(
     "--rates",
     action=KeyValueAction,
     help="client rates dict",
+    default={"normal": 0.40, "expedite": 0.60, "interpreted": 0.30},
 )
 
 add_job_parser = add_subparsers.add_parser("job", help="add job")
@@ -89,6 +90,10 @@ add_job_parser.add_argument("-f", "--job-file", help="job file")
 add_job_parser.add_argument("-r", "--date-received", help="date received")
 add_job_parser.add_argument("-d", "--date-due", help="date due")
 add_job_parser.add_argument("-q", "--quantity", help="quantity")
+add_job_parser.add_argument("-w", "--wof", help="work on file", default="y")
+add_job_parser.add_argument("-t", "--job-type", help="job type")
+add_job_parser.add_argument("-T", "--job-template", help="job template")
+add_job_parser.add_argument("-N", "--note", help="job note", default=" ")
 
 update_parser = base_subparsers.add_parser("update", help="update object")
 update_subparsers = update_parser.add_subparsers(
@@ -136,6 +141,7 @@ update_job_parser.add_argument("-R", "--job-rate", type=float, help="job rate")
 update_job_parser.add_argument("-S", "--date-submitted", help="date submitted")
 update_job_parser.add_argument("-a", "--amount-paid", type=float, help="amount paid")
 update_job_parser.add_argument("-N", "--note", type=str, help="note")
+update_job_parser.add_argument("-p", "--job-path", help="job path")
 
 delete_parser = base_subparsers.add_parser("delete", help="delete object")
 delete_subparsers = delete_parser.add_subparsers(
@@ -305,8 +311,8 @@ class TranscriptorCMD(cmd2.Cmd):
             if args.email is None:
                 args.email = pe()
 
-            self.poutput("Rates:")
             if not args.rates:
+                self.poutput("Rates:")
                 args.rates = pr()
 
             self.app.add_client(args.name, args.email, args.rates)
@@ -342,21 +348,18 @@ class TranscriptorCMD(cmd2.Cmd):
                 arg.client = clients[
                     int(prompt("Enter client number: ", validator=gt0_validator)) - 1
                 ]
-            if not arg.job_file:
-                arg.job_file = prompt(
-                    "Enter job file path: ", validator=job_file_validator
-                )
+            arg.job_file = arg.job_file or prompt(
+                "Enter job file path: ", validator=job_file_validator
+            )
 
             date_fmt = self.app.config.date_format
 
-            if not arg.date_received:
-                arg.date_received = prompt(
-                    f"Date received {date_fmt}: ", validator=date_validator
-                )
-            if not arg.date_due:
-                arg.date_due = prompt(
-                    f"Date due {date_fmt}: ", validator=date_validator
-                )
+            arg.date_received = arg.date_received or prompt(
+                f"Date received {date_fmt}: ", validator=date_validator
+            )
+            arg.date_due = arg.date_due or prompt(
+                f"Date due {date_fmt}: ", validator=date_validator
+            )
 
             def add_job_cb(
                 media_file: str,
@@ -368,41 +371,45 @@ class TranscriptorCMD(cmd2.Cmd):
             ):
 
                 self.poutput(media_file)
-                work_on_file = prompt(
+                arg.wof = arg.wof or prompt(
                     f"Work on this file [{media_file}]: ", validator=yes_no_validator
                 )
-                if work_on_file.lower() == "y":
-                    job_type = prompt("Specify job type: ", validator=work_validator)
-                    job_rate = rates.__dict__[job_type.lower()]
+                if arg.wof.lower() == "y":
+                    arg.job_type = arg.job_type or prompt(
+                        "Specify job type: ", validator=work_validator
+                    )
+                    job_rate = rates.__dict__[arg.job_type.lower()]
 
                     total_quantity = get_media_duration(media_file)
-                    if not arg.quantity:
-                        arg.quantity = parse_quantity(
+                    if arg.quantity.lower() in ["full", "whole"]:
+                        arg.quantity = total_quantity
+                    else:
+                        arg.quantity = arg.quantity or parse_quantity(
                             prompt(
                                 "Enter quantity of task: ",
                                 default=str(total_quantity),
                             ),
                             total_quantity,
                         )
-                    job_template = prompt(
+                    arg.job_template = arg.job_template or prompt(
                         "Specify template type: ", validator=template_type_validator
                     )
-                    note = prompt("Notes: ")
+                    arg.note = arg.note or prompt("Notes: ")
 
                     job_dict = {
                         "client_id": client.id,
                         "date_received": arg.date_received,
                         "job_number": job_num,
-                        "job_type": job_type,
+                        "job_type": arg.job_type,
                         "total_quantity": total_quantity,
                         "job_rate": job_rate,
                         "quantity": arg.quantity,
                         "date_due": arg.date_due,
                         "job_path": str(job_dir),
-                        "note": note,
+                        "note": arg.note,
                     }
                     job = self.app.api.create_job(**job_dict)
-                    return job, job_template
+                    return job, arg.job_template
 
             # TODO use client id instead of client-name
             self.app.add_job(
