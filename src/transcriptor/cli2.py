@@ -393,16 +393,15 @@ class TranscriptorCMD(cmd2.Cmd):
                     job_rate = rates.__dict__[arg.job_type.lower()]
 
                     total_quantity = get_media_duration(media_file)
+                    arg.quantity = arg.quantity or prompt(
+                        "Enter quantity of task: ",
+                        default=str(total_quantity),
+                    )
                     if arg.quantity.lower() in ["full", "whole"]:
                         arg.quantity = total_quantity
                     else:
-                        arg.quantity = arg.quantity or parse_quantity(
-                            prompt(
-                                "Enter quantity of task: ",
-                                default=str(total_quantity),
-                            ),
-                            total_quantity,
-                        )
+                        arg.quantity = parse_quantity(arg.quantity, total_quantity)
+
                     arg.job_template = arg.job_template or prompt(
                         "Specify template type: ", validator=template_type_validator
                     )
