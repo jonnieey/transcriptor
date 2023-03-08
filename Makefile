@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-PY_SRC := src/ tests/
+PY_SRC := . src/ tests/ 
 
 .PHONY: help
 help:  ## Print this help.
