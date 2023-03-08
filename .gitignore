@@ -6,8 +6,3 @@ build/
 *cache*
 *.pyc
 egg-info/
-
-src/transcriptor/resources/
-src/transcriptor/templates/
- 
-
