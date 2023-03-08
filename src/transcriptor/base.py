@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import shutil
 import zipfile
 from datetime import date, datetime, timedelta
@@ -8,6 +9,8 @@ from typing import Any, Callable, Dict
 
 from appdirs import user_config_dir, user_data_dir
 from jinja2 import Environment, PackageLoader, select_autoescape
+from markdownify import MarkdownConverter
+from rich.console import Console
 from sqlalchemy import select
 from weasyprint import HTML
 
@@ -21,6 +24,16 @@ from transcriptor.utils import (
     str_to_date,
     touch,
 )
+
+
+class MDConverter(MarkdownConverter):
+    def convert_tr(self, el, text, convert_as_inline):
+        return super().convert_tr(el, text, convert_as_inline) + "\n"
+
+
+def md(html, **options):
+    return MDConverter(**options).convert(html)
+
 
 logger = logging.getLogger(__name__)
 
@@ -228,26 +241,28 @@ class Transcriptor(BaseTranscriptor):
 
                 self.api.save_job(job)
 
-    def create_invoice(self, client_id, period_start, period_end):
+    def create_invoice(self, client_id, period_start, period_end, to_file=False):
         # client, jobs, totals =
         client, jobs_list, (amount, amount_paid) = self.api.create_invoice_data(
             client_id, period_start, period_end
         )
 
+        profile = self.profile.__dict__
+        created = datetime.today()
+        due = created + timedelta(days=7)
+
+        DATE_FMT = self.config.date_format
+
         CLIENT_DIR = self.base_dir.joinpath("clients").joinpath(sc(client["name"]))
         INVOICES_DIR = CLIENT_DIR.joinpath("invoices")
         INVOICE_COUNTER_FILE = INVOICES_DIR.joinpath("invoice_counter.txt")
-        touch([INVOICE_COUNTER_FILE])
 
-        with open(INVOICE_COUNTER_FILE, "r") as fd:
-            count = fd.readline()
-            invoice_counter = 0 if count == "" else int(count)
-
-        profile = self.profile.__dict__
-        DATE_FMT = self.config.date_format
-
-        created = datetime.today()
-        due = created + timedelta(days=7)
+        try:
+            with open(INVOICE_COUNTER_FILE, "r") as fd:
+                count = fd.readline()
+                invoice_counter = 0 if count == "" else int(count)
+        except FileNotFoundError:
+            invoice_counter = 0
 
         context = {
             "client": client,
@@ -260,6 +275,7 @@ class Transcriptor(BaseTranscriptor):
                 "invoice_number": f"{invoice_counter + 1:05}",
             },
         }
+
         env = Environment(
             loader=PackageLoader("transcriptor", "invoice_templates"),
             autoescape=select_autoescape(["html", "xml"]),
@@ -272,14 +288,22 @@ class Transcriptor(BaseTranscriptor):
         html_invoice_file_name = f"{invoice_file_name}.html"
         pdf_invoice_file_name = f"{invoice_file_name}.pdf"
 
-        with open(INVOICES_DIR.joinpath(html_invoice_file_name), "w") as fd:
-            fd.write(output_text)
+        touch([INVOICE_COUNTER_FILE])
 
-        invoice_file = str(INVOICES_DIR.joinpath(pdf_invoice_file_name))
-        HTML(string=output_text).write_pdf(invoice_file)
+        if to_file:
+            with open(INVOICES_DIR.joinpath(html_invoice_file_name), "w") as fd:
+                fd.write(output_text)
 
-        with open(INVOICE_COUNTER_FILE, "w") as fd:
-            fd.write(f"{invoice_counter + 1:05}")
+            invoice_file = str(INVOICES_DIR.joinpath(pdf_invoice_file_name))
+            HTML(string=output_text).write_pdf(invoice_file)
+
+            with open(INVOICE_COUNTER_FILE, "w") as fd:
+                fd.write(f"{invoice_counter + 1:05}")
+        else:
+            markdown = md(output_text)
+            table = "\n\n" + markdown[markdown.find("Invoice\n==") :]
+            table = re.sub(r"\n{2,}", "\n\n", table)
+            Console().print(table)
 
 
 if __name__ == "__main__":

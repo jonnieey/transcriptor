@@ -152,6 +152,18 @@ delete_client_parser.add_argument("-i", "--client-id", type=int, help="client id
 delete_job_parser = delete_subparsers.add_parser("job", help="delete job")
 delete_job_parser.add_argument("-i", "--job-id", type=int, help="job id")
 
+invoice_parser = base_subparsers.add_parser("invoice", help="Invoice commands")
+invoice_subparsers = invoice_parser.add_subparsers(
+    title="subcommands", help="subcommand help"
+)
+create_invoice_parser = invoice_subparsers.add_parser("create", help="Create Invoice")
+create_invoice_parser.add_argument("-c", "--client-id", help="client id")
+create_invoice_parser.add_argument("-s", "--period-start", help="Period start")
+create_invoice_parser.add_argument("-e", "--period-end", help="Period end")
+create_invoice_parser.add_argument(
+    "-f", "--to-file", action="store_true", help="Period end"
+)
+
 
 class TranscriptorCMD(cmd2.Cmd):
     prompt = "(trans) "
@@ -573,26 +585,46 @@ class TranscriptorCMD(cmd2.Cmd):
         else:
             self.do_help("base")
 
+    def create_invoice(self, arg):
+        try:
+            if not arg.client_id:
+                if self.show_clients("") == 1:
+                    return
+                arg.client_id = prompt("Enter client id: ", validator=gt0_validator)
 
-#     def do_invoice(self, arg):
-#         if self.clients_show("") == 1:
-#             return
-#         date_fmt = self.app.config.date_format
-#
-#         try:
-#             client_id = prompt("Enter client number: ", validator=gt0_validator)
-#             period_start = prompt(f"Date from {date_fmt}: ", validator=date_validator)
-#             period_end = prompt(f"Date from {date_fmt}: ", validator=date_validator)
-#
-#             self.app.create_invoice(
-#                 client_id=client_id,
-#                 period_start=period_start,
-#                 period_end=period_end,
-#             )
-#         except (KeyboardInterrupt, EOFError):
-#             self.poutput("**")
-#             return
-#
+            date_fmt = self.app.config.date_format
+
+            arg.period_start = arg.period_start or prompt(
+                f"Date from {date_fmt}: ", validator=date_validator
+            )
+            arg.period_end = arg.period_end or prompt(
+                f"Date from {date_fmt}: ", validator=date_validator
+            )
+
+            self.app.create_invoice(
+                client_id=arg.client_id,
+                period_start=arg.period_start,
+                period_end=arg.period_end,
+                to_file=arg.to_file,
+            )
+        except (KeyboardInterrupt, EOFError):
+            self.poutput("**")
+            return
+
+    create_invoice_parser.set_defaults(func=create_invoice)
+
+    @cmd2.with_argparser(create_invoice_parser)
+    def do_invoice(self, args):
+        """
+        Invoice command help
+        """
+        func = getattr(args, "func", None)
+        if func is not None:
+            func(self, args)
+        else:
+            self.do_help("base")
+
+
 #
 def main():
     c = TranscriptorCMD()

@@ -1,126 +1,149 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="x-ua-compatible" content="ie=edge">
+	<meta charset="UTF-8">
+	<title>Invoice</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			font-size: 14px;
+			color: #333;
+			margin: 0;
+			padding: 0;
+		}
 
-    <title>Some Random Title</title>
-    <style>
-        body{
-            font-family: "Courier New", "Courier", "Lucida Sans Typewriter", "Lucida Typewriter", "monospace" !important;
-            letter-spacing: -0.3px;
-            font-size: 12px 
-        }
-        .invoice-wrapper{ width: 700px; margin: auto; }
-        .nav-sidebar .nav-header:not(:first-of-type){ padding: 1.7rem 0rem .5rem; }
-        .logo{ font-size: 50px; }
-        .sidebar-collapse .brand-link .brand-image{ margin-top: -33px; }
-        .content-wrapper{ margin: auto !important; }
-        .billing-company-image { width: 50px; }
-        .billing_name { text-transform: uppercase; }
-        .billing_address { text-transform: capitalize; }
-        .table{ width: 100%; border-collapse: collapse; }
-        th{ text-align: left; padding: 10px; }
-        td{ padding: 10px; vertical-align: top; }
-        .row{ display: block; clear: both; }
-        .text-right{ text-align: right; }
-        .text-left{ text-align: left; }
-        .table-hover thead tr{ background: #afaeae; }
-        .table-hover tbody tr:nth-child(even){ background: #e1e0e0; }
-        address{ font-style: normal; }
-    </style>
+		h1 {
+			font-size: 24px;
+			color: #333;
+			margin-bottom: 0;
+		}
+
+		.header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			background-color: #eee;
+			padding: 20px;
+		}
+
+		.invoice-details {
+			margin-top: 20px;
+			padding: 20px;
+			background-color: #f9f9f9;
+			border: 1px solid #ddd;
+		}
+
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-top: 20px;
+		}
+
+		th, td {
+			padding: 10px;
+			text-align: left;
+			border-bottom: 1px solid #ddd;
+		}
+
+		th {
+			background-color: #eee;
+			font-weight: normal;
+			/* text-transform: uppercase; */
+			color: #777;
+		}
+
+		tfoot {
+			background-color: #eee;
+			font-weight: bold;
+			/* text-transform: uppercase; */
+			color: #777;
+		}
+
+		.total {
+			margin-top: 20px;
+			padding: 20px;
+			background-color: #f9f9f9;
+			border: 1px solid #ddd;
+			display: flex;
+			justify-content: flex-end;
+			align-items: center;
+		}
+
+		.total p {
+			margin: 0;
+			font-size: 16px;
+			font-weight: bold;
+			color: #333;
+			margin-right: 20px;
+		}
+
+		.footer {
+			margin-top: 20px;
+			padding: 20px;
+			background-color: #eee;
+			text-align: center;
+			font-size: 12px;
+			color: #777;
+		}
+	</style>
 </head>
 <body>
-    <div class="row invoice-wrapper">
-        <div class="col-md-12">
-            <div class="row">
-                <div class="col-md-12">
-                    <table class="table">
-                        <tr>
-                            <td class="text-right">
-                                <div class="">
-                                    <strong><h1>INVOICE</h1></strong>
-                                    <address>
-                                        {{ profile.first_name }} {{profile.last_name}}<br>
-                                        {{ profile.area }}<br>
-                                        {{ profile.country }}<br>
-                                    </address>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-            <br>
-            <hr>
-            <div class="row invoice-info">
-                <div class="col-md-12">
-                    <table class="table">
-                        <tr>
-                            <td>
-                                <div class="">
-                                    Bill to: 
-                                    <address>
-                                        {{ client.name }}<br>
-                                        <br>
-                                        {{ client.email }}
-                                    </address>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="text-right">
-                                    <b>Invoice #{{ data.invoice_number }}</b><br>
-                                    Created: {{ data.created }}<br>
-                                    Due: {{ data.due }}<br>
-                                    <strong>Amount: ${{ "%.2f" | format(amount) }}</strong>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-            <br><br>
-            <div class="row">
-                <div class="col-md-12 table-responsive">
-                    <table class="table table-condensed table-hover">
-                        <thead>
-                            <tr>
-                                <th></th>
-                                <th>Job Number</th>
-                                <th>Job Type</th>
-                                <th>Rate</th>
-                                <th class='text-right'>Quantity</th>
-                                <th class='text-right'>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                          {% for job in jobs %}
-                            <tr>
-                                <td>{{ loop.index }}</td>
-                                <td>{{ job.job_number }}</td>
-                                <td>{{ job.job_type }}</td>
-                                <td>&#36;{{ "%.2f" | format(job.job_rate) }}</td>
-                                <td class='text-right'>{{ "%.1f" | format(job.quantity) }}</td>
-                                <td class='text-right'>&#36;{{ "%.2f" | format(job.quantity * job.job_rate) }}</td>
-                            </tr>
-                          {% endfor %}
-                          <thead>
-                            <tr>
-                                <td colspan="5" class="text-right"><strong>TOTAL</strong></td>
-                                <td class="text-right"><strong>&#36;{{ "%.2f" | format(amount) }}</strong></td>
-                            </tr>
-                          </thead>
+	<div class="header">
+		<img alt="">
+		<h1>Invoice</h1>
+	</div>
 
-                        </tbody>
-                    </table>
-                    <br><br><br>
-                </div>
-                <!-- /.col -->
-            </div>
-            <br><br><br>
-        </div>
-    </div>
+	<div class="invoice-details">
+		<table>
+			<thead>
+				<tr>
+					<th>Invoice Number:</th>
+					<td>{{ data.invoice_number }}</td>
+					<th>Invoice Date:</th>
+					<td>{{ data.created }}</td>
+				</tr>
+				<tr>
+					<th>Client Name:</th>
+					<td>{{ client.name }}</td>
+					<th>Due Date:</th>
+					<td>{{ data.due }}</td>
+				</tr>
+			</thead>
+		</table>
+	</div>
+
+	<div class="invoice-items">
+		<table>
+			<thead>
+				<tr>
+					<th></th>
+					<th>Job Number</th>
+					<th>Job Type</th>
+					<th>Rate</th>
+					<th>Quantity</th>
+					<th>Amount</th>
+				</tr>
+			</thead>
+			<tbody>
+			  {% for job in jobs %}
+					<tr>
+						<td>{{ loop.index }}</td>
+						<td>{{ job.job_number }}</td>
+						<td>{{ job.job_type }}</td>
+						<td>&#36;{{ "%.2f" | format(job.job_rate) }}</td>
+						<td>{{ "%.1f" | format(job.quantity) }}</td>
+						<td>&#36;{{ "%.2f" | format(job.quantity * job.job_rate) }}</td>
+					</tr>
+				  {% endfor %}
+				  <tfoot>
+					<tr>
+						<td colspan="5">TOTAL</td>
+						<td>&#36;{{ "%.2f" | format(amount) }}</td>
+					</tr>
+				  </tfoot>
+			</tbody>
+		</table>
+	</div>
 </body>
 </html> 
 
