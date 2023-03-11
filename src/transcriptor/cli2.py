@@ -12,6 +12,7 @@ from transcriptor.base import Transcriptor
 from transcriptor.models import ClientModel, RatesModel
 from transcriptor.utils import (
     date_validator,
+    dts,
     email_validator,
     float_validator,
     get_media_duration,
@@ -19,6 +20,7 @@ from transcriptor.utils import (
     job_file_validator,
     name_validator,
     parse_quantity,
+    std,
     template_type_validator,
     work_validator,
     yes_no_validator,
@@ -31,11 +33,14 @@ class KeyValueAction(argparse.Action):
         if not hasattr(namespace, self.dest) or getattr(namespace, self.dest) is None:
             setattr(namespace, self.dest, {})
 
+        if isinstance(values, list):
+            values = " ".join(values)
+
         if "=" in values:
             pairs = values.split()
             for pair in pairs:
                 key, value = pair.split("=")
-                getattr(namespace, self.dest)[key] = float(value)
+                getattr(namespace, self.dest)[key] = value
 
         else:
             try:
@@ -63,7 +68,9 @@ show_clients_parser.add_argument("-i", "--id", type=int, help="client id")
 show_config_parser = show_subparsers.add_parser("config", help="show config")
 show_profile_parser = show_subparsers.add_parser("profile", help="show profile")
 show_jobs_parser = show_subparsers.add_parser("jobs", help="show jobs")
-show_jobs_parser.add_argument("-n", "--job-number", type=int, help="job number")
+show_jobs_parser.add_argument(
+    "-v", "--key-val", action=KeyValueAction, nargs="*", help="Show jobs"
+)
 
 add_parser = base_subparsers.add_parser("add", help="add object")
 add_subparsers = add_parser.add_subparsers(title="subcommands", help="subcommand help")
@@ -160,6 +167,9 @@ create_invoice_parser = invoice_subparsers.add_parser("create", help="Create Inv
 create_invoice_parser.add_argument("-c", "--client-id", help="client id")
 create_invoice_parser.add_argument("-s", "--period-start", help="Period start")
 create_invoice_parser.add_argument("-e", "--period-end", help="Period end")
+create_invoice_parser.add_argument(
+    "-t", "--print-table", action="store_true", help="Print cutoff dates table"
+)
 create_invoice_parser.add_argument(
     "-f", "--to-file", action="store_true", help="Period end"
 )
@@ -259,7 +269,10 @@ class TranscriptorCMD(cmd2.Cmd):
             show jobs
         """
         # TODO Filter jobs with app.api.list_jobs(attributes={})
-        jobs = self.app.api.list_jobs()
+        if arg.key_val:
+            jobs = self.app.api.list_jobs(attributes=arg.key_val)
+        else:
+            jobs = self.app.api.list_jobs()
         if jobs:
             total_amount, total_amount_paid = self.app.api.get_jobs_scalars_total(jobs)
             total_dict = {
@@ -593,12 +606,25 @@ class TranscriptorCMD(cmd2.Cmd):
 
             date_fmt = self.app.config.date_format
 
-            arg.period_start = arg.period_start or prompt(
-                f"Date from {date_fmt}: ", validator=date_validator
-            )
-            arg.period_end = arg.period_end or prompt(
-                f"Date from {date_fmt}: ", validator=date_validator
-            )
+            if (not arg.period_start or not arg.period_end) and arg.print_table:
+                cutoff_list = self.app.get_cutoffs()
+                ConsoleView().print_cutoff_table(cutoff_list)
+
+                cutoff = int(
+                    prompt("Enter cutoff date number: ", validator=gt0_validator)
+                )
+                start, end = cutoff_list[cutoff]
+                arg.period_start = dts(std(start, "%m/%d/%Y"), date_fmt)
+                arg.period_end = dts(std(end, "%m/%d/%Y"), date_fmt)
+
+            if not arg.period_start or not arg.period_end:
+
+                arg.period_start = arg.period_start or prompt(
+                    f"Date from {date_fmt}: ", validator=date_validator
+                )
+                arg.period_end = arg.period_end or prompt(
+                    f"Date from {date_fmt}: ", validator=date_validator
+                )
 
             self.app.create_invoice(
                 client_id=arg.client_id,

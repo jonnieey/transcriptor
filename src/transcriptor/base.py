@@ -1,3 +1,4 @@
+import csv
 import logging
 import os
 import re
@@ -17,6 +18,7 @@ from weasyprint import HTML
 from transcriptor.controller import API
 from transcriptor.models import ClientModel, ConfigModel, JobModel, RatesModel
 from transcriptor.utils import (
+    csv_from_docx,
     get_media_files,
     mkdirp,
     parse_job_number,
@@ -305,8 +307,29 @@ class Transcriptor(BaseTranscriptor):
             table = re.sub(r"\n{2,}", "\n\n", table)
             Console().print(table)
 
+    def save_cutoffs(self, docx_path):
+        cutoff_csv = csv_from_docx(docx_path)
+        CUTOFF_FILE = self.base_dir.joinpath("cutoffs.csv")
+        with open(CUTOFF_FILE, "w") as fd:
+            fd.write(cutoff_csv)
+
+    def get_cutoffs(self):
+
+        CUTOFF_FILE = self.base_dir.joinpath("cutoffs.csv")
+        with open(CUTOFF_FILE, "r") as fd:
+            reader = csv.reader(fd)
+            if reader:
+                return list(reader)
+
 
 if __name__ == "__main__":
     app = Transcriptor()
-    print(app.config)
+    # print(app.config)m
+    file = (
+        "/home/kamikaze/Documents/Wera/Transcription/TRANSCRIBER JOB CUT OFF 2023.docx"
+    )
     # t(app.select_job_template("zd"))
+    t = app.save_cutoffs(file)
+    from transcriptor.view import ConsoleView
+
+    ConsoleView().print_cutoff_table(app.get_cutoffs())

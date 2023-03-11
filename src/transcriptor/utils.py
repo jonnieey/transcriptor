@@ -5,9 +5,11 @@ import re
 from datetime import datetime, timedelta
 from decimal import Decimal
 from fractions import Fraction
+from io import StringIO
 from pathlib import Path
 from typing import List, Match, Optional, Pattern
 
+import docx
 from audioread import audio_open
 from prompt_toolkit.validation import Validator
 
@@ -289,7 +291,7 @@ class CSVTextBuilder:
         self.csv_string.append(row)
 
 
-def dict_to_csv(dic, headers):
+def dict_to_csv(dic, headers=[]):
     """
     Convert a dictionary to a CSV string.
 
@@ -362,6 +364,30 @@ def list_of_rows_to_csv(
     for d in dicts:
         writer.writerow(d.values())
     return "".join(csv_builder.csv_string)
+
+
+def csv_from_docx(docx_path: str) -> str:
+    """
+    Convert docx file with table to csv.
+
+    Arguments:
+        docx_path: Path to docx file.
+
+    Returns:
+        CSV string
+    """
+    try:
+        docx_file = docx.Document(docx_path)
+    except docx.opc.exceptions.PackageNotFoundError:
+        print("Docx file not found")
+        return ""
+    csv_file = StringIO()
+    csv_writer = csv.writer(csv_file)
+    for table in docx_file.tables:
+        for row in table.rows:
+            # csv_writer.writerow(list(map(lambda cell: cell.text, row.cells)))
+            csv_writer.writerow([cell.text for cell in row.cells])
+    return csv_file.getvalue()
 
 
 def is_valid_email(text):

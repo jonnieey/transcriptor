@@ -113,3 +113,17 @@ class ConsoleView:
                 r = {k: v for k, v in r.items() if k in cols}
                 self.table.add_row(*r2s(r.values()))
         self.console.print(self.table)
+
+    def print_cutoff_table(self, list_of_rows):
+        if not list_of_rows:
+            return
+
+        table = self.table
+        headers = ["", *list_of_rows[0]]
+        rows = list_of_rows[1:]
+        for column in headers:
+            table.add_column(tc(column))
+
+        for idx, row in enumerate(rows):
+            table.add_row(str(idx + 1), row[0], row[1])
+        self.console.print(table)

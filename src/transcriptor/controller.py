@@ -159,6 +159,7 @@ class API:
         """
 
         # logger.info(f'Creating client "{name}"')
+        rates = {k: float(v) for k, v in rates.items()}
         rate_obj = RatesModel(**rates)
         client = ClientModel(name=name, email=email, rates=rate_obj)
         return client
