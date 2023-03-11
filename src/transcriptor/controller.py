@@ -297,10 +297,10 @@ class API:
             date_received=date_received,
             job_number=job_number,
             job_type=job_type,
-            total_quantity=total_quantity,
+            total_quantity=round(Decimal(total_quantity), 1),
+            quantity=round(Decimal(quantity), 1),
             job_rate=job_rate,
-            amount=amount,
-            quantity=quantity,
+            amount=round(Decimal(amount), 2),
             date_due=date_due,
             job_path=job_path,
             note=note,
@@ -394,21 +394,18 @@ class API:
                             f"Client with id={client_id} does not exist or has no rates"
                         )
                     if "job_rate" in kwargs:
-                        new_job_rate = kwargs.get("job_rate")
-                    else:
-                        new_job_rate = getattr(
+                        new_job_rate = kwargs.get("job_rate") or getattr(
                             new_rates_model, job_model.job_type.lower()
                         )
 
                     if "quantity" in kwargs:
-                        new_quantity = kwargs.get("quantity")
-                    else:
-                        new_quantity = job_model.quantity
+                        new_quantity = kwargs.get("quantity") or job_model.quantity
 
                     if not new_job_rate or not new_quantity:
                         raise ValueError("job_rate and quantity are required")
 
-                    new_amount = round(Decimal(new_job_rate) * Decimal(new_quantity), 2)
+                    new_quantity = round(Decimal(new_quantity), 1)
+                    new_amount = round(Decimal(new_job_rate) * new_quantity, 2)
 
                     setattr(job_model, "job_rate", new_job_rate)
                     setattr(job_model, "quantity", new_quantity)
@@ -434,11 +431,22 @@ class API:
                     raise ValueError("job_rate and quantity are required")
 
                 job_type = job_model.job_type
-                new_amount = round(Decimal(job_rate) * Decimal(quantity), 2)
+                new_quantity = round(Decimal(quantity), 1)
+                new_amount = round(Decimal(job_rate) * new_quantity, 2)
 
                 setattr(job_model, "job_rate", job_rate)
-                setattr(job_model, "quantity", quantity)
+                setattr(job_model, "quantity", new_quantity)
                 setattr(job_model, "amount", new_amount)
+
+            if "date_submitted" in kwargs:
+                date_submitted = kwargs.get("date_submitted")
+                if not date_submitted:
+                    status = "Pending"
+                else:
+                    status = "Done"
+
+                setattr(job_model, "date_submitted", date_submitted)
+                setattr(job_model, "status", status)
 
             session.commit()
 

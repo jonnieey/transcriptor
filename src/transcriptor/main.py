@@ -1,17 +1,8 @@
-import sys
-
-from transcriptor.cli import main as cli
-from transcriptor.tui import main as tui
+from transcriptor.cli2 import main as cli
 
 
 def main():
-    try:
-        if len(sys.argv) > 1:
-            cli()
-        else:
-            tui()
-    except KeyError:
-        tui()
+    cli()
 
 
 if __name__ == "__main__":
