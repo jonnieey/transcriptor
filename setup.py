@@ -58,4 +58,4 @@ if platform.system() == "Windows":
             ]
         )
 
-setup(name="transcriptor")
+setup()
