@@ -97,7 +97,7 @@ add_job_parser.add_argument("-f", "--job-file", help="job file")
 add_job_parser.add_argument("-r", "--date-received", help="date received")
 add_job_parser.add_argument("-d", "--date-due", help="date due")
 add_job_parser.add_argument("-q", "--quantity", help="quantity")
-add_job_parser.add_argument("-w", "--wof", help="work on file", default="y")
+add_job_parser.add_argument("-w", "--wof", help="work on file")
 add_job_parser.add_argument("-t", "--job-type", help="job type")
 add_job_parser.add_argument("-T", "--job-template", help="job template")
 add_job_parser.add_argument("-N", "--note", help="job note", default=" ")
@@ -146,6 +146,7 @@ update_job_parser.add_argument("-d", "--date-due", help="date due")
 update_job_parser.add_argument("-q", "--quantity", help="quantity")
 update_job_parser.add_argument("-R", "--job-rate", type=float, help="job rate")
 update_job_parser.add_argument("-S", "--date-submitted", help="date submitted")
+update_job_parser.add_argument("-A", "--amount", type=float, help="amount")
 update_job_parser.add_argument("-a", "--amount-paid", type=float, help="amount paid")
 update_job_parser.add_argument("-N", "--note", type=str, help="note")
 update_job_parser.add_argument("-p", "--job-path", help="job path")
@@ -269,7 +270,7 @@ class TranscriptorCMD(cmd2.Cmd):
             show jobs
         """
         # TODO Filter jobs with app.api.list_jobs(attributes={})
-        if arg.key_val:
+        if arg and arg.key_val:
             jobs = self.app.api.list_jobs(attributes=arg.key_val)
         else:
             jobs = self.app.api.list_jobs()
