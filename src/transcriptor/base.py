@@ -21,6 +21,7 @@ from transcriptor.utils import (
     csv_from_docx,
     get_media_files,
     mkdirp,
+    next_non_existant_file,
     parse_job_number,
     sc,
     str_to_date,
@@ -29,11 +30,18 @@ from transcriptor.utils import (
 
 
 class MDConverter(MarkdownConverter):
+    """
+    Converter for Markdown to HTML
+    """
+
     def convert_tr(self, el, text, convert_as_inline):
         return super().convert_tr(el, text, convert_as_inline) + "\n"
 
 
 def md(html, **options):
+    """
+    Convert Markdown to HTML
+    """
     return MDConverter(**options).convert(html)
 
 
@@ -43,6 +51,10 @@ APP_NAME = "transcriptor3"
 
 
 class BaseTranscriptor:
+    """
+    Base class for transcriptor
+    """
+
     _shared_state: Dict[Any, Any] = {}
 
     def __init__(self):
@@ -50,6 +62,14 @@ class BaseTranscriptor:
 
 
 class Transcriptor(BaseTranscriptor):
+    """
+    Main transcriptor class
+
+    __init__: Initialize the transcriptor class with the following arguments:
+        - config_file: Path to the config file
+
+    """
+
     config_class = ConfigModel
 
     def __init__(self, config: ConfigModel = None):
@@ -66,6 +86,12 @@ class Transcriptor(BaseTranscriptor):
         mkdirp([self.clients_dir])
 
     def reload(self, config):
+        """
+        Reload the transcriptor with a new config
+
+        Arguements:
+            - config: The new config to use
+        """
         self.api.db.engine.dispose()
         self.config = config
 
@@ -80,6 +106,12 @@ class Transcriptor(BaseTranscriptor):
         mkdirp([self.clients_dir])
 
     def make_config(self):
+        """
+        Make a new config file or load existing from file
+
+        Returns:
+            The new config object
+        """
         DEFAULT_BASE_DIR = Path(user_data_dir(appname=APP_NAME))
         DEFAULT_CONFIG = {"date_format": "%Y-%m-%d", "base_dir": f"{DEFAULT_BASE_DIR}"}
         DEFAULT_CONFIG_DIR = Path(user_config_dir(appname=APP_NAME))
@@ -94,11 +126,17 @@ class Transcriptor(BaseTranscriptor):
         return config
 
     def save_config(self):
+        """
+        Save the config file and reload transcriptor app
+        """
         with open(self.config_file, "w") as fd:
             self.config.save(fd)
         self.reload(self.config)
 
     def save_profile(self):
+        """
+        Save the profile file
+        """
         with open(self.profile_file, "w") as fd:
             self.profile.save(fd)
 
@@ -160,6 +198,15 @@ class Transcriptor(BaseTranscriptor):
             zipfile.ZipFile(moved_file).extractall(job_dir)
 
     def add_client(self, name: str, email: str, rates: dict) -> None:
+        """
+        Add a new client to the database and create a new client directory
+        with client's templates
+
+        Arguments:
+            name: Name of client
+            email: Email of client
+            rates: Rates of client
+        """
         new_client = self.api.create_client(name, email, rates)
         self.api.save_client(new_client)
         CLIENT_DIR = self.base_dir.joinpath("clients").joinpath(sc(name))
@@ -168,6 +215,16 @@ class Transcriptor(BaseTranscriptor):
         shutil.copytree(template_path, CLIENT_DIR.joinpath("templates"))
 
     def select_job_template(self, client, template_init: str):
+        """
+        Select a job template for a task
+
+        Arguments:
+            client: Client name
+            template_init: Template name initials
+
+        Returns:
+            Path to template file
+        """
         template_mapping = {
             "zd": "Zoom Deposition Block Files.doc",
             "nh": "Hearing Block Files.doc",
@@ -190,16 +247,6 @@ class Transcriptor(BaseTranscriptor):
             template_mapping[template_init]
         )
         return template_path
-
-    def next_non_existant_file(self, filename):
-        base_dir = str(Path(filename).parent.absolute())
-        nf = filename
-        root, ext = Path(nf).stem, Path(nf).suffix
-        i = 0
-        while Path(nf).exists():
-            i += 1
-            nf = f"{base_dir}/{root}_{i}{ext}"
-        return Path(nf)
 
     def add_job(
         self,
@@ -255,7 +302,7 @@ class Transcriptor(BaseTranscriptor):
                 )
                 job_template = self.select_job_template(sc(client.name), job_temp_init)
                 # TODO Copy numbered files for each task
-                job_path = self.next_non_existant_file(
+                job_path = next_non_existant_file(
                     job_dir.joinpath(
                         f"{job_num} Due {str_to_date(date_due, DATE_FMT).strftime('%m.%d')}.doc",
                     ),
@@ -265,6 +312,15 @@ class Transcriptor(BaseTranscriptor):
                 self.api.save_job(job)
 
     def create_invoice(self, client_id, period_start, period_end, to_file=False):
+        """
+        Create invoice for client
+
+        Arguments:
+            client_id: Client id
+            period_start: Start of period (date string)
+            period_end: End of period (date string)
+            to_file: If True, invoice will be saved to file
+        """
         # client, jobs, totals =
         client, jobs_list, (amount, amount_paid) = self.api.create_invoice_data(
             client_id, period_start, period_end
@@ -335,6 +391,12 @@ class Transcriptor(BaseTranscriptor):
             fd.write(cutoff_csv)
 
     def get_cutoffs(self):
+        """
+        Get cutoffs from csv file
+
+        Returns:
+            cutoffs: List of tuples (cutoff_date, deposit date)
+        """
 
         CUTOFF_FILE = self.base_dir.joinpath("cutoffs.csv")
         with open(CUTOFF_FILE, "r") as fd:

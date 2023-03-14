@@ -339,7 +339,16 @@ class API:
 
         return scalars
 
-    def get_job(self, job_id):
+    def get_job(self, job_id: str | int) -> list[Optional[Row[Tuple[JobModel]]]]:
+        """
+        Get job from database.
+
+        Arguments:
+            job_id: Job's id
+
+        Returns:
+            List of Scalars (tuple(Columns, Row))
+        """
         stmt = select(JobModel).filter(JobModel.id == job_id)
         with self.session as session:
             scalars = session.execute(stmt).fetchone()

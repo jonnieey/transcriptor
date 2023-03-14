@@ -2,15 +2,15 @@ import csv
 import math
 import mimetypes
 import re
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from fractions import Fraction
 from io import StringIO
 from pathlib import Path
-from typing import List, Match, Optional, Pattern
+from typing import Callable, List, Match, Optional, Pattern
 
-import docx
-from audioread import audio_open
+import docx  # type: ignore
+from audioread import audio_open  # type: ignore
 from prompt_toolkit.validation import Validator
 
 
@@ -163,24 +163,6 @@ def get_media_duration(media_file: Path | str) -> float:
     return sec_to_min(duration)
 
 
-# def format_date(date_str: str, date_fmt: str):
-#     """
-#     Convert month.day ('%m.%d') string to full date string.
-#
-#     Arguments:
-#         date_str: String with format of '%m.%d' date format.
-#         date_fmt: Date format string.
-#
-#     Returns:
-#         A date string.
-#
-#     """
-#     try:
-#         full_date_string = f"{date_str}.{date.today().year}"
-#         date_obj = datetime.strptime(full_date_string, "%m.%d.%Y")
-#         return date_obj.strftime(date_fmt)
-#     except ValueError:
-#         return ""
 def format_date(date_str: str, date_fmt: str) -> str:
     """
     Convert a month.day ('%m.%d') string to a full date string.
@@ -202,14 +184,34 @@ def format_date(date_str: str, date_fmt: str) -> str:
         return ""
 
 
-def str_to_date(date_string: str, date_fmt):
+def str_to_date(date_string: str, date_fmt: str) -> datetime:
+    """
+    Convert a date string to a datetime object.
+
+    Arguments:
+        date_string (str): A string in the format '%m.%d'.
+        date_fmt (str): The desired date format string.
+
+    Returns:
+        A datetime object representing the date in the given format,
+    """
     return datetime.strptime(date_string, date_fmt)
 
 
 std = str_to_date
 
 
-def date_to_str(date_obj, date_fmt):
+def date_to_str(date_obj: datetime, date_fmt: str) -> str:
+    """
+    Convert a datetime object to a date string.
+
+    Arguments:
+        date_obj: A datetime object.
+        date_fmt: Date format string.
+
+    Retuns:
+        A string representing the date in the given format,
+    """
     return date_obj.strftime(date_fmt)
 
 
@@ -266,7 +268,7 @@ def parse_quantity(
     raise TypeError("Valid fraction, int, float, str required")
 
 
-def rel_date(days: int):
+def rel_date(days: int) -> date:
     """
     Get relative date from today
 
@@ -291,7 +293,7 @@ class CSVTextBuilder:
         self.csv_string.append(row)
 
 
-def dict_to_csv(dic, headers=[]):
+def dict_to_csv(dic: dict, headers: list = []) -> str:
     """
     Convert a dictionary to a CSV string.
 
@@ -311,7 +313,7 @@ def dict_to_csv(dic, headers=[]):
     return "".join(csv_builder.csv_string)
 
 
-def list_of_tuples_to_csv(l):
+def list_of_tuples_to_csv(l: list) -> str:
     """
     Convert a list of tuples to a CSV string.
 
@@ -390,7 +392,30 @@ def csv_from_docx(docx_path: str) -> str:
     return csv_file.getvalue()
 
 
-def is_valid_email(text):
+def next_non_existant_file(filename):
+    """
+    Generate name for next non-existant file
+    Example:
+         if "test.txt" exists then next file will be
+        "test_1.txt"
+
+    Arguments:
+        filename: Name of file
+
+    Returns:
+        Name of next non-existant file
+    """
+    base_dir = str(Path(filename).parent.absolute())
+    nf = filename
+    root, ext = Path(nf).stem, Path(nf).suffix
+    i = 0
+    while Path(nf).exists():
+        i += 1
+        nf = f"{base_dir}/{root}_{i}{ext}"
+    return Path(nf)
+
+
+def is_valid_email(text: str) -> bool:
     """
     Check if a string is a valid email address.
 
@@ -406,7 +431,7 @@ def is_valid_email(text):
 # ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
 
 
-def is_valid_string(text):
+def is_valid_string(text: str) -> bool:
     """
     Check if a string is a valid string.
 
@@ -421,7 +446,7 @@ def is_valid_string(text):
     return False
 
 
-def is_valid_float(text):
+def is_valid_float(text: str) -> bool:
     """
     Check if a string is a valid float.
 
@@ -433,7 +458,7 @@ def is_valid_float(text):
     return bool(re.match(r"^[-+]?[0-9]*\.?[0-9]+$", text))
 
 
-def is_valid_yes_no(text):
+def is_valid_yes_no(text: str) -> bool:
     """
     Check if a string is a valid yes or no.
 
@@ -445,7 +470,7 @@ def is_valid_yes_no(text):
     return bool(re.match(r"(?i)^[YyNn](?:es|o)?$", text))
 
 
-def is_in_choices(text, choices):
+def is_in_choices(text: str, choices: list = []):
     """
     Check if a string is in a list of choices.
 
@@ -458,7 +483,7 @@ def is_in_choices(text, choices):
     return text.strip() in choices
 
 
-def is_work_choices(text):
+def is_work_choices(text: str) -> bool:
     """
     Check if a string is in a list of choices.
 
@@ -471,7 +496,7 @@ def is_work_choices(text):
     return is_in_choices(text, WORK_CHOICES)
 
 
-def is_template_choices(text):
+def is_template_choices(text: str) -> bool:
     """
     Check if a string is in a list of choices.
 
@@ -484,7 +509,7 @@ def is_template_choices(text):
     return is_in_choices(text, TEMPLATE_CHOICES)
 
 
-def is_valid_file(text):
+def is_valid_file(text: str) -> bool:
     """
     Check if a string is a valid file.
 
@@ -498,7 +523,7 @@ def is_valid_file(text):
     return all([path.exists(), not path.is_dir()])
 
 
-def is_valid_date(text):
+def is_valid_date(text: str) -> bool:
     """
     Check if a string is a valid date.
 
@@ -511,7 +536,7 @@ def is_valid_date(text):
     return all([match])
 
 
-def is_gt_0(text):
+def is_gt_0(text: str) -> bool:
     """
     Check if a string is greater than zero.
 
@@ -522,9 +547,11 @@ def is_gt_0(text):
     """
     if text != "":
         return (int(text)) > 0
+    else:
+        return False
 
 
-def MyValidator(func, error_mesage, mve=True):
+def MyValidator(func: Callable, error_mesage: str, mve: bool = True):
     """
     Decorator to validate input.
 

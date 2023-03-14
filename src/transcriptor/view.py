@@ -2,28 +2,24 @@ from typing import Tuple
 
 from rich.console import Console
 from rich.table import Table
+from rich.text import Text
 from sqlalchemy.engine.row import Row
 
 from transcriptor.utils import tc
-
-
-def r2s(row):
-    return (str(v) for v in row)
 
 
 class ConsoleView:
     def __init__(self):
         self.console = Console()
         self.table = Table(
-            show_header=True,
-            header_style="bold red",
-            title_justify="center",
+            show_header=True, header_style="bold red", title_justify="center"
         )
 
     def print_job_table(self, job_scalars, **kwargs):
         job_objects = [job._mapping["JobModel"] for job in job_scalars]
-        total_amount = kwargs.get("total_amount", None)
-        total_amount_paid = kwargs.get("total_amount_paid", None)
+        total_amount = kwargs.get("total_amount")
+        total_amount_paid = kwargs.get("total_amount_paid")
+        self.table.title = "Job Table"
 
         headers_list = [
             "client_id",
@@ -42,25 +38,25 @@ class ConsoleView:
             "job_path",
             "note",
         ]
-        [self.table.add_column(tc(h)) for h in headers_list]
-        for idx, job in enumerate(job_objects):
-            job_dict = job.__dict__
-            job_dict.pop("_sa_instance_state")
-            # job_dict.pop("id")
-            r = sorted(job_dict.items(), key=lambda t: headers_list.index(t[0]))
-            self.table.add_row(*r2s([x[1] for x in r]))
+        for header in headers_list:
+            self.table.add_column(tc(header))
 
-        if total_amount or total_amount_paid:
-            total_row = []
-            for h in headers_list:
-                if h == "amount":
+        for row_idx, job in enumerate(job_objects):
+            job_dict = job.__dict__
+            job_dict.pop("_sa_instance_state", None)
+            row = [str(job_dict.get(header, "")) for header in headers_list]
+            self.table.add_row(*row)
+
+        if total_amount is not None or total_amount_paid is not None:
+            total_row = ["TOTAL"]
+            for header in headers_list[1:]:
+                if header == "amount":
                     total_row.append(str(total_amount))
-                elif h == "amount_paid":
+                elif header == "amount_paid":
                     total_row.append(str(total_amount_paid))
                 else:
                     total_row.append("")
-            total_row[0] = "TOTAL"
-            self.table.add_row()
+            self.table.add_section()
             self.table.add_row(*total_row)
 
         self.console.print(self.table)
@@ -71,7 +67,6 @@ class ConsoleView:
         rows,
         headers: list = ["Option", "Value"],
         title: str = "",
-        typ: str = "",
     ):
         """
         Print vertical table in terminal
@@ -85,36 +80,39 @@ class ConsoleView:
         self.table.title = title
 
         for header in headers:
-            self.table.add_column(tc(header))
+            self.table.add_column(Text(header))
 
         for idx, row in enumerate(rows):
             if isinstance(row, Row):
-                client_dict = {}
-                client_dict.update(row[0].__dict__)
-                sr = row[1].__dict__
-                # Remove id of second row, it replaces id of 1st row
-                # TODO resolve hacky method
-                sr.pop("id")
-                client_dict.update(sr)
-                client_dict.pop("_sa_instance_state")
-                client_dict.pop("rates_id")
+                client_dict = {**row[1].__dict__, **row[0].__dict__}
+                client_dict.pop("_sa_instance_state", None)
+                client_dict.pop("rates_id", None)
                 client_sorted_dict = sorted(
                     client_dict.items(), key=lambda t: headers.index(t[0])
                 )
-                self.table.add_row(*r2s([x[1] for x in client_sorted_dict]))
+                self.table.add_row(*[Text(str(x[1])) for x in client_sorted_dict])
 
             elif isinstance(row, str):
-                self.table.add_row(tc(cols[idx]), row)
+                self.table.add_row(Text(tc(cols[idx])), Text(row))
 
             elif isinstance(row, dict):
-                self.table.add_row(*r2s(row.values()))
-            else:
-                r = row._asdict()
-                r = {k: v for k, v in r.items() if k in cols}
-                self.table.add_row(*r2s(r.values()))
+                self.table.add_row(*[Text(str(x)) for x in row.values()])
+
+            elif isinstance(row, tuple):
+                r_dict = {k: v for k, v in zip(cols, row) if k in cols}
+                self.table.add_row(*[Text(str(x[1])) for x in r_dict.items()])
+
         self.console.print(self.table)
 
     def print_cutoff_table(self, list_of_rows):
+        """
+        Print cutoff table in terminal
+
+        Arguments:
+            list_of_rows: list of tuples [(cutoff_date, deposit_date)]. First
+            tuple is contains csv header (CUTOFF DATE, DEPOSIT DATE)
+
+        """
         if not list_of_rows:
             return
 

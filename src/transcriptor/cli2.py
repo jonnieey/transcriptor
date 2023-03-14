@@ -224,7 +224,7 @@ class TranscriptorCMD(cmd2.Cmd):
         """
         config = self.app.config
         cols, rows = (config.cols(), config.rows())
-        ConsoleView().vertical_table(cols, rows)
+        ConsoleView().vertical_table(cols, rows, title="Config Table")
 
     def show_profile(self, arg):
         """
@@ -235,7 +235,7 @@ class TranscriptorCMD(cmd2.Cmd):
         profile = self.app.profile
         if profile:
             cols, rows = (profile.cols(), profile.rows())
-            ConsoleView().vertical_table(cols, rows)
+            ConsoleView().vertical_table(cols, rows, title="Profile Table")
         else:
             self.poutput("** Profile doesn't exist **.")
             return
@@ -280,7 +280,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 "total_amount": total_amount,
                 "total_amount_paid": total_amount_paid,
             }
-            ConsoleView().print_job_table(jobs, **total_dict)
+            ConsoleView().print_job_table(jobs, title="JOBS", **total_dict)
             return 0
         else:
             self.poutput("** No Jobs **")

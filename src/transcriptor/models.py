@@ -25,7 +25,7 @@ class Model(ABC):
         return list(self.__dict__.keys())
 
     def rows(self):
-        return self.__dict__.values()
+        return list(self.__dict__.values())
 
 
 class Environment(Enum):
