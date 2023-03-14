@@ -132,7 +132,7 @@
 						<td>{{ job.job_type }}</td>
 						<td>&#36;{{ "%.2f" | format(job.job_rate) }}</td>
 						<td>{{ "%.1f" | format(job.quantity) }}</td>
-						<td>&#36;{{ "%.2f" | format(job.quantity * job.job_rate) }}</td>
+						<td>&#36;{{ "%.2f" | format(job.amount) }}</td>
 					</tr>
 				  {% endfor %}
 				  <tfoot>

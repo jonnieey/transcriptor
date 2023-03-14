@@ -493,7 +493,7 @@ class API:
             amount += job.get("amount", 0)
             amount_paid += job.get("amount_paid", 0)
 
-        return (truncate(amount, 2), truncate(amount_paid, 2))
+        return (truncate(round(amount, 2), 2), truncate(round(amount_paid, 2), 2))
 
     def create_invoice_data(
         self, client_id: int, period_start, period_end
