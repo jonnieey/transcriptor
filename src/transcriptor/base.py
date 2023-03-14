@@ -65,6 +65,20 @@ class Transcriptor(BaseTranscriptor):
         self.clients_dir = self.base_dir.joinpath("clients")
         mkdirp([self.clients_dir])
 
+    def reload(self, config):
+        self.api.db.engine.dispose()
+        self.config = config
+
+        self.base_dir = Path(self.config.base_dir)
+        mkdirp([self.base_dir])
+        self.api = API(self.base_dir)
+
+        self.profile_file = self.base_dir.joinpath("profile.yml")
+        self.make_profile()
+
+        self.clients_dir = self.base_dir.joinpath("clients")
+        mkdirp([self.clients_dir])
+
     def make_config(self):
         DEFAULT_BASE_DIR = Path(user_data_dir(appname=APP_NAME))
         DEFAULT_CONFIG = {"date_format": "%Y-%m-%d", "base_dir": f"{DEFAULT_BASE_DIR}"}
@@ -82,6 +96,7 @@ class Transcriptor(BaseTranscriptor):
     def save_config(self):
         with open(self.config_file, "w") as fd:
             self.config.save(fd)
+        self.reload(self.config)
 
     def save_profile(self):
         with open(self.profile_file, "w") as fd:
@@ -149,8 +164,10 @@ class Transcriptor(BaseTranscriptor):
         self.api.save_client(new_client)
         CLIENT_DIR = self.base_dir.joinpath("clients").joinpath(sc(name))
         mkdirp([CLIENT_DIR])
+        template_path = Path(__file__).parent.joinpath("templates")
+        shutil.copytree(template_path, CLIENT_DIR.joinpath("templates"))
 
-    def select_job_template(self, template_init: str):
+    def select_job_template(self, client, template_init: str):
         template_mapping = {
             "zd": "Zoom Deposition Block Files.doc",
             "nh": "Hearing Block Files.doc",
@@ -162,12 +179,16 @@ class Transcriptor(BaseTranscriptor):
             "me": "Compulsory Medical Exam Template.doc",
             "zdi": "Zoom Deposition Block File with Interpreter.doc",
         }
-        template_path = (
-            Path(__file__)
-            .parent.joinpath("templates")
-            .joinpath(template_mapping[template_init])
-        )
+        CLIENT_DIR = self.base_dir.joinpath("clients").joinpath(client)
+        template_dir = CLIENT_DIR.joinpath("templates")
 
+        if not template_dir.exists():
+            template_path = Path(__file__).parent.joinpath("templates")
+            shutil.copytree(template_path, CLIENT_DIR.joinpath("templates"))
+
+        template_path = CLIENT_DIR.joinpath("templates").joinpath(
+            template_mapping[template_init]
+        )
         return template_path
 
     def next_non_existant_file(self, filename):
@@ -232,7 +253,7 @@ class Transcriptor(BaseTranscriptor):
                     job_num,
                     job_dir,
                 )
-                job_template = self.select_job_template(job_temp_init)
+                job_template = self.select_job_template(sc(client.name), job_temp_init)
                 # TODO Copy numbered files for each task
                 job_path = self.next_non_existant_file(
                     job_dir.joinpath(
