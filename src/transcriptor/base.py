@@ -18,13 +18,16 @@ from weasyprint import HTML
 from transcriptor.controller import API
 from transcriptor.models import ClientModel, ConfigModel, JobModel, RatesModel
 from transcriptor.utils import (
-    csv_from_docx,
+    csv_from_list,
+    dts,
     get_media_files,
     mkdirp,
     next_non_existant_file,
     parse_job_number,
     sc,
+    std,
     str_to_date,
+    table_list_from_docx,
     touch,
 )
 
@@ -385,7 +388,17 @@ class Transcriptor(BaseTranscriptor):
             Console().print(table)
 
     def save_cutoffs(self, docx_path):
-        cutoff_csv = csv_from_docx(docx_path)
+        DATE_FMT = self.config.date_format
+        table_list = table_list_from_docx(docx_path)
+        for idx, row in enumerate(table_list[1:], start=1):
+            cutoff, deposit = row
+            # Assumes that date is in format MM/DD/YYYY
+            cutoff = dts(std(cutoff, "%m/%d/%Y"), DATE_FMT)
+            deposit = dts(std(deposit, "%m/%d/%Y"), DATE_FMT)
+            table_list[idx] = [cutoff, deposit]
+
+        cutoff_csv = csv_from_list(table_list)
+
         CUTOFF_FILE = self.base_dir.joinpath("cutoffs.csv")
         with open(CUTOFF_FILE, "w") as fd:
             fd.write(cutoff_csv)

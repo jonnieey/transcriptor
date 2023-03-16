@@ -368,28 +368,42 @@ def list_of_rows_to_csv(
     return "".join(csv_builder.csv_string)
 
 
-def csv_from_docx(docx_path: str) -> str:
+def csv_from_list(l: list[list[str, str]]) -> str:
     """
-    Convert docx file with table to csv.
+    Convert a list of lists to a CSV string.
+
+    Arguments:
+        l: List of lists to convert to a CSV string.
+
+    Returns:
+        A CSV string.
+    """
+    csv_file = StringIO()
+    writer = csv.writer(csv_file)
+    writer.writerows(l)
+    return csv_file.getvalue()
+
+
+def table_list_from_docx(docx_path: str) -> List[List[str]]:
+    """
+    Convert docx file with table to list of list.
 
     Arguments:
         docx_path: Path to docx file.
 
     Returns:
-        CSV string
+        Lists of lists of strings
     """
     try:
         docx_file = docx.Document(docx_path)
     except docx.opc.exceptions.PackageNotFoundError:
         print("Docx file not found")
-        return ""
-    csv_file = StringIO()
-    csv_writer = csv.writer(csv_file)
+        return []
+
+    table_list = []
     for table in docx_file.tables:
-        for row in table.rows:
-            # csv_writer.writerow(list(map(lambda cell: cell.text, row.cells)))
-            csv_writer.writerow([cell.text for cell in row.cells])
-    return csv_file.getvalue()
+        table_list.extend([cell.text for cell in row.cells] for row in table.rows)
+    return table_list
 
 
 def next_non_existant_file(filename):

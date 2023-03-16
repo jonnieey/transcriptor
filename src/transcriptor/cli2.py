@@ -71,6 +71,7 @@ show_jobs_parser = show_subparsers.add_parser("jobs", help="show jobs")
 show_jobs_parser.add_argument(
     "-v", "--key-val", action=KeyValueAction, nargs="*", help="Show jobs"
 )
+show_cutoffs_parser = show_subparsers.add_parser("cutoffs", help="show cutoffs")
 
 add_parser = base_subparsers.add_parser("add", help="add object")
 add_subparsers = add_parser.add_subparsers(title="subcommands", help="subcommand help")
@@ -101,6 +102,11 @@ add_job_parser.add_argument("-w", "--wof", help="work on file")
 add_job_parser.add_argument("-t", "--job-type", help="job type")
 add_job_parser.add_argument("-T", "--job-template", help="job template")
 add_job_parser.add_argument("-N", "--note", help="job note", default=" ")
+
+add_cutoffs_parser = add_subparsers.add_parser("cutoffs", help="add cutoffs")
+add_cutoffs_parser.add_argument(
+    "-f", "--file", required=True, help="docx file to extract cutoffs from"
+)
 
 update_parser = base_subparsers.add_parser("update", help="update object")
 update_subparsers = update_parser.add_subparsers(
@@ -286,10 +292,15 @@ class TranscriptorCMD(cmd2.Cmd):
             self.poutput("** No Jobs **")
             return 1
 
+    def show_cutoffs(self, arg):
+        cutoff_list = self.app.get_cutoffs()
+        ConsoleView().print_cutoff_table(cutoff_list)
+
     show_config_parser.set_defaults(func=show_config)
     show_profile_parser.set_defaults(func=show_profile)
     show_clients_parser.set_defaults(func=show_clients)
     show_jobs_parser.set_defaults(func=show_jobs)
+    show_cutoffs_parser.set_defaults(func=show_cutoffs)
 
     @cmd2.with_argparser(show_parser)
     def do_show(self, args):
@@ -449,8 +460,12 @@ class TranscriptorCMD(cmd2.Cmd):
             self.poutput("**")
             return True
 
+    def add_cutoffs(self, arg):
+        self.app.save_cutoffs(arg.file)
+
     add_client_parser.set_defaults(func=add_client)
     add_job_parser.set_defaults(func=add_job)
+    add_cutoffs_parser.set_defaults(func=add_cutoffs)
 
     @cmd2.with_argparser(add_parser)
     def do_add(self, args):
@@ -615,8 +630,8 @@ class TranscriptorCMD(cmd2.Cmd):
                     prompt("Enter cutoff date number: ", validator=gt0_validator)
                 )
                 start, end = cutoff_list[cutoff]
-                arg.period_start = dts(std(start, "%m/%d/%Y"), date_fmt)
-                arg.period_end = dts(std(end, "%m/%d/%Y"), date_fmt)
+                arg.period_start = dts(std(start, "%Y-%m-%d"), date_fmt)
+                arg.period_end = dts(std(end, "%Y-%m-%d"), date_fmt)
 
             if not arg.period_start or not arg.period_end:
 
@@ -651,7 +666,6 @@ class TranscriptorCMD(cmd2.Cmd):
             self.do_help("base")
 
 
-#
 def main():
     c = TranscriptorCMD()
     try:
