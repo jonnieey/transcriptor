@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import sys
+from copy import copy
 from pathlib import Path
 
 import cmd2
@@ -407,45 +408,56 @@ class TranscriptorCMD(cmd2.Cmd):
                 job_dir: str | Path,
             ):
 
-                self.poutput(media_file)
-                arg.wof = arg.wof or prompt(
-                    f"Work on this file [{media_file}]: ", validator=yes_no_validator
+                # copy arg to avoid defaults being overwritten
+                # ex. If job_dir has multiple tasks, the info on first
+                # task such  as arg.quantity will apply to following
+                # tasks as defaults. if arg.quantity on first task is 5,
+                # the second task will have arg.quantity set to 5.
+                # This is not wanted therefore a copy is required of argrwith
+                # no defaults.
+                temp_arg = copy(arg)
+                temp_arg.wof = temp_arg.wof or prompt(
+                    f"Work on this file [{media_file.name}]: ",
+                    validator=yes_no_validator,
                 )
-                if arg.wof.lower() == "y":
-                    arg.job_type = arg.job_type or prompt(
+                if temp_arg.wof.lower() == "y":
+                    temp_arg.job_type = temp_arg.job_type or prompt(
                         "Specify job type: ", validator=work_validator
                     )
-                    job_rate = rates.__dict__[arg.job_type.lower()]
+                    job_rate = rates.__dict__[temp_arg.job_type.lower()]
 
                     total_quantity = get_media_duration(media_file)
-                    arg.quantity = arg.quantity or prompt(
+                    temp_arg.quantity = temp_arg.quantity or prompt(
                         "Enter quantity of task: ",
                         default=str(total_quantity),
                     )
-                    if arg.quantity.lower() in ["full", "whole"]:
-                        arg.quantity = total_quantity
+                    if temp_arg.quantity.lower() in ["full", "whole"]:
+                        temp_arg.quantity = total_quantity
                     else:
-                        arg.quantity = parse_quantity(arg.quantity, total_quantity)
+                        temp_arg.quantity = parse_quantity(
+                            temp_arg.quantity, total_quantity
+                        )
 
-                    arg.job_template = arg.job_template or prompt(
+                    temp_arg.job_template = temp_arg.job_template or prompt(
                         "Specify template type: ", validator=template_type_validator
                     )
-                    arg.note = arg.note or prompt("Notes: ")
+                    temp_arg.note = temp_arg.note or prompt("Notes: ")
 
                     job_dict = {
                         "client_id": client.id,
-                        "date_received": arg.date_received,
+                        "date_received": temp_arg.date_received,
                         "job_number": job_num,
-                        "job_type": arg.job_type,
+                        "job_type": temp_arg.job_type,
                         "total_quantity": total_quantity,
                         "job_rate": job_rate,
-                        "quantity": arg.quantity,
-                        "date_due": arg.date_due,
+                        "quantity": temp_arg.quantity,
+                        "date_due": temp_arg.date_due,
                         "job_path": str(job_dir),
-                        "note": arg.note,
+                        "note": temp_arg.note,
                     }
                     job = self.app.api.create_job(**job_dict)
-                    return job, arg.job_template
+                    job_template = temp_arg.job_template
+                    return job, job_template
 
             # TODO use client id instead of client-name
             self.app.add_job(
