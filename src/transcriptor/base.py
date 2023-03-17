@@ -296,7 +296,7 @@ class Transcriptor(BaseTranscriptor):
                 # callback return JobModel object
 
                 job, job_temp_init = add_job_cb(
-                    str(media_file),
+                    media_file,
                     client,
                     rates,
                     date_received,

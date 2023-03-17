@@ -187,13 +187,6 @@ class TestGetMediaFiles(unittest.TestCase):
                 or mime_type == "application/octet-stream"
             )
 
-    def test_returns_sorted_list(self):
-        directory = Path(__file__).parent.joinpath("media_files")
-        media_files = get_media_files(directory)
-        sorted_files = sorted(media_files)
-        self.assertEqual(media_files, sorted_files)
-
-
 class TestGetMediaFilesDuration(unittest.TestCase):
     def test_returns_float(self):
         directory = Path(__file__).parent.joinpath("media_files")

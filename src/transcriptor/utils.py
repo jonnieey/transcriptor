@@ -116,7 +116,7 @@ def get_media_files(directory: Path) -> list[Path]:
                     or mime_type == "application/octet-stream"
                 ):
                     media_files.append(file)
-    return sorted(media_files)
+    return media_files
 
 
 def truncate(num: float, dp: int) -> float:
