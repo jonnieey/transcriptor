@@ -516,6 +516,21 @@ class API:
 
         return (client, jobs_list, totals)
 
+    def remove_media_files(self):
+        """
+        remove all media files from job directory of paid jobs
+        """
+        with self.session as session:
+            stmt = select(JobModel).filter(JobModel.amount_paid >= JobModel.amount)
+            paid_jobs = session.execute(stmt).scalars().all()
+            for paid_job in paid_jobs:
+                unwanted_files = Path(paid_job.job_path).glob(
+                    "**/*[mwzM][p4aiP][3avp3]"
+                )
+
+                for unwanted_file in unwanted_files:
+                    unwanted_file.unlink(missing_ok=True)
+
 
 if __name__ == "__main__":
     api = API(base_dir="/home/kamikaze/.local/share/transcriptor3")

@@ -183,6 +183,13 @@ create_invoice_parser.add_argument(
     "-f", "--to-file", action="store_true", help="Period end"
 )
 
+purge_files_parser = base_subparsers.add_parser(
+    "purge", help="Remove media files of paid jobs"
+)
+purge_files_parser.add_argument(
+    "-P", "--purge", action="store_true", help="Purge witheout prompt"
+)
+
 
 class TranscriptorCMD(cmd2.Cmd):
     prompt = "(trans) "
@@ -424,7 +431,7 @@ class TranscriptorCMD(cmd2.Cmd):
                     f"Work on this file [{media_file.name}]: ",
                     validator=yes_no_validator,
                 )
-                if temp_arg.wof.lower() == "y":
+                if temp_arg.wof.startswith(("y", "Y")):
                     temp_arg.job_type = temp_arg.job_type or prompt(
                         "Specify job type: ", validator=work_validator
                     )
@@ -674,6 +681,34 @@ class TranscriptorCMD(cmd2.Cmd):
     def do_invoice(self, args):
         """
         Invoice command help
+        """
+        func = getattr(args, "func", None)
+        if func is not None:
+            func(self, args)
+        else:
+            self.do_help("base")
+
+    def purge_files(self, arg):
+        if arg.purge:
+            self.poutput("\n[++] Deleting files...")
+            self.app.api.remove_media_files()
+        else:
+            confirm = prompt(
+                f"[**] DELETE ALL PAID JOB MEDIA FILES [Y/N]: ",
+                validator=yes_no_validator,
+            )
+            if confirm.startswith(("y", "Y")):
+                self.poutput("\n[++] Deleting files...")
+                self.app.api.remove_media_files()
+            else:
+                self.poutput("\n[++] Not deleting files.")
+
+    purge_files_parser.set_defaults(func=purge_files)
+
+    @cmd2.with_argparser(purge_files_parser)
+    def do_purge(self, args):
+        """
+        Purge command help
         """
         func = getattr(args, "func", None)
         if func is not None:
