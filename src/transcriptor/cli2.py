@@ -72,6 +72,7 @@ show_jobs_parser = show_subparsers.add_parser("jobs", help="show jobs")
 show_jobs_parser.add_argument(
     "-v", "--key-val", action=KeyValueAction, nargs="*", help="Show jobs"
 )
+show_jobs_parser.add_argument("-a", "--all", action="store_true", help="Show all jobs")
 show_cutoffs_parser = show_subparsers.add_parser("cutoffs", help="show cutoffs")
 
 add_parser = base_subparsers.add_parser("add", help="add object")
@@ -277,10 +278,13 @@ class TranscriptorCMD(cmd2.Cmd):
             show jobs
         """
         # TODO Filter jobs with app.api.list_jobs(attributes={})
+        attributes = {"status": "Pending"} if arg and not arg.all else {}
+
         if arg and arg.key_val:
-            jobs = self.app.api.list_jobs(attributes=arg.key_val)
-        else:
-            jobs = self.app.api.list_jobs()
+            attributes.update(arg.key_val)
+
+        jobs = self.app.api.list_jobs(attributes=attributes)
+
         if jobs:
             total_amount, total_amount_paid = self.app.api.get_jobs_scalars_total(jobs)
             total_dict = {

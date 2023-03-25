@@ -187,6 +187,7 @@ class TestGetMediaFiles(unittest.TestCase):
                 or mime_type == "application/octet-stream"
             )
 
+
 class TestGetMediaFilesDuration(unittest.TestCase):
     def test_returns_float(self):
         directory = Path(__file__).parent.joinpath("media_files")
