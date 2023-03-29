@@ -29,6 +29,14 @@ from transcriptor.utils import (
 from transcriptor.view import ConsoleView
 
 
+class StripStrAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not hasattr(namespace, self.dest) or getattr(namespace, self.dest) is None:
+            setattr(namespace, self.dest, "")
+
+        setattr(namespace, self.dest, values.strip("'").strip('"'))
+
+
 class KeyValueAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         if not hasattr(namespace, self.dest) or getattr(namespace, self.dest) is None:
@@ -78,12 +86,15 @@ show_cutoffs_parser = show_subparsers.add_parser("cutoffs", help="show cutoffs")
 add_parser = base_subparsers.add_parser("add", help="add object")
 add_subparsers = add_parser.add_subparsers(title="subcommands", help="subcommand help")
 add_client_parser = add_subparsers.add_parser("client", help="add client")
-add_client_parser.add_argument("-n", "--name", type=str, help="client name")
+add_client_parser.add_argument(
+    "-n", "--name", type=str, action=StripStrAction, help="client name"
+)
 
 add_client_parser.add_argument(
     "-e",
     "--email",
     type=str,
+    action=StripStrAction,
     help="client email",
 )
 add_client_parser.add_argument(
@@ -119,12 +130,18 @@ update_config_parser.add_argument("-b", "--base-dir", help="base directory")
 update_config_parser.add_argument("-d", "--date-format", help="date format")
 update_profile_parser = update_subparsers.add_parser("profile", help="update profile")
 update_profile_parser.add_argument(
-    "-f", "--first-name", type=str, help="User first name"
+    "-f", "--first-name", type=str, action=StripStrAction, help="User first name"
 )
 
-update_profile_parser.add_argument("-l", "--last-name", type=str, help="User last name")
-update_profile_parser.add_argument("-a", "--area", type=str, help="User area")
-update_profile_parser.add_argument("-c", "--country", type=str, help="User country")
+update_profile_parser.add_argument(
+    "-l", "--last-name", type=str, action=StripStrAction, help="User last name"
+)
+update_profile_parser.add_argument(
+    "-a", "--area", type=str, action=StripStrAction, help="User area"
+)
+update_profile_parser.add_argument(
+    "-c", "--country", type=str, action=StripStrAction, help="User country"
+)
 
 update_client_parser = update_subparsers.add_parser("client", help="update client")
 
@@ -132,8 +149,12 @@ update_client_parser.add_argument(
     "-i", "--client-id", type=int, help="client id to update"
 )
 
-update_client_parser.add_argument("-n", "--name", type=str, help="client name")
-update_client_parser.add_argument("-e", "--email", type=str, help="client email")
+update_client_parser.add_argument(
+    "-n", "--name", type=str, action=StripStrAction, help="client name"
+)
+update_client_parser.add_argument(
+    "-e", "--email", type=str, action=StripStrAction, help="client email"
+)
 update_client_parser.add_argument(
     "-r",
     "--rates",
@@ -148,15 +169,21 @@ update_job_parser.add_argument("-i", "--job-id", type=int, help="job id to updat
 update_job_parser.add_argument("-c", "--client-id", help="client id")
 update_job_parser.add_argument("-r", "--date-received", help="date received")
 update_job_parser.add_argument("-n", "--job-number", type=int, help="job number")
-update_job_parser.add_argument("-t", "--job-type", type=str, help="job type")
-update_job_parser.add_argument("-s", "--status", type=str, help="job status")
+update_job_parser.add_argument(
+    "-t", "--job-type", type=str, action=StripStrAction, help="job type"
+)
+update_job_parser.add_argument(
+    "-s", "--status", type=str, action=StripStrAction, help="job status"
+)
 update_job_parser.add_argument("-d", "--date-due", help="date due")
 update_job_parser.add_argument("-q", "--quantity", help="quantity")
 update_job_parser.add_argument("-R", "--job-rate", type=float, help="job rate")
 update_job_parser.add_argument("-S", "--date-submitted", help="date submitted")
 update_job_parser.add_argument("-A", "--amount", type=float, help="amount")
 update_job_parser.add_argument("-a", "--amount-paid", type=float, help="amount paid")
-update_job_parser.add_argument("-N", "--note", type=str, help="note")
+update_job_parser.add_argument(
+    "-N", "--note", type=str, action=StripStrAction, help="note"
+)
 update_job_parser.add_argument("-p", "--job-path", help="job path")
 
 delete_parser = base_subparsers.add_parser("delete", help="delete object")
@@ -652,7 +679,9 @@ class TranscriptorCMD(cmd2.Cmd):
                 cutoff = int(
                     prompt("Enter cutoff date number: ", validator=gt0_validator)
                 )
-                start, end = cutoff_list[cutoff]
+                start, _ = cutoff_list[cutoff - 1]
+                end, _ = cutoff_list[cutoff]
+
                 arg.period_start = dts(std(start, "%Y-%m-%d"), date_fmt)
                 arg.period_end = dts(std(end, "%Y-%m-%d"), date_fmt)
 

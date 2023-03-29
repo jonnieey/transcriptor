@@ -503,6 +503,7 @@ class API:
             JobModel.client_id == client_id,
             JobModel.date_submitted > period_start,
             JobModel.date_submitted <= period_end,
+            JobModel.amount > JobModel.amount_paid,
         )
         client_query = select(ClientModel).where(ClientModel.id == client_id)
         with self.session as session:

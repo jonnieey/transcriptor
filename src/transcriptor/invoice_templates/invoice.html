@@ -90,10 +90,24 @@
 <body>
 	<div class="header">
 		<img alt="">
-		<h1>Invoice</h1>
+		<h1>Invoice  #{{ data.invoice_number }}</h1>
+					
 	</div>
-
 	<div class="invoice-details">
+		<table>
+			<thead>
+				<tr>
+					<th>Name:</th>
+					<td>{{ profile.first_name }} {{ profile.last_name }}</td>
+				</tr>
+				<tr>
+					<th>Area:</th>
+					<td>{{ profile.area }}</td>
+					<th>Country:</th>
+					<td>{{ profile.country }}</td>
+				</tr>
+			</thead>
+
 		<table>
 			<thead>
 				<tr>
