@@ -192,8 +192,16 @@ delete_subparsers = delete_parser.add_subparsers(
 )
 delete_client_parser = delete_subparsers.add_parser("client", help="delete client")
 delete_client_parser.add_argument("-i", "--client-id", type=int, help="client id")
+delete_client_parser.add_argument(
+    "-y", "--yes", action="store_true", help="delete without prompting"
+)
+
+
 delete_job_parser = delete_subparsers.add_parser("job", help="delete job")
 delete_job_parser.add_argument("-i", "--job-id", type=int, help="job id")
+delete_job_parser.add_argument(
+    "-y", "--yes", action="store_true", help="delete without prompting"
+)
 
 invoice_parser = base_subparsers.add_parser("invoice", help="Invoice commands")
 invoice_subparsers = invoice_parser.add_subparsers(
@@ -615,14 +623,17 @@ class TranscriptorCMD(cmd2.Cmd):
             arg.client_id = prompt("Enter client id: ", validator=gt0_validator)
 
         try:
-            scalars = self.app.api.list_clients(arg.client_id)
-            ConsoleView().vertical_table(cols, scalars, headers=cols)
+            if not arg.yes:
+                scalars = self.app.api.list_clients(arg.client_id)
+                ConsoleView().vertical_table(cols, scalars, headers=cols)
 
-            confirm_delete = prompt(
-                "Are you sure you want to delete this client [Y/N]: ",
-                validator=yes_no_validator,
-            )
-            if confirm_delete.lower() == "y":
+                confirm_delete = prompt(
+                    "Are you sure you want to delete this client [Y/N]: ",
+                    validator=yes_no_validator,
+                )
+                if confirm_delete.lower() == "y":
+                    self.app.api.delete_client(arg.client_id)
+            else:
                 self.app.api.delete_client(arg.client_id)
 
         except (KeyboardInterrupt, EOFError):
@@ -634,20 +645,25 @@ class TranscriptorCMD(cmd2.Cmd):
             if self.show_jobs("") == 1:
                 return
             arg.job_id = prompt("Enter job id: ", validator=gt0_validator)
-        try:
-            jobs = self.app.api.list_jobs({"id": arg.job_id})
-            ConsoleView().print_job_table(jobs)
 
-            confirm_delete = prompt(
-                "Are you sure you want to delete this job [Y/N]: ",
-                validator=yes_no_validator,
-            )
-            if confirm_delete.lower() == "y":
-                self.app.api.delete_job(arg.job_id)
+        if arg.yes:
+            self.app.api.delete_job(arg.job_id)
 
-        except (KeyboardInterrupt, EOFError):
-            self.poutput("**")
-            return
+        else:
+            try:
+                jobs = self.app.api.list_jobs({"id": arg.job_id})
+                ConsoleView().print_job_table(jobs)
+
+                confirm_delete = prompt(
+                    "Are you sure you want to delete this job [Y/N]: ",
+                    validator=yes_no_validator,
+                )
+                if confirm_delete.lower() == "y":
+                    self.app.api.delete_job(arg.job_id)
+
+            except (KeyboardInterrupt, EOFError):
+                self.poutput("**")
+                return
 
     delete_client_parser.set_defaults(func=delete_client)
     delete_job_parser.set_defaults(func=delete_job)

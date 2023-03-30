@@ -288,7 +288,7 @@ class API:
             JobModel object
         """
 
-        logger.info(f"Creating new job {job_number}")
+        # logger.info(f"Creating new job {job_number}")
 
         amount = float(job_rate) * float(quantity)
         amount = truncate(amount, 2)
@@ -362,7 +362,7 @@ class API:
             **kwargs: keyword arguments with job attributes ex. job_number=2, quantity=40.0
 
         """
-        job_id = kwargs.get("job_id")
+        job_id = kwargs.pop("job_id", None)
         if not job_id:
             raise ValueError("job_id is required")
 
@@ -376,17 +376,10 @@ class API:
             if not job_model:
                 raise ValueError(f"Job with id={job_id} does not exist")
 
-            # Update job attributes
-            for attr, value in kwargs.items():
-                if attr == "job_id":
-                    continue
-                if value is not None:
-                    setattr(job_model, attr, value)
-
             # Update calculated attributes
             # or "job_rate" in kwargs or "quantity" in kwargs:
             if "client_id" in kwargs:
-                client_id = kwargs.get("client_id") or job_model.client_id
+                client_id = kwargs.pop("client_id", job_model.client_id)
                 if not client_id:
                     raise ValueError("client_id is required")
 
@@ -403,13 +396,12 @@ class API:
                         raise ValueError(
                             f"Client with id={client_id} does not exist or has no rates"
                         )
-                    if "job_rate" in kwargs:
-                        new_job_rate = kwargs.get("job_rate") or getattr(
-                            new_rates_model, job_model.job_type.lower()
-                        )
 
-                    if "quantity" in kwargs:
-                        new_quantity = kwargs.get("quantity") or job_model.quantity
+                    new_job_rate = kwargs.pop(
+                        "job_rate", getattr(new_rates_model, job_model.job_type.lower())
+                    )
+
+                    new_quantity = kwargs.pop("quantity", job_model.quantity)
 
                     if not new_job_rate or not new_quantity:
                         raise ValueError("job_rate and quantity are required")
@@ -434,9 +426,40 @@ class API:
                     setattr(job_model, "job_path", str(new_job_dir))
                     shutil.rmtree(original_dir, ignore_errors=True)
 
-            elif "job_rate" in kwargs or "quantity" in kwargs:
-                job_rate = kwargs.get("job_rate") or job_model.job_rate
-                quantity = kwargs.get("quantity") or job_model.quantity
+            if "job_type" in kwargs:
+                job_type = kwargs.pop("job_type", "")
+                client_id = getattr(job_model, "client_id")
+
+                if "job_rate" in kwargs:
+                    job_rate = kwargs.pop("job_rate")
+
+                else:
+                    query = (
+                        session.query(ClientModel, RatesModel)
+                        .join(RatesModel)
+                        .filter(ClientModel.id == client_id)
+                        .one_or_none()
+                    )
+                    if query is not None:
+                        new_client_model, new_rates_model = query
+                        job_rate = getattr(new_rates_model, job_type.lower())
+                    else:
+                        job_rate = None
+
+                if job_rate is not None:
+                    quantity = kwargs.pop("quantity", job_model.quantity)
+                    new_quantity = round(Decimal(quantity), 1)
+                    new_amount = round(Decimal(job_rate) * new_quantity, 2)
+
+                    setattr(job_model, "quantity", new_quantity)
+                    setattr(job_model, "amount", new_amount)
+
+                setattr(job_model, "job_type", job_type)
+                setattr(job_model, "job_rate", job_rate)
+
+            if "job_rate" in kwargs or "quantity" in kwargs:
+                job_rate = kwargs.pop("job_rate", job_model.job_rate)
+                quantity = kwargs.pop("quantity", job_model.quantity)
                 if not job_rate or not quantity:
                     raise ValueError("job_rate and quantity are required")
 
@@ -449,7 +472,7 @@ class API:
                 setattr(job_model, "amount", new_amount)
 
             if "date_submitted" in kwargs:
-                date_submitted = kwargs.get("date_submitted")
+                date_submitted = kwargs.pop("date_submitted", "")
                 if not date_submitted:
                     status = "Pending"
                 else:
@@ -457,6 +480,11 @@ class API:
 
                 setattr(job_model, "date_submitted", date_submitted)
                 setattr(job_model, "status", status)
+
+            # Update job attributes
+            for attr, value in kwargs.items():
+                if value is not None:
+                    setattr(job_model, attr, value)
 
             session.commit()
 
