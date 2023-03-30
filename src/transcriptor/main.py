@@ -1,4 +1,4 @@
-from transcriptor.cli2 import main as cli
+from transcriptor.cli import main as cli
 
 
 def main():

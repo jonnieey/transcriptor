@@ -383,7 +383,7 @@ class Transcriptor(BaseTranscriptor):
                 fd.write(f"{invoice_counter + 1:05}")
         else:
             markdown = md(output_text)
-            table = "\n\n" + markdown[markdown.find("Invoice\n==") :]
+            table = "\n\n" + markdown[markdown.find("Invoice #") :]
             table = re.sub(r"\n{2,}", "\n\n", table)
             Console().print(table)
 
