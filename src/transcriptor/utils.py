@@ -560,7 +560,8 @@ def is_gt_0(text: str) -> bool:
         True if the string is greater than zero, otherwise False.
     """
     if text != "":
-        return (int(text)) > 0
+        d = Decimal(text).to_integral()
+        return (int(d)) > 0
     else:
         return False
 

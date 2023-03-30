@@ -6,32 +6,7 @@ import unittest.mock
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from transcriptor.utils import (
-    convert_case,
-    date_to_str,
-    dts,
-    format_date,
-    get_media_duration,
-    get_media_files,
-    is_valid_date,
-    is_valid_email,
-    is_valid_string,
-    is_valid_yes_no,
-    kc,
-    list_of_rows_to_csv,
-    mkdirp,
-    nc,
-    parse_due_date,
-    parse_job_number,
-    parse_quantity,
-    rel_date,
-    sc,
-    sec_to_min,
-    std,
-    str_to_date,
-    touch,
-    truncate,
-)
+from transcriptor.utils import *
 
 
 class TestTouch(unittest.TestCase):
@@ -170,6 +145,7 @@ class TestDateParses(unittest.TestCase):
 
 
 class TestGetMediaFiles(unittest.TestCase):
+    # TODO mock media files
     def test_returns_list(self):
         directory = Path(__file__).parent.joinpath("media_files")
         media_files = get_media_files(directory)
@@ -189,6 +165,7 @@ class TestGetMediaFiles(unittest.TestCase):
 
 
 class TestGetMediaFilesDuration(unittest.TestCase):
+    # TODO mock media files
     def test_returns_float(self):
         directory = Path(__file__).parent.joinpath("media_files")
         media_files = get_media_files(directory)
@@ -432,6 +409,15 @@ class TestValidatorFunctions(unittest.TestCase):
         self.assertFalse(is_valid_string(""))
         self.assertFalse(is_valid_string(None))
 
+    def test_is_valid_float(self):
+        self.assertIsInstance(is_valid_float("0.0"), bool)
+        self.assertTrue(is_valid_float("20.0"))
+        self.assertTrue(is_valid_float("-20.0"))
+        self.assertTrue(is_valid_float("02.00"))
+        self.assertTrue(is_valid_float("-02.00"))
+        self.assertTrue(is_valid_float("2000"))
+        self.assertTrue(is_valid_float("-2000"))
+
     def test_is_valid_yes_no(self):
         self.assertTrue(is_valid_yes_no("yes"))
         self.assertTrue(is_valid_yes_no("YES"))
@@ -446,6 +432,18 @@ class TestValidatorFunctions(unittest.TestCase):
         self.assertTrue(is_valid_yes_no("nO"))
         self.assertFalse(is_valid_yes_no("0"))
 
+    def test_is_in_choices(self):
+        choices = ["a", "b", 1]
+        self.assertIsInstance(is_in_choices("a", choices), bool)
+        self.assertTrue(is_in_choices("b", choices))
+        self.assertFalse(is_in_choices("1", choices))
+
+    def test_is_valid_file(self):
+        temp_file = tempfile.NamedTemporaryFile(delete=True)
+        self.assertTrue(Path(temp_file.name).exists())
+        self.assertTrue(is_valid_file(temp_file.name))
+        temp_file.close()
+
     def test_is_valid_date(self):
         self.assertIsInstance(is_valid_date("01/01/2020"), bool)
         self.assertTrue(is_valid_date("01/01/2020"))
@@ -454,3 +452,11 @@ class TestValidatorFunctions(unittest.TestCase):
         self.assertTrue(is_valid_date("01-01-20"))
         self.assertTrue(is_valid_date("01.01.2020"))
         self.assertTrue(is_valid_date("01.01.20"))
+
+    def test_is_gt_0(self):
+        self.assertIsInstance(is_gt_0("4"), bool)
+        self.assertTrue(is_gt_0(4))
+        self.assertTrue(is_gt_0(4.0))
+        self.assertTrue(is_gt_0("4.0"))
+        self.assertFalse(is_gt_0(-4.0))
+        self.assertFalse(is_gt_0("-4.0"))
