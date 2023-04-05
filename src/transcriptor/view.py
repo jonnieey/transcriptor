@@ -35,7 +35,7 @@ class ConsoleView:
             "date_submitted",
             "amount",
             "amount_paid",
-            "job_path",
+            # "job_path",
             "note",
         ]
         for header in headers_list:
