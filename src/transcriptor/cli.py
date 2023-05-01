@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from copy import copy
+from datetime import datetime
 from pathlib import Path
 
 import cmd2
@@ -16,10 +17,12 @@ from transcriptor.utils import (
     dts,
     email_validator,
     float_validator,
+    format_date,
     get_media_duration,
     gt0_validator,
     job_file_validator,
     name_validator,
+    parse_due_date,
     parse_quantity,
     std,
     template_type_validator,
@@ -438,11 +441,15 @@ class TranscriptorCMD(cmd2.Cmd):
 
             date_fmt = self.app.config.date_format
 
+            today = datetime.today().strftime(date_fmt)
+
             arg.date_received = arg.date_received or prompt(
-                f"Date received {date_fmt}: ", validator=date_validator
+                f"Date received {date_fmt}: ", validator=date_validator, default=today
             )
             arg.date_due = arg.date_due or prompt(
-                f"Date due {date_fmt}: ", validator=date_validator
+                f"Date due {date_fmt}: ",
+                validator=date_validator,
+                default=format_date(parse_due_date(arg.job_file), date_fmt),
             )
 
             def add_job_cb(

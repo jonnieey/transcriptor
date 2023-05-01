@@ -482,6 +482,12 @@ class API:
                 setattr(job_model, "status", status)
 
             # Update job attributes
+            if "amount_paid" in kwargs:
+                amount_paid = kwargs.pop("amount_paid", "")
+                if amount_paid > job_model.amount:
+                    amount_paid = job_model.amount
+                setattr(job_model, "amount_paid", amount_paid)
+
             for attr, value in kwargs.items():
                 if value is not None:
                     setattr(job_model, attr, value)

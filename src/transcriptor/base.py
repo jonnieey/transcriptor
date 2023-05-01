@@ -195,8 +195,7 @@ class Transcriptor(BaseTranscriptor):
             job_file: Path object or path-like string to job file
             job_dir: Path object or path-like string to job directory
         """
-        # TODO move file
-        moved_file = shutil.copy(job_file, job_dir)
+        moved_file = shutil.move(job_file, job_dir)
         if zipfile.is_zipfile(moved_file):
             zipfile.ZipFile(moved_file).extractall(job_dir)
 
@@ -295,7 +294,7 @@ class Transcriptor(BaseTranscriptor):
             for media_file in media_files:
                 # callback return JobModel object
 
-                job, job_temp_init = add_job_cb(
+                aj = add_job_cb(
                     media_file,
                     client,
                     rates,
@@ -303,6 +302,11 @@ class Transcriptor(BaseTranscriptor):
                     job_num,
                     job_dir,
                 )
+                if aj is None:
+                    continue
+                else:
+                    job, job_temp_init = aj
+
                 job_template = self.select_job_template(sc(client.name), job_temp_init)
                 # TODO Copy numbered files for each task
                 job_path = next_non_existant_file(

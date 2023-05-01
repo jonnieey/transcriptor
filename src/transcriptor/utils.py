@@ -95,6 +95,27 @@ def parse_due_date(file: str) -> str:
     return date_due
 
 
+def format_date(date_str: str, date_fmt: str) -> str:
+    """
+    Convert a month.day ('%m.%d') string to a full date string.
+
+    Args:
+        date_str (str): A string in the format '%m.%d'.
+        date_fmt (str): The desired date format string.
+
+    Returns:
+        A string representing the date in the given format,
+        or an empty string if the input date_str is invalid.
+    """
+    try:
+        year = datetime.now().year
+        full_date_str = f"{date_str}.{year}"
+        date_obj = datetime.strptime(full_date_str, "%m.%d.%Y")
+        return date_obj.strftime(date_fmt)
+    except ValueError:
+        return ""
+
+
 def get_media_files(directory: Path) -> list[Path]:
     """
     Get all media files in a directory.
@@ -161,27 +182,6 @@ def get_media_duration(media_file: Path | str) -> float:
     with audio_open(media_file) as f:
         duration = f.duration
     return sec_to_min(duration)
-
-
-def format_date(date_str: str, date_fmt: str) -> str:
-    """
-    Convert a month.day ('%m.%d') string to a full date string.
-
-    Args:
-        date_str (str): A string in the format '%m.%d'.
-        date_fmt (str): The desired date format string.
-
-    Returns:
-        A string representing the date in the given format,
-        or an empty string if the input date_str is invalid.
-    """
-    try:
-        year = datetime.now().year
-        full_date_str = f"{date_str}.{year}"
-        date_obj = datetime.strptime(full_date_str, "%m.%d.%Y")
-        return date_obj.strftime(date_fmt)
-    except ValueError:
-        return ""
 
 
 def str_to_date(date_string: str, date_fmt: str) -> datetime:
