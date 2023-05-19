@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Tuple
 
 from rich.console import Console
@@ -119,9 +120,16 @@ class ConsoleView:
         table = self.table
         headers = ["", *list_of_rows[0]]
         rows = list_of_rows[1:]
+        today = datetime.today()
+        for idx, row in enumerate(rows):
+            if datetime.strptime(row[0], "%Y-%m-%d") >= today:
+                color_row = idx
+                break
+
         for column in headers:
             table.add_column(tc(column))
 
         for idx, row in enumerate(rows):
             table.add_row(str(idx + 1), row[0], row[1])
+        table.rows[color_row].style = "red"
         self.console.print(table)
