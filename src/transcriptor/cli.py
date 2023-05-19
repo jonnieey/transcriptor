@@ -117,7 +117,7 @@ add_job_parser.add_argument("-q", "--quantity", help="quantity")
 add_job_parser.add_argument("-w", "--wof", help="work on file")
 add_job_parser.add_argument("-t", "--job-type", help="job type")
 add_job_parser.add_argument("-T", "--job-template", help="job template")
-add_job_parser.add_argument("-N", "--note", help="job note", default=" ")
+add_job_parser.add_argument("-N", "--note", help="job note")
 
 add_cutoffs_parser = add_subparsers.add_parser("cutoffs", help="add cutoffs")
 add_cutoffs_parser.add_argument(
@@ -294,7 +294,6 @@ class TranscriptorCMD(cmd2.Cmd):
             return
 
     def show_clients(self, args):
-
         cols = ["id", "name", "email", "normal", "expedite", "interpreted"]
 
         if not args or args == "" or not args.id:
@@ -409,7 +408,6 @@ class TranscriptorCMD(cmd2.Cmd):
             return True
 
     def add_job(self, arg):
-
         clients = [
             client._mapping["ClientModel"].name
             for client in self.app.api.list_clients()
@@ -460,7 +458,6 @@ class TranscriptorCMD(cmd2.Cmd):
                 job_num: str,
                 job_dir: str | Path,
             ):
-
                 # copy arg to avoid defaults being overwritten
                 # ex. If job_dir has multiple tasks, the info on first
                 # task such  as arg.quantity will apply to following
@@ -494,7 +491,7 @@ class TranscriptorCMD(cmd2.Cmd):
                     temp_arg.job_template = temp_arg.job_template or prompt(
                         "Specify template type: ", validator=template_type_validator
                     )
-                    temp_arg.note = temp_arg.note or prompt("Notes: ")
+                    temp_arg.note = temp_arg.note or prompt("Notes: ", default=" ")
 
                     job_dict = {
                         "client_id": client.id,
@@ -621,7 +618,6 @@ class TranscriptorCMD(cmd2.Cmd):
             self.do_help("base")
 
     def delete_client(self, arg):
-
         cols = ["id", "name", "email", "normal", "expedite", "interpreted"]
 
         if not arg.client_id:
@@ -709,7 +705,6 @@ class TranscriptorCMD(cmd2.Cmd):
                 arg.period_end = dts(std(end, "%Y-%m-%d"), date_fmt)
 
             if not arg.period_start or not arg.period_end:
-
                 arg.period_start = arg.period_start or prompt(
                     f"Date from {date_fmt}: ", validator=date_validator
                 )

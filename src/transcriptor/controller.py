@@ -30,7 +30,6 @@ class API:
     """
 
     def __init__(self, base_dir: str | Path = ".", db_path: str = "transcriptor.db"):
-
         self.base_dir = Path(base_dir)
         mkdirp([self.base_dir])
 
@@ -479,6 +478,13 @@ class API:
                     status = "Done"
 
                 setattr(job_model, "date_submitted", date_submitted)
+                setattr(job_model, "status", status)
+
+            if "status" in kwargs:
+                status = kwargs.pop("status", "")
+                if status.title() == "Pending":
+                    setattr(job_model, "date_submitted", "")
+
                 setattr(job_model, "status", status)
 
             # Update job attributes
