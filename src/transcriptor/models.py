@@ -4,10 +4,7 @@ from enum import Enum
 from pathlib import Path
 
 import yaml
-from sqlalchemy import ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from transcriptor.database import Base
 from transcriptor.utils import touch
 
 
@@ -48,26 +45,7 @@ class ConfigModel(Model):
         setattr(self, attr, value)
 
     def save(self, file_object):
-        yaml.safe_dump(dict(self), file_object, sort_keys=False)
-
-    def from_file(self, file_path: str | Path):
-        try:
-            with open(file_path, "r") as fd:
-                obj_dict = yaml.safe_load(fd)
-                for attr, value in obj_dict.items():
-                    setattr(self, attr, value)
-                return self
-        except FileNotFoundError as error:
-            touch([file_path])
-            with open(file_path, "w") as fd:
-                self.save(fd)
-                return self
-
-    def from_env(self, env: str):
-        if env.lower() == Environment.DEV.value:
-            BASE_DIR = Path(__file__).parent.parent.parent.joinpath("dev-dir")
-            self.base_dir = str(BASE_DIR)
-        return self
+        yaml.safe_dump(dict(self), file_object, sort_keys=True)
 
     item_type = "config"
 
@@ -105,44 +83,3 @@ class ProfileModel(Model):
                 return self
 
     item_type = "profile"
-
-
-class RatesModel(Base):
-    __tablename__ = "Rates"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    normal: Mapped[float] = mapped_column(default=0.40)
-    expedite: Mapped[float] = mapped_column(default=0.60)
-    interpreted: Mapped[float] = mapped_column(default=0.30)
-    client: Mapped["ClientModel"] = relationship(back_populates="rates")
-
-
-class ClientModel(Base):
-    __tablename__ = "Clients"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(unique=True)
-    email: Mapped[str] = mapped_column()
-    rates_id: Mapped[int] = mapped_column(ForeignKey("Rates.id"), default="")
-    rates: Mapped["RatesModel"] = relationship(back_populates="client")
-    jobs: Mapped[list["JobModel"]] = relationship()
-
-
-class JobModel(Base):
-    __tablename__ = "Jobs"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    client_id: Mapped[int] = mapped_column(ForeignKey("Clients.id"), nullable=True)
-    date_received: Mapped[str] = mapped_column()
-    job_number: Mapped[str] = mapped_column()
-    job_type: Mapped[str] = mapped_column()
-    status: Mapped[str] = mapped_column(default="Pending")
-    date_due: Mapped[str] = mapped_column()
-    total_quantity: Mapped[float] = mapped_column()
-    quantity: Mapped[float] = mapped_column()
-    job_rate: Mapped[float] = mapped_column()
-    date_submitted: Mapped[str] = mapped_column(default="")
-    amount: Mapped[float] = mapped_column(default=0.0)
-    amount_paid: Mapped[float] = mapped_column(default=0.0)
-    job_path: Mapped[str] = mapped_column(String(100))
-    note: Mapped[str] = mapped_column(default="")

@@ -1,56 +1,23 @@
-import csv
-import logging
-import os
-import re
 import shutil
 import zipfile
-from datetime import date, datetime, timedelta
+from copy import copy
 from pathlib import Path
-from typing import Any, Callable, Dict
 
+import yaml
 from appdirs import user_config_dir, user_data_dir
-from jinja2 import Environment, PackageLoader, select_autoescape
-from markdownify import MarkdownConverter
-from rich.console import Console
-from sqlalchemy import select
-from weasyprint import HTML
 
-from transcriptor.controller import API
-from transcriptor.models import ClientModel, ConfigModel, JobModel, RatesModel
+from transcriptor.models import ConfigModel, ProfileModel
 from transcriptor.utils import (
-    csv_from_list,
-    dts,
     get_media_files,
     mkdirp,
     next_non_existant_file,
     parse_job_number,
     sc,
-    std,
     str_to_date,
-    table_list_from_docx,
-    touch,
+    truncate,
 )
 
-
-class MDConverter(MarkdownConverter):
-    """
-    Converter for Markdown to HTML
-    """
-
-    def convert_tr(self, el, text, convert_as_inline):
-        return super().convert_tr(el, text, convert_as_inline) + "\n"
-
-
-def md(html, **options):
-    """
-    Convert Markdown to HTML
-    """
-    return MDConverter(**options).convert(html)
-
-
-logger = logging.getLogger(__name__)
-
-APP_NAME = "transcriptor3"
+APP_NAME = "transcriptor4"
 
 
 class BaseTranscriptor:
@@ -58,130 +25,91 @@ class BaseTranscriptor:
     Base class for transcriptor
     """
 
-    _shared_state: Dict[Any, Any] = {}
+    _shared_state: dict[any, any] = {}
 
     def __init__(self):
         self.__dict__ = self._shared_state
 
 
 class Transcriptor(BaseTranscriptor):
-    """
-    Main transcriptor class
+    config_dir = user_config_dir(APP_NAME)
+    config_file = Path(config_dir).joinpath("configuration.yml")
+    mkdirp([config_dir])
 
-    __init__: Initialize the transcriptor class with the following arguments:
-        - config_file: Path to the config file
+    def __init__(self, api=None, config: dict = None):
+        self.config = config if config is not None else self.load_config()
 
-    """
+        if api is None:
+            from transcriptor.api import API
 
-    config_class = ConfigModel
+            self.base_dir = Path(self.config.base_dir)
+            mkdirp([self.base_dir])
 
-    def __init__(self, config: ConfigModel = None):
-        self.config = config if config is not None else self.make_config()
+            self.api = API(self.base_dir)
+        else:
+            self.base_dir = api.base_dir
+            self.api = api
 
-        self.base_dir = Path(self.config.base_dir)
-        mkdirp([self.base_dir])
-        self.api = API(self.base_dir)
+        self.date_format = self.config.date_format
+        self.profile = self.load_profile()
 
-        self.profile_file = self.base_dir.joinpath("profile.yml")
-        self.make_profile()
+    def load_config(self):
+        if self.config_file.exists():
+            with open(self.config_file, "r") as fd:
+                return ConfigModel(**yaml.safe_load(fd))
+        else:
+            config_dict = {
+                "base_dir": user_data_dir(APP_NAME),
+                "date_format": "%Y-%m-%d",
+            }
+            self.save_config(config_dict)
+            return ConfigModel(**config_dict)
 
-        self.clients_dir = self.base_dir.joinpath("clients")
-        mkdirp([self.clients_dir])
-
-    def reload(self, config):
-        """
-        Reload the transcriptor with a new config
-
-        Arguements:
-            - config: The new config to use
-        """
-        self.api.db.engine.dispose()
-        self.config = config
-
-        self.base_dir = Path(self.config.base_dir)
-        mkdirp([self.base_dir])
-        self.api = API(self.base_dir)
-
-        self.profile_file = self.base_dir.joinpath("profile.yml")
-        self.make_profile()
-
-        self.clients_dir = self.base_dir.joinpath("clients")
-        mkdirp([self.clients_dir])
-
-    def make_config(self):
-        """
-        Make a new config file or load existing from file
-
-        Returns:
-            The new config object
-        """
-        DEFAULT_BASE_DIR = Path(user_data_dir(appname=APP_NAME))
-        DEFAULT_CONFIG = {"date_format": "%Y-%m-%d", "base_dir": f"{DEFAULT_BASE_DIR}"}
-        DEFAULT_CONFIG_DIR = Path(user_config_dir(appname=APP_NAME))
-        self.config_file = DEFAULT_CONFIG_DIR.joinpath("config.yml")
-
-        config = self.config_class(**DEFAULT_CONFIG)
-        config.from_file(self.config_file)
-
-        env = os.environ.get("TRANS_ENV", "")
-        if env:
-            config.from_env(env)
-        return config
-
-    def save_config(self):
-        """
-        Save the config file and reload transcriptor app
-        """
+    def save_config(self, config_dict: dict = {}):
+        self.config = ConfigModel(**config_dict)
         with open(self.config_file, "w") as fd:
             self.config.save(fd)
-        self.reload(self.config)
 
-    def save_profile(self):
-        """
-        Save the profile file
-        """
-        with open(self.profile_file, "w") as fd:
+    def save_profile(self, profile_dict: dict = {}):
+        profile_file = self.base_dir.joinpath("profile.yml")
+        self.profile = ProfileModel(**profile_dict)
+        with open(profile_file, "w") as fd:
             self.profile.save(fd)
 
-    def make_profile(self):
-        """
-        Load profile from file.
+    def load_profile(self):
+        profile_file = self.base_dir.joinpath("profile.yml")
+        if profile_file.exists():
+            with open(profile_file, "r") as fd:
+                return ProfileModel(**yaml.safe_load(fd))
+        else:
+            self.save_profile()
+            return ProfileModel()
 
-        Returns:
-            ProfileModel object
-        """
+    def create_client(self, name, email, rates={}):
+        client_rates = {"normal": 0.4, "expedite": 0.6, "interpreted": 0.3}
+        client_rates.update(rates)
+        rates_id = self.api.add_rates(client_rates)
 
-        if not self.profile_file.exists():
-            touch([self.profile_file])
+        client_dict = {"name": name, "email": email, "rates_id": rates_id}
+        client_id = self.api.add_clients(client_dict)
 
-        with open(self.profile_file, "r+") as fd:
-            self.profile = self.api.load_profile(fd)
+        client_dir = self.base_dir.joinpath("clients").joinpath(sc(name))
+        mkdirp([client_dir])
+        template_path = Path(__file__).parent.joinpath("templates")
+        shutil.copytree(template_path, client_dir.joinpath("templates"))
 
-    def create_job_dir(
-        self, client_name: str, job_num: str, date_r: str, date_due: str
-    ) -> Path:
-        """
-        Create job directory.
-
-        Arguments:
-            client_name: Name of client
-            job_num: Job number
-            date_r: Date received
-            date_due: Date due
-
-        Returns:
-            Path object
-        """
-        DATE_FMT = self.config.date_format
-        date_r = str_to_date(date_r, DATE_FMT).strftime("%d_%a")
-        date_due = str_to_date(date_due, DATE_FMT).strftime("%d_%a")
+    def create_job_dir(self, client_name, job_num, date_rec, date_due):
+        date_rec = str_to_date(date_rec, self.date_format)
+        date_due = str_to_date(date_due, self.date_format)
 
         job_dir = (
             self.base_dir.joinpath("clients")
             .joinpath(sc(client_name))
-            .joinpath(str(date.today().year))
-            .joinpath(str(date.today().strftime("%B")))
-            .joinpath(f"{date_r}_{job_num}_DUE_{date_due}")
+            .joinpath(f"{date_rec.year}")
+            .joinpath(f"{date_rec.strftime('%B')}")
+            .joinpath(
+                f"{date_rec.strftime('%d_%a')}_{job_num}_DUE_{date_due.strftime('%d_%a')}"
+            )
         )
         mkdirp([job_dir])
         return job_dir
@@ -195,34 +123,18 @@ class Transcriptor(BaseTranscriptor):
             job_file: Path object or path-like string to job file
             job_dir: Path object or path-like string to job directory
         """
-        moved_file = shutil.move(job_file, job_dir)
+        # moved_file = shutil.move(job_file, job_dir)
+        moved_file = shutil.copy(job_file, job_dir)
         if zipfile.is_zipfile(moved_file):
             zipfile.ZipFile(moved_file).extractall(job_dir)
 
-    def add_client(self, name: str, email: str, rates: dict) -> None:
-        """
-        Add a new client to the database and create a new client directory
-        with client's templates
-
-        Arguments:
-            name: Name of client
-            email: Email of client
-            rates: Rates of client
-        """
-        new_client = self.api.create_client(name, email, rates)
-        self.api.save_client(new_client)
-        CLIENT_DIR = self.base_dir.joinpath("clients").joinpath(sc(name))
-        mkdirp([CLIENT_DIR])
-        template_path = Path(__file__).parent.joinpath("templates")
-        shutil.copytree(template_path, CLIENT_DIR.joinpath("templates"))
-
-    def select_job_template(self, client, template_init: str):
+    def get_job_template_path(self, client, template: str):
         """
         Select a job template for a task
 
         Arguments:
             client: Client name
-            template_init: Template name initials
+            template: Template name initials
 
         Returns:
             Path to template file
@@ -238,198 +150,102 @@ class Transcriptor(BaseTranscriptor):
             "me": "Compulsory Medical Exam Template.doc",
             "zdi": "Zoom Deposition Block File with Interpreter.doc",
         }
-        CLIENT_DIR = self.base_dir.joinpath("clients").joinpath(client)
-        template_dir = CLIENT_DIR.joinpath("templates")
+        client_template_dir = self.base_dir.joinpath("clients", sc(client), "templates")
 
-        if not template_dir.exists():
-            template_path = Path(__file__).parent.joinpath("templates")
-            shutil.copytree(template_path, CLIENT_DIR.joinpath("templates"))
+        if not client_template_dir.exists():
+            jobs_templates_path = Path(__file__).parent.joinpath("templates")
+            shutil.copytree(jobs_templates_path, client_template_dir)
 
-        template_path = CLIENT_DIR.joinpath("templates").joinpath(
-            template_mapping[template_init]
-        )
+        template_path = client_template_dir.joinpath(template_mapping[template])
         return template_path
 
-    def add_job(
-        self,
-        add_job_cb: Callable[
-            [str, ClientModel, RatesModel, str, str, str | Path], JobModel
-        ],
-        client_name: str,
-        job_file: str | Path,
-        date_received: str = "",
-        date_due: str = "",
-    ) -> None:
-        """
-        Add job to database
-
-        Arguments
-        add_job_cb: Job callback function. Function that gets job info.
-        client_name: Client's name
-        job_file: Job file
-        date_received: Date received
-        date_due: Date due
-
-        """
-
+    def create_job(self, job_file, job_callback, task_callback):
         job_num = parse_job_number(str(job_file))
-        DATE_FMT = self.config.date_format
 
-        with self.api.session as session:
-            stmt = (
-                select(ClientModel, RatesModel)
-                .filter(ClientModel.name.like(f"%{client_name}%"))
-                .join(RatesModel)
-            )
-            scalars = session.execute(stmt).one()
-            # TODO Handle multiple clients with almost same name
-            # Only one client found
-            client = scalars._mapping["ClientModel"]
-            rates = scalars._mapping["RatesModel"]
+        job_info = {}
+        job_info["job_num"] = job_num
+        job_info.update(job_callback(job_file))
+        # return {
+        #     "client_id": client_id,
+        #     "date_rec": date_rec,
+        #     "date_due": date_due,
+        #     "job_num": job_num,
+        # }
+        # task_info = task_callback(task)
+        # return {
+        #     "date_rec": date_rec,
+        #     "date_due": date_due,
+        #     "job_type": job_type,
+        #     "template": template,
+        #     "notes": notes,
+        #       ...
+        # }
 
-            job_dir = self.create_job_dir(client.name, job_num, date_received, date_due)
-            self.mv_extract_job_file(job_file, job_dir)
-
-            media_files = get_media_files(job_dir)
-            for media_file in media_files:
-                # callback return JobModel object
-
-                aj = add_job_cb(
-                    media_file,
-                    client,
-                    rates,
-                    date_received,
-                    job_num,
-                    job_dir,
-                )
-                if aj is None:
-                    continue
-                else:
-                    job, job_temp_init = aj
-
-                job_template = self.select_job_template(sc(client.name), job_temp_init)
-                # TODO Copy numbered files for each task
-                job_path = next_non_existant_file(
-                    job_dir.joinpath(
-                        f"{job_num} Due {str_to_date(date_due, DATE_FMT).strftime('%m.%d')}.doc",
-                    ),
-                )
-                shutil.copy(job_template, job_path)
-
-                self.api.save_job(job)
-
-    def create_invoice(self, client_id, period_start, period_end, to_file=False):
+        stmt = """
+            SELECT c.name, r.normal, r.expedite, r.interpreted
+            FROM clients AS c
+            JOIN rates AS r ON c.rates_id = r.id
+            WHERE c.id = ?
         """
-        Create invoice for client
+        client = self.api.cursor.execute(stmt, (job_info["client_id"],)).fetchone()
 
-        Arguments:
-            client_id: Client id
-            period_start: Start of period (date string)
-            period_end: End of period (date string)
-            to_file: If True, invoice will be saved to file
-        """
-        # client, jobs, totals =
-        client, jobs_list, (amount, amount_paid) = self.api.create_invoice_data(
-            client_id, period_start, period_end
+        if not client:
+            print("No client found")
+            return
+
+        # create job directory
+        client_name = client["name"]
+        job_dir = self.create_job_dir(
+            client_name, job_info["job_num"], job_info["date_rec"], job_info["date_due"]
         )
 
-        profile = self.profile.__dict__
-        created = datetime.today()
-        due = created + timedelta(days=7)
-
-        DATE_FMT = self.config.date_format
-
-        CLIENT_DIR = self.base_dir.joinpath("clients").joinpath(sc(client["name"]))
-        INVOICES_DIR = CLIENT_DIR.joinpath("invoices")
-        INVOICE_COUNTER_FILE = INVOICES_DIR.joinpath("invoice_counter.txt")
-
-        try:
-            with open(INVOICE_COUNTER_FILE, "r") as fd:
-                count = fd.readline()
-                invoice_counter = 0 if count == "" else int(count)
-        except FileNotFoundError:
-            invoice_counter = 0
-
-        context = {
-            "client": client,
-            "jobs": jobs_list,
-            "amount": amount,
-            "profile": profile,
-            "data": {
-                "created": created.strftime(DATE_FMT),
-                "due": due.strftime(DATE_FMT),
-                "invoice_number": f"{invoice_counter + 1:05}",
-            },
+        rates = {
+            job_type: rate
+            for job_type, rate in client.items()
+            if job_type in ["normal", "expedite", "interpreted"]
         }
 
-        env = Environment(
-            loader=PackageLoader("transcriptor", "invoice_templates"),
-            autoescape=select_autoescape(["html", "xml"]),
-        )
-        template_file = "invoice.html"
-        template = env.get_template(template_file)
-        output_text = template.render(context)
+        self.mv_extract_job_file(job_file, job_dir)
+        tasks = get_media_files(job_dir)
 
-        invoice_file_name = f"{created.strftime(DATE_FMT)}_{client['name']}_invoice"
-        html_invoice_file_name = f"{invoice_file_name}.html"
-        pdf_invoice_file_name = f"{invoice_file_name}.pdf"
+        jobs = []
 
-        touch([INVOICE_COUNTER_FILE])
+        for task in tasks:
+            task_info = copy(job_info)
+            task_info.update(task_callback(task))
 
-        if to_file:
-            with open(INVOICES_DIR.joinpath(html_invoice_file_name), "w") as fd:
-                fd.write(output_text)
+            template_path = self.get_job_template_path(
+                client_name, task_info["job_template"]
+            )
 
-            invoice_file = str(INVOICES_DIR.joinpath(pdf_invoice_file_name))
-            HTML(string=output_text).write_pdf(invoice_file)
+            job_path = next_non_existant_file(
+                job_dir.joinpath(
+                    "{} Due {}.doc".format(
+                        job_num,
+                        job_info["date_due"].strftime("%m.%d"),
+                    )
+                ),
+            )
+            shutil.copy(template_path, job_path)
 
-            with open(INVOICE_COUNTER_FILE, "w") as fd:
-                fd.write(f"{invoice_counter + 1:05}")
-        else:
-            markdown = md(output_text)
-            table = "\n\n" + markdown[markdown.find("Invoice #") :]
-            table = re.sub(r"\n{2,}", "\n\n", table)
-            Console().print(table)
+            task_info["job_rate"] = client.get(task_info["job_type"].lower())
+            task_info["amount"] = truncate(
+                float(task_info["job_rate"]) * float(task_info["quantity"]), 2
+            )
 
-    def save_cutoffs(self, docx_path):
-        DATE_FMT = self.config.date_format
-        table_list = table_list_from_docx(docx_path)
-        for idx, row in enumerate(table_list[1:], start=1):
-            cutoff, deposit = row
-            # Assumes that date is in format MM/DD/YYYY
-            cutoff = dts(std(cutoff, "%m/%d/%Y"), DATE_FMT)
-            deposit = dts(std(deposit, "%m/%d/%Y"), DATE_FMT)
-            table_list[idx] = [cutoff, deposit]
-
-        cutoff_csv = csv_from_list(table_list)
-
-        CUTOFF_FILE = self.base_dir.joinpath("cutoffs.csv")
-        with open(CUTOFF_FILE, "w") as fd:
-            fd.write(cutoff_csv)
-
-    def get_cutoffs(self):
-        """
-        Get cutoffs from csv file
-
-        Returns:
-            cutoffs: List of tuples (cutoff_date, deposit date)
-        """
-
-        CUTOFF_FILE = self.base_dir.joinpath("cutoffs.csv")
-        with open(CUTOFF_FILE, "r") as fd:
-            reader = csv.reader(fd)
-            if reader:
-                return list(reader)
-
-
-if __name__ == "__main__":
-    app = Transcriptor()
-    # print(app.config)m
-    file = (
-        "/home/kamikaze/Documents/Wera/Transcription/TRANSCRIBER JOB CUT OFF 2023.docx"
-    )
-    # t(app.select_job_template("zd"))
-    t = app.save_cutoffs(file)
-    from transcriptor.view import ConsoleView
-
-    ConsoleView().print_cutoff_table(app.get_cutoffs())
+            jobs_dict = {
+                "client_id": job_info["client_id"],
+                "date_received": job_info["date_rec"],
+                "job_number": job_num,
+                "status": "Pending",
+                "amount": task_info["amount"],
+                "job_type": task_info["job_type"],
+                "date_due": job_info["date_due"],
+                "total_quantity": task_info["total_quantity"],
+                "quantity": task_info["quantity"],
+                "job_rate": client.get(task_info["job_type"].lower()),
+                "job_path": str(task),
+                "note": task_info["note"],
+            }
+            jobs.append(jobs_dict)
+        self.api.add_jobs(jobs)

@@ -77,7 +77,7 @@ def parse_job_number(file: str) -> str:
     return job_number
 
 
-def parse_due_date(file: str) -> str:
+def parse_date_due(file: str) -> str:
     """
     Get date due from path-like string.
 
@@ -122,11 +122,7 @@ def get_media_files(directory: Path) -> list[Path]:
 
     Arguments:
         directory: Directory to get media files from.
-
-    Returns:
-        List of media file Path objects.
     """
-    media_files = []
     for file in directory.iterdir():
         if file.is_file():
             mime_type, _ = mimetypes.guess_type(str(file))
@@ -136,8 +132,7 @@ def get_media_files(directory: Path) -> list[Path]:
                     or mime_type.startswith("video/")
                     or mime_type == "application/octet-stream"
                 ):
-                    media_files.append(file)
-    return media_files
+                    yield file
 
 
 def truncate(num: float, dp: int) -> float:
@@ -195,6 +190,8 @@ def str_to_date(date_string: str, date_fmt: str) -> datetime:
     Returns:
         A datetime object representing the date in the given format,
     """
+    if isinstance(date_string, (datetime, date)):
+        return date_string
     return datetime.strptime(date_string, date_fmt)
 
 

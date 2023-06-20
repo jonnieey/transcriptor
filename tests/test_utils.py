@@ -5,6 +5,7 @@ import unittest
 import unittest.mock
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from types import GeneratorType
 
 from transcriptor.utils import *
 
@@ -82,7 +83,6 @@ class TestMkdirp(unittest.TestCase):
 
 class TestConvertCase(unittest.TestCase):
     def test_convert_case(self):
-
         self.assertEqual(convert_case("My Name", " ", "_"), "My_Name")
         self.assertEqual(sc("My Name"), "My_Name")
         self.assertEqual(sc("My-Name"), "My_Name")
@@ -116,12 +116,12 @@ class TestParseJobNumber(unittest.TestCase):
 
 class TestDateParses(unittest.TestCase):
     def test_parse_due_date(self):
-        self.assertEqual(parse_due_date("file_due_12.24.txt"), "12.24")
-        self.assertEqual(parse_due_date("file-back_02.14.pdf"), "02.14")
-        self.assertEqual(parse_due_date("file_due-8-9.txt"), "8-9")
-        self.assertEqual(parse_due_date("file_due 05-06.txt"), "05-06")
-        self.assertEqual(parse_due_date("file_due-01-31.xlsx"), "01-31")
-        self.assertEqual(parse_due_date("file_no_date.txt"), "")
+        self.assertEqual(parse_date_due("file_due_12.24.txt"), "12.24")
+        self.assertEqual(parse_date_due("file-back_02.14.pdf"), "02.14")
+        self.assertEqual(parse_date_due("file_due-8-9.txt"), "8-9")
+        self.assertEqual(parse_date_due("file_due 05-06.txt"), "05-06")
+        self.assertEqual(parse_date_due("file_due-01-31.xlsx"), "01-31")
+        self.assertEqual(parse_date_due("file_no_date.txt"), "")
 
     def test_format_date(self):
         assert format_date("02.29", "%Y-%m-%d") == ""  # invalid date
@@ -149,7 +149,7 @@ class TestGetMediaFiles(unittest.TestCase):
     def test_returns_list(self):
         directory = Path(__file__).parent.joinpath("media_files")
         media_files = get_media_files(directory)
-        self.assertIsInstance(media_files, list)
+        self.assertIsInstance(media_files, GeneratorType)
 
     def test_returns_only_media_files(self):
         directory = Path(__file__).parent.joinpath("media_files")
@@ -177,6 +177,7 @@ class TestGetMediaFilesDuration(unittest.TestCase):
         media_file = directory.joinpath("Sample.aac")
         duration_in_sec = 16.1
         expected_duration_in_min = 0.26
+
         # create a mock object with a duration attribute
         class MockAudioFile:
             duration = duration_in_sec

@@ -41,7 +41,6 @@ class TestConfig:
         assert "delete" in std_out
 
     def test_config(self, transcriptor_app):
-
         bak_base_dir = transcriptor_app.app.config.base_dir
 
         # show config help
