@@ -47,7 +47,7 @@ class Transcriptor(BaseTranscriptor):
 
             self.api = API(self.base_dir)
         else:
-            self.base_dir = api.base_dir
+            self.base_dir = Path(api.base_dir)
             self.api = api
 
         self.date_format = self.config.date_format

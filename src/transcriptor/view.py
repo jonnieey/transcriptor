@@ -37,16 +37,4 @@ class ConsoleView:
                 row_values = list(map(str, row.values()))
                 self.table.add_row(*row_values)
 
-        # if isinstance(data, (list, tuple)):
-        #     columns = data[0].keys()
-        #     rows = data
-        # elif isinstance(data, dict):
-        #     columns = data.keys()
-        #     rows = data.values()
-        #
-        # # for column in columns:
-        # #     self.table.add_column(column)
-        # for row in rows:
-        #     self.table.add_row(row)
-
         self.console.print(self.table)

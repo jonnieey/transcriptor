@@ -2,6 +2,7 @@ from pathlib import Path
 
 from transcriptor.database import Database
 from transcriptor.utils import mkdirp
+from transcriptor.utils import quote_values as qv
 
 
 class API:
@@ -35,20 +36,20 @@ class API:
         self.cursor.executemany(stmt, jobs)
         self.conn.commit()
 
-    def get_clients(self, where: dict = {}, with_rates=False):
-        args = []
-        if not with_rates:
-            stmt = "SELECT * FROM clients "
-        else:
-            stmt = """
-                SELECT c.name, c.email, r.normal, r.expedite, r.interpreted
-                FROM clients AS c
-                JOIN rates AS r ON c.rates_id = r.id """
-        if where:
-            searchstrs = " and ".join(f"{pk}=:{pk}" for pk in where.keys())
+    def get_clients(self, conditions=""):
+        stmt = """
+            SELECT c.id AS client_id, c.name, c.email, r.normal, r.expedite, r.interpreted
+            FROM clients AS c
+            JOIN rates AS r ON c.rates_id = r.id 
+            """
+        if conditions:
+            searchstrs = " and ".join(qv(conditions[0]).split(" "))
             stmt += " WHERE " + searchstrs
-            args += where.values()
-        clients = self.cursor.execute(stmt, args).fetchall()
+        # if where:
+        #     searchstrs = " and ".join(f"{pk}=:{pk}" for pk in where.keys())
+        #     stmt += " WHERE " + searchstrs
+        #     args += where.values()
+        clients = self.cursor.execute(stmt).fetchall()
         return clients
 
     def get_rates(self):
@@ -56,7 +57,7 @@ class API:
         rates = self.cursor.execute(stmt).fetchall()
         return rates
 
-    def get_jobs(self):
+    def get_jobs(self, conditions=""):
         # stmt = """
         # SELECT  c.id AS client_id,  j.date_received, j.id AS job_id, j.job_number, j.job_type,
         # j.status, j.date_due, j.total_quantity, j.quantity, j.job_rate,
@@ -74,21 +75,39 @@ class API:
          j.date_submitted, j.amount, j.amount_paid, j.note
          FROM JOBS AS j
         """
+        if conditions:
+            searchstrs = " and ".join(qv(conditions[0]).split(" "))
+            stmt += " WHERE " + searchstrs
+
         jobs = self.cursor.execute(stmt).fetchall()
         return jobs
 
     # WITH ROLLUP;
 
-    def update(self, table_name: str, data: dict, where: dict):
-        args = list(data.values())
-        set_clause = ", ".join(f"{column} = :{column}" for column in data.keys())
-        stmt = f"UPDATE {table_name} SET {set_clause} "
-        if where:
-            searchstrs = " and ".join(f"{pk}=:{pk}" for pk in where.keys())
-            stmt += " WHERE " + searchstrs
-            args += where.values()
+    def update(
+        self,
+        table_name: str,
+        set_conditions: str,
+        search_conditions: str,
+        other_conditions: str = "",
+    ):
+        # args = list(data.values())
+        # set_clause = ", ".join(f"{column} = :{column}" for column in data.keys())
+        setstr = ", ".join(qv(set_conditions[0]).split(" "))
+        stmt = f"UPDATE {table_name} SET {setstr} "
 
-        self.cursor.execute(stmt, args)
+        searchstrs = " and ".join(qv(search_conditions[0]).split(" "))
+        stmt += " WHERE " + searchstrs
+
+        if other_conditions:
+            stmt += qv(other_conditions[0])
+
+        # if where:
+        #     searchstrs = " and ".join(f"{pk}=:{pk}" for pk in where.keys())
+        #     stmt += " WHERE " + searchstrs
+        #     args += where.values()
+
+        self.cursor.execute(stmt)
         self.conn.commit()
         return self.cursor.lastrowid
 

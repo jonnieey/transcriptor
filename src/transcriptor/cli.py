@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import sys
 
@@ -68,12 +69,10 @@ show_subparsers = show_parser.add_subparsers(
 show_config_parser = show_subparsers.add_parser("config", help="show config")
 show_profile_parser = show_subparsers.add_parser("profile", help="show profile")
 show_clients_parser = show_subparsers.add_parser("clients", help="show client")
-# show_clients_parser.add_argument("-i", "--id", type=int, help="client id")
+show_clients_parser.add_argument("-v", "--key-val", nargs="*", help="Show clients")
 show_jobs_parser = show_subparsers.add_parser("jobs", help="show jobs")
-# show_jobs_parser.add_argument(
-# "-v", "--key-val", action=KeyValueAction, nargs="*", help="Show jobs"
-# )
-# show_jobs_parser.add_argument("-a", "--all", action="store_true", help="Show all jobs")
+show_jobs_parser.add_argument("-v", "--key-val", nargs="*", help="Show jobs")
+show_jobs_parser.add_argument("-a", "--all", action="store_true", help="Show all jobs")
 # show_cutoffs_parser = show_subparsers.add_parser("cutoffs", help="show cutoffs")
 
 add_parser = base_subparsers.add_parser("add", help="add object")
@@ -176,12 +175,7 @@ class TranscriptorCMD(cmd2.Cmd):
     show_profile_parser.set_defaults(func=show_profile)
 
     def show_clients(self, args):
-        stmt = """
-            SELECT c.id, c.name, c.email, r.normal, r.expedite, r.interpreted
-            FROM clients AS c
-            JOIN rates AS r ON c.rates_id = r.id
-        """
-        clients = self.app.api.cursor.execute(stmt).fetchall()
+        clients = self.app.api.get_clients(args.key_val)
         if clients:
             ConsoleView().print_table(clients, orientation="hor")
             return 0
@@ -190,10 +184,15 @@ class TranscriptorCMD(cmd2.Cmd):
     show_clients_parser.set_defaults(func=show_clients)
 
     def show_jobs(self, args):
-        jobs = self.app.api.get_jobs()
+        if args.all:
+            args.key_val = []
+        elif not args.key_val and not args.all:
+            args.key_val = ["status=Pending"]
+        jobs = self.app.api.get_jobs(args.key_val)
         if jobs:
             ConsoleView().print_table(jobs, orientation="hor")
 
+    #
     show_jobs_parser.set_defaults(func=show_jobs)
     # show_cutoffs_parser.set_defaults(func=show_cutoffs)
 

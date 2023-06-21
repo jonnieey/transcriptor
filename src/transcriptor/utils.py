@@ -592,3 +592,21 @@ template_type_validator = MyValidator(
 )
 date_validator = MyValidator(is_valid_date, "Invalid date")
 gt0_validator = MyValidator(is_gt_0, "Is less than 0")
+
+
+def quote_values(text: str):
+    """
+    input -> "name=John amount>=100 amount_paid!>200 status!=Pending"
+    return -> 'name="John" amount>="100" amount_paid!>"200" status!="Pending"'
+    """
+    pattern = r"(\S+)([><]=?|![=><]|(?<!=)=)(\S+)"
+    matches = re.findall(pattern, text)
+    quoted_list = [f"{m[0]}{m[1]}" + f'"{m[2]}"' for m in matches]
+    return " ".join(quoted_list)
+
+
+if __name__ == "__main__":
+    conditions = [
+        "name<=john second=second third>=third forth!=fifth sixth>sixth seventh<eigth"
+    ]
+    print(quote_values(conditions[0]))
