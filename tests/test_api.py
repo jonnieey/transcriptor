@@ -14,17 +14,23 @@ class TestAPI(unittest.TestCase):
         shutil.rmtree(self.temp_dir)
 
     def test_add_client(self):
-        client_dict = {"name": "test_name", "email": "test_email", "rates_id": 1}
+        client_dict = {"name": "test_name", "email": "test_email"}
         self.api.add_clients(client_dict)
         clients = self.api.conn.cursor().execute("SELECT * FROM clients").fetchall()
         self.assertEqual(len(clients), 1)
 
     def test_add_rates(self):
-        rates_dict = {"normal": 0.50, "expedite": 0.70, "interpreted": 0.40}
+        rates_dict = {
+            "normal": 0.50,
+            "expedite": 0.70,
+            "interpreted": 0.40,
+            "client_id": 1,
+        }
         self.api.add_rates(rates_dict)
         rates = self.api.conn.cursor().execute("SELECT * FROM rates").fetchall()
         self.assertEqual(len(rates), 1)
 
+    #
     def test_add_job(self):
         jobs_dict = (
             {

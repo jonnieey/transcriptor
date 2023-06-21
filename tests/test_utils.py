@@ -28,6 +28,7 @@ from transcriptor.utils import (
     parse_date_due,
     parse_job_number,
     parse_quantity,
+    quote_operands,
     rel_date,
     sc,
     sec_to_min,
@@ -487,3 +488,15 @@ class TestValidatorFunctions(unittest.TestCase):
         self.assertTrue(is_gt_0("4.0"))
         self.assertFalse(is_gt_0(-4.0))
         self.assertFalse(is_gt_0("-4.0"))
+
+    def test_quote_operands(self):
+        inp = "name<=john and sophia second=second third>=third forth!=fifth sixth>sixth seventh<eighth and ninth"
+        out = [
+            'name<="john and sophia"',
+            'second="second"',
+            'third>="third"',
+            'forth!="fifth"',
+            'sixth>"sixth"',
+            'seventh<"eighth and ninth"',
+        ]
+        self.assertEqual(list(quote_operands(inp)), out)

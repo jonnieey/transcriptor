@@ -6,19 +6,24 @@ from transcriptor.database import Database
 
 today = date.today()
 
+unittest.TestLoader.sortTestMethodsUsing = None
+
 
 class TestDatabase(unittest.TestCase):
-    def setup_class(self):
+    def setUp(self):
         self.db = Database(":memory:")
+        self.db.init_db()
+        self.conn = self.db.conn
 
-    def teardown_class(self):
+    def tearDown(self):
         self.db.conn.close()
 
     def test_init_db(self):
-        conn = self.db.init_db()
+        # conn = self.db.init_db()
+        cur = self.conn.cursor()
         # Check tables in database
         stmt = "SELECT name FROM sqlite_master WHERE type='table'"
-        cur = conn.cursor()
+        # cur = conn.cursor()
         cur.execute(stmt)
         tables = cur.fetchall()
         self.assertEqual(len(tables), 3)
@@ -26,57 +31,109 @@ class TestDatabase(unittest.TestCase):
         # self.assertIn(("Rates",), tables)
         # self.assertIn(("Jobs",), tables)
 
-    def test_insert_dummy_rates(self):
-        conn = self.db.init_db()
-        cur = conn.cursor()
+    def test_insert_rates(self):
+        #     # conn = self.db.init_db()
+        cur = self.conn.cursor()
+        clients_data = {"name": "Mike John", "email": "micke@example.com"}
+        cur.execute(
+            "INSERT INTO clients (id, name, email) VALUES (NULL, :name, :email)",
+            clients_data,
+        )
+        client_id = cur.lastrowid
+        self.conn.commit()
 
         # Dummy data for the Rates table
         rates_data = [
-            {"normal": 0.50, "expedite": 0.70, "interpreted": 0.40},
-            {"normal": 0.45, "expedite": 0.65, "interpreted": 0.35},
-            {"normal": 0.55, "expedite": 0.75, "interpreted": 0.45},
+            {
+                "normal": 0.50,
+                "expedite": 0.70,
+                "interpreted": 0.40,
+                "client_id": client_id,
+            },
+            {
+                "normal": 0.45,
+                "expedite": 0.65,
+                "interpreted": 0.35,
+                "client_id": client_id,
+            },
+            {
+                "normal": 0.55,
+                "expedite": 0.75,
+                "interpreted": 0.45,
+                "client_id": client_id,
+            },
         ]
         cur.executemany(
-            "INSERT INTO rates (id, normal, expedite, interpreted) VALUES (NULL, :normal, :expedite, :interpreted)",
+            "INSERT INTO rates (id, normal, expedite, interpreted, client_id) VALUES (NULL, :normal, :expedite, :interpreted, :client_id)",
             rates_data,
         )
-        conn.commit()
+        self.conn.commit()
         stmt = "SELECT * FROM rates"
         rates = cur.execute(stmt).fetchall()
         self.assertEqual(len(rates), 3)
 
-    def test_insert_dummy_clients(self):
-        conn = self.db.init_db()
-        # conn = init_db(":memory:")
-        cur = conn.cursor()
+    def test_insert_clients(self):
+        # conn = self.db.init_db()
+        cur = self.conn.cursor()
 
-        clients_data = [
-            {"name": "John Doe", "email": "johndoe@example.com", "rates_id": 1},
-            {"name": "Jane Smith", "email": "janesmith@example.com", "rates_id": 2},
-            {
-                "name": "Michael Johnson",
-                "email": "michaeljohnson@example.com",
-                "rates_id": 3,
-            },
-        ]
-        cur.executemany(
-            "INSERT INTO clients (id, name, email, rates_id) VALUES (NULL, :name, :email, :rates_id)",
+        clients_data = {
+            "name": "John Doe",
+            "email": "johndoe@example.com",
+            "rates_id": 1,
+        }
+        cur.execute(
+            "INSERT INTO clients (id, name, email) VALUES (NULL, :name, :email)",
             clients_data,
         )
-        conn.commit()
+        client_id = cur.lastrowid
+        self.conn.commit()
+
+        rates_data = {
+            "normal": 0.50,
+            "expedite": 0.70,
+            "interpreted": 0.40,
+            "client_id": client_id,
+        }
+        cur.execute(
+            "INSERT INTO rates (id, normal, expedite, interpreted, client_id) VALUES (NULL, :normal, :expedite, :interpreted, :client_id)",
+            rates_data,
+        )
+        stmt = "SELECT * FROM rates"
+        rates = cur.execute(stmt).fetchall()
+        self.conn.commit()
+
         stmt = "SELECT * FROM clients"
         clients = cur.execute(stmt).fetchall()
-        self.assertEqual(len(clients), 3)
+        self.assertEqual(len(clients), 1)
 
-    def test_insert_dummy_jobs(self):
-        conn = self.db.init_db()
+    def test_insert_jobs(self):
+        # conn = self.db.init_db()
         # conn = init_db(":memory:")
-        cur = conn.cursor()
+        cur = self.conn.cursor()
+        clients_data = {"name": "John Doe", "email": "johndoe@example.com"}
+        cur.execute(
+            "INSERT INTO clients (id, name, email) VALUES (NULL, :name, :email)",
+            clients_data,
+        )
+        client_id = cur.lastrowid
+        self.conn.commit()
+
+        rates_data = {
+            "normal": 0.50,
+            "expedite": 0.70,
+            "interpreted": 0.40,
+            "client_id": client_id,
+        }
+        cur.execute(
+            "INSERT INTO rates (id, normal, expedite, interpreted, client_id) VALUES (NULL, :normal, :expedite, :interpreted, :client_id)",
+            rates_data,
+        )
+        self.conn.commit()
 
         # Dummy data for the Jobs table
         jobs_data = [
             {
-                "client_id": 1,
+                "client_id": client_id,
                 "date_received": today,
                 "job_number": "JOB001",
                 "job_type": "Translation",
@@ -89,7 +146,7 @@ class TestDatabase(unittest.TestCase):
                 "amount": 50.0,
             },
             {
-                "client_id": 2,
+                "client_id": client_id,
                 "date_received": "2023-06-02",
                 "job_number": "JOB002",
                 "job_type": "Interpretation",
@@ -102,7 +159,7 @@ class TestDatabase(unittest.TestCase):
                 "amount": 60.7,
             },
             {
-                "client_id": 3,
+                "client_id": client_id,
                 "date_received": "2023-06-03",
                 "job_number": "JOB003",
                 "job_type": "Translation",
@@ -120,16 +177,35 @@ class TestDatabase(unittest.TestCase):
             "INSERT INTO jobs (id, client_id, date_received, job_number, job_type, date_due, total_quantity, quantity, job_rate, job_path, status, amount) VALUES (NULL, :client_id, :date_received, :job_number, :job_type, :date_due, :total_quantity, :quantity, :job_rate, :job_path, :status, :amount)",
             jobs_data,
         )
-        conn.commit()
+        self.conn.commit()
         stmt = "SELECT * FROM jobs"
         jobs = cur.execute(stmt).fetchall()
         self.assertEqual(len(jobs), 3)
         self.assertIsInstance(jobs[0]["date_received"], date)
 
+    def test_zelete_clients(self):
+        cur = self.conn.cursor()
+        clients_data = {"name": "John Doe", "email": "johndoe@example.com"}
+        cur.execute(
+            "INSERT INTO clients (id, name, email) VALUES (NULL, :name, :email)",
+            clients_data,
+        )
+        client_id = cur.lastrowid
+        rates_data = {
+            "normal": 0.50,
+            "expedite": 0.70,
+            "interpreted": 0.40,
+            "client_id": client_id,
+        }
+        cur.execute(
+            "INSERT INTO rates (id, normal, expedite, interpreted, client_id) VALUES (NULL, :normal, :expedite, :interpreted, :client_id)",
+            rates_data,
+        )
+        rates_id = cur.lastrowid
 
-#
-# #
-# # # Insert dummy data into the Jobs table
-#
-# #if __name__ == "__main__":
-#
+        self.db.conn.execute("DELETE FROM clients WHERE id=?", (client_id,))
+        self.conn.commit()
+
+        cur.execute("SELECT * FROM rates WHERE id = ?", (rates_id,))
+        rates = cur.fetchone()
+        self.assertIsNone(rates)
