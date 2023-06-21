@@ -75,6 +75,7 @@ show_jobs_parser = show_subparsers.add_parser("jobs", help="show jobs")
 show_jobs_parser.add_argument("-v", "--key-val", nargs="*", help="Show jobs")
 show_jobs_parser.add_argument("-a", "--all", action="store_true", help="Show all jobs")
 show_cutoffs_parser = show_subparsers.add_parser("cutoffs", help="show cutoffs")
+show_rates_parser = show_subparsers.add_parser("rates", help="show rates")
 
 add_parser = base_subparsers.add_parser("add", help="add object")
 add_subparsers = add_parser.add_subparsers(title="subcommands", help="subcommand help")
@@ -95,7 +96,7 @@ add_client_parser.add_argument(
     "--rates",
     nargs=3,
     help="client rates dict",
-    default={"normal": 0.40, "expedite": 0.60, "interpreted": 0.30},
+    default=(0.40, 0.60, 0.30),
 )
 add_job_parser = add_subparsers.add_parser("job", help="add job")
 add_job_parser.add_argument("-c", "--client_id", type=int, help="client id")
@@ -150,51 +151,28 @@ update_job_parser.add_argument("-s", "--set-cond", nargs="*", help="Set conditio
 update_job_parser.add_argument("-w", "--where-cond", nargs="*", help="Update condition")
 update_job_parser.add_argument("-m", "--many", nargs="*", help="Allow multiple updates")
 #
-update_rate_parser = update_subparsers.add_parser("rate", help="update rate")
-update_rate_parser.add_argument("-s", "--set-cond", nargs="*", help="Set condition")
-update_rate_parser.add_argument(
+update_rates_parser = update_subparsers.add_parser("rates", help="update rate")
+update_rates_parser.add_argument("-s", "--set-cond", nargs="*", help="Set condition")
+update_rates_parser.add_argument(
     "-w", "--where-cond", nargs="*", help="Update condition"
 )
-update_rate_parser.add_argument(
+update_rates_parser.add_argument(
     "-m", "--many", nargs="*", help="Allow multiple updates"
 )
-# update_client_parser.add_argument(
-#     "-n", "--name", type=str, action=StripStrAction, help="client name"
-# )
-# update_client_parser.add_argument(
-#     "-e", "--email", type=str, action=StripStrAction, help="client email"
-# )
-# update_client_parser.add_argument(
-#     "-r",
-#     "--rates",
-#     action=KeyValueAction,
-#     help="client rates dict",
-# )
-#
-# update_job_parser = update_subparsers.add_parser("job", help="update job")
-# #         ]
-# update_job_parser.add_argument("-i", "--job-id", type=int, help="job id to update")
-#
-# update_job_parser.add_argument("-c", "--client-id", help="client id")
-# update_job_parser.add_argument("-r", "--date-received", help="date received")
-# update_job_parser.add_argument("-n", "--job-number", type=int, help="job number")
-# update_job_parser.add_argument(
-#     "-t", "--job-type", type=str, action=StripStrAction, help="job type"
-# )
-# update_job_parser.add_argument(
-#     "-s", "--status", type=str, action=StripStrAction, help="job status"
-# )
-# update_job_parser.add_argument("-d", "--date-due", help="date due")
-# update_job_parser.add_argument("-q", "--quantity", help="quantity")
-# update_job_parser.add_argument("-R", "--job-rate", type=float, help="job rate")
-# update_job_parser.add_argument("-S", "--date-submitted", help="date submitted")
-# update_job_parser.add_argument("-A", "--amount", type=float, help="amount")
-# update_job_parser.add_argument("-a", "--amount-paid", type=float, help="amount paid")
-# update_job_parser.add_argument(
-#     "-N", "--note", type=str, action=StripStrAction, help="note"
-# )
-# update_job_parser.add_argument("-p", "--job-path", help="job path")
-#
+delete_parser = base_subparsers.add_parser("delete", help="delete object")
+delete_subparsers = delete_parser.add_subparsers(
+    title="subcommands", help="subcommand help"
+)
+delete_client_parser = delete_subparsers.add_parser("client", help="delete client")
+delete_client_parser.add_argument(
+    "-w", "--where-cond", nargs="*", help="Update condition"
+)
+delete_job_parser = delete_subparsers.add_parser("job", help="delete job")
+delete_job_parser.add_argument("-w", "--where-cond", nargs="*", help="Update condition")
+delete_rates_parser = delete_subparsers.add_parser("rates", help="delete rate")
+delete_rates_parser.add_argument(
+    "-w", "--where-cond", nargs="*", help="Update condition"
+)
 
 
 class TranscriptorCMD(cmd2.Cmd):
@@ -293,6 +271,11 @@ class TranscriptorCMD(cmd2.Cmd):
         ConsoleView().print_table(self.app.load_cutoffs(), orientation="hor")
 
     show_cutoffs_parser.set_defaults(func=show_cutoffs)
+
+    def show_rates(self, args):
+        ConsoleView().print_table(self.app.api.get_rates(), orientation="hor")
+
+    show_rates_parser.set_defaults(func=show_rates)
 
     def add_client(self, args):
         # name, email, rates
@@ -465,6 +448,59 @@ class TranscriptorCMD(cmd2.Cmd):
     update_profile_parser.set_defaults(func=update_profile)
     update_client_parser.set_defaults(func=update_client)
     update_job_parser.set_defaults(func=update_job)
+    update_rates_parser.set_defaults(func=update_rates)
+
+    def delete_client(self, args):
+        if not args.where_cond:
+            return
+        where_cond = " ".join(args.where_cond)
+
+        clients = self.app.api.get_clients([where_cond])
+        ConsoleView().print_table(clients, orientation="hor") if clients else ""
+        confirm = prompt(
+            "Are you sure you want to delete these clients? (y/n): ",
+            default="n",
+        )
+        if confirm.lower() != "y":
+            return
+        where_cond = where_cond.replace("client_id", "id")
+        # TODO Should cascade rates
+        self.app.api.delete("clients", [where_cond])
+
+    delete_client_parser.set_defaults(func=delete_client)
+
+    def delete_job(self, args):
+        if not args.where_cond:
+            return
+        where_cond = " ".join(args.where_cond)
+        jobs = self.app.api.get_jobs([where_cond])
+        ConsoleView().print_table(jobs, orientation="hor") if jobs else ""
+        confirm = prompt(
+            "Are you sure you want to delete these jobs? (y/n): ",
+            default="n",
+        )
+        if confirm.lower() != "y":
+            return
+        self.app.api.delete("jobs", [where_cond])
+
+    delete_job_parser.set_defaults(func=delete_job)
+
+    def delete_rates(self, args):
+        if not args.where_cond:
+            return
+        where_cond = " ".join(args.where_cond)
+        rates = self.app.api.get_rates([where_cond])
+        ConsoleView().print_table(rates, orientation="hor") if rates else ""
+        confirm = prompt(
+            "Are you sure you want to delete these rates? (y/n): ",
+            default="n",
+        )
+        if confirm.lower() != "y":
+            return
+        # TODO should also cascade client
+        # self.app.api.delete("rates", [where_cond])
+
+    delete_rates_parser.set_defaults(func=delete_rates)
 
     @cmd2.with_argparser(show_parser)
     def do_show(self, args):
@@ -492,6 +528,17 @@ class TranscriptorCMD(cmd2.Cmd):
     def do_update(self, args):
         """
         Update command help
+        """
+        func = getattr(args, "func", None)
+        if func is not None:
+            func(self, args)
+        else:
+            self.do_help("base")
+
+    @cmd2.with_argparser(delete_parser)
+    def do_delete(self, args):
+        """
+        Delete command help
         """
         func = getattr(args, "func", None)
         if func is not None:

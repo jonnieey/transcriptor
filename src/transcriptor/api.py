@@ -52,8 +52,15 @@ class API:
         clients = self.cursor.execute(stmt).fetchall()
         return clients
 
-    def get_rates(self):
-        stmt = "SELECT * FROM rates"
+    def get_rates(self, conditions=""):
+        stmt = """
+        SELECT c.name, r.id, r.normal, r.expedite, r.interpreted 
+        FROM rates AS r JOIN clients AS c ON c.rates_id = r.id
+        """
+        if conditions:
+            searchstrs = " and ".join(qv(conditions[0]))
+            stmt += " WHERE " + searchstrs
+
         rates = self.cursor.execute(stmt).fetchall()
         return rates
 
@@ -111,7 +118,16 @@ class API:
         self.conn.commit()
         return self.cursor.lastrowid
 
-    def delete(self, table_name: str, where: dict):
-        stmt = f"DELETE FROM {table_name} WHERE {where}"
+    def delete(
+        self,
+        table_name: str,
+        search_conditions: str,
+    ):
+        stmt = f"DELETE FROM {table_name} "
+
+        searchstrs = " and ".join(qv(search_conditions[0]))
+        stmt += " WHERE " + searchstrs
+
         self.cursor.execute(stmt)
         self.conn.commit()
+        return self.cursor.lastrowid
