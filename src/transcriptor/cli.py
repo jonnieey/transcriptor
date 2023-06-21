@@ -93,7 +93,7 @@ add_client_parser.add_argument(
 add_client_parser.add_argument(
     "-r",
     "--rates",
-    action=KeyValueAction,
+    nargs=3,
     help="client rates dict",
     default={"normal": 0.40, "expedite": 0.60, "interpreted": 0.30},
 )
@@ -220,6 +220,15 @@ class TranscriptorCMD(cmd2.Cmd):
                 ),
             }
 
+            def parse_rates(rates):
+                if not rates:
+                    return
+                default_dict = dict(
+                    zip(["normal", "expedite", "interpreted"], [0.40, 0.60, 0.30])
+                )
+                rates_dict = dict(zip(["normal", "expedite", "interpreted"], rates))
+                return default_dict | rates_dict
+
             # if not args.name:
             args.name = args.name or prompt(
                 "Enter Client's name: ",
@@ -234,8 +243,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 validate_while_typing=True,
             )
 
-            self.poutput("Rates:")
-            args.rates = get_rates()
+            args.rates = parse_rates(args.rates) or get_rates()
             self.app.create_client(args.name, args.email, args.rates)
 
         except (KeyboardInterrupt, EOFError):
