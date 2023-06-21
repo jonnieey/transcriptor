@@ -246,6 +246,11 @@ class TranscriptorCMD(cmd2.Cmd):
     show_profile_parser.set_defaults(func=show_profile)
 
     def show_clients(self, args):
+        """
+        Show clients
+        Ex.
+           show clients
+        """
         clients = (
             self.app.api.get_clients(args.key_val)
             if args and args.key_val
@@ -256,6 +261,11 @@ class TranscriptorCMD(cmd2.Cmd):
     show_clients_parser.set_defaults(func=show_clients)
 
     def show_jobs(self, args):
+        """
+        Show jobs
+        Ex.
+           show jobs
+        """
         if args.all:
             args.key_val = []
         elif not args.key_val and not args.all:
@@ -268,16 +278,31 @@ class TranscriptorCMD(cmd2.Cmd):
     show_jobs_parser.set_defaults(func=show_jobs)
 
     def show_cutoffs(self, arg):
+        """
+        Show cutoffs
+        Ex.
+           show cutoffs
+        """
         ConsoleView().print_table(self.app.load_cutoffs(), orientation="hor")
 
     show_cutoffs_parser.set_defaults(func=show_cutoffs)
 
     def show_rates(self, args):
+        """
+        Show rates
+        Ex.
+           show rates
+        """
         ConsoleView().print_table(self.app.api.get_rates(), orientation="hor")
 
     show_rates_parser.set_defaults(func=show_rates)
 
     def add_client(self, args):
+        """
+        Add client
+        Ex.
+           add client -n name -e email -r rates 0.4 0.3 0.2
+        """
         # name, email, rates
         try:
             get_rates = lambda: {
@@ -327,6 +352,11 @@ class TranscriptorCMD(cmd2.Cmd):
     add_client_parser.set_defaults(func=add_client)
 
     def add_job(self, args):
+        """
+        Add job
+        Ex.
+           add job -f file ...
+        """
         args.job_file = args.job_file or prompt(
             "Enter job file path: ", validator=job_file_validator
         )

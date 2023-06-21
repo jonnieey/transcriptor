@@ -2,7 +2,9 @@ import csv
 import shutil
 import zipfile
 from copy import copy
+from datetime import date
 from pathlib import Path
+from typing import Callable, Optional
 
 import yaml
 from appdirs import user_config_dir, user_data_dir
@@ -56,7 +58,13 @@ class Transcriptor(BaseTranscriptor):
         self.date_format = self.config.date_format
         self.profile = self.load_profile()
 
-    def load_config(self):
+    def load_config(self) -> ConfigModel:
+        """
+        Load config
+
+        Returns:
+            ConfigModel object
+        """
         if self.config_file.exists():
             with open(self.config_file, "r") as fd:
                 return ConfigModel(**yaml.safe_load(fd))
@@ -68,12 +76,24 @@ class Transcriptor(BaseTranscriptor):
             self.save_config(config_dict)
             return ConfigModel(**config_dict)
 
-    def save_config(self, config_dict: dict = {}):
+    def save_config(self, config_dict: dict = {}) -> None:
+        """
+        Save config to file
+
+        Arguments:
+            config_dict: dict of config
+        """
         self.config = ConfigModel(**config_dict)
         with open(self.config_file, "w") as fd:
             self.config.save(fd)
 
-    def save_profile(self, profile_dict: dict = {}):
+    def save_profile(self, profile_dict: dict = {}) -> None:
+        """
+        Save profile
+
+        Arguments:
+            profile_dict: dict of profile
+        """
         profile_file = self.base_dir.joinpath("profile.yml")
         profile = ProfileModel(**profile_dict) if profile_dict else ProfileModel()
         with open(profile_file, "w") as fd:
@@ -81,6 +101,12 @@ class Transcriptor(BaseTranscriptor):
         self.profile = profile
 
     def load_profile(self):
+        """
+        Load profile
+
+        Returns:
+            ProfileModel object
+        """
         profile_file = self.base_dir.joinpath("profile.yml")
         if profile_file.exists():
             try:
@@ -106,7 +132,18 @@ class Transcriptor(BaseTranscriptor):
         else:
             raise TypeError
 
-    def create_client(self, name, email, rates={}):
+    def create_client(self, name: str, email: str, rates: dict = {}) -> Optional[int]:
+        """
+        Create a client
+
+        Arguments:
+            name: Client name
+            email: Client email
+            rates: Client rates dict
+
+        Returns:
+            New client ID
+        """
         client_rates = {"normal": 0.4, "expedite": 0.6, "interpreted": 0.3}
         client_rates.update(rates)
         rates_id = self.api.add_rates(client_rates)
@@ -118,8 +155,23 @@ class Transcriptor(BaseTranscriptor):
         mkdirp([client_dir])
         template_path = Path(__file__).parent.joinpath("templates")
         shutil.copytree(template_path, client_dir.joinpath("templates"))
+        return client_id
 
-    def create_job_dir(self, client_name, job_num, date_rec, date_due):
+    def create_job_dir(
+        self, client_name: str, job_num: str, date_rec: str | date, date_due: str | date
+    ) -> Path:
+        """
+        Create a job directory
+
+        Arguments:
+            client_name: Client name
+            job_num: Job number
+            date_rec: Date received
+            date_due: Date due
+
+        Returns:
+            Job directory path object
+        """
         date_rec = std(date_rec, self.date_format)
         date_due = std(date_due, self.date_format)
 
@@ -149,7 +201,7 @@ class Transcriptor(BaseTranscriptor):
         if zipfile.is_zipfile(moved_file):
             zipfile.ZipFile(moved_file).extractall(job_dir)
 
-    def get_job_template_path(self, client, template: str):
+    def get_job_template_path(self, client: str, template: str) -> Path:
         """
         Select a job template for a task
 
@@ -180,23 +232,18 @@ class Transcriptor(BaseTranscriptor):
         template_path = client_template_dir.joinpath(template_mapping[template])
         return template_path
 
-    def create_job(self, job_file, job_callback, task_callback):
+    def create_job(
+        self, job_file: str | Path, job_callback: Callable, task_callback: Callable
+    ) -> None:
+        """
+        Create a job
+
+        Arguments:
+            job_file: Path object or path-like string to job file
+            job_callback: Job callback function
+            task_callback: Task callback function
+        """
         job_info = job_callback(job_file)
-        # return {
-        #     "client_id": client_id,
-        #     "date_rec": date_rec,
-        #     "date_due": date_due,
-        #     "job_num": job_num,
-        # }
-        # task_info = task_callback(task)
-        # return {
-        #     "date_rec": date_rec,
-        #     "date_due": date_due,
-        #     "job_type": job_type,
-        #     "template": template,
-        #     "notes": notes,
-        #       ...
-        # }
 
         stmt = """
             SELECT c.name, r.normal, r.expedite, r.interpreted
@@ -267,7 +314,19 @@ class Transcriptor(BaseTranscriptor):
             jobs.append(jobs_dict)
         self.api.add_jobs(jobs)
 
-    def extract_cutoffs_from_docx(self, docx_path, cutoff_date_fmt=""):
+    def extract_cutoffs_from_docx(
+        self, docx_path: str | Path, cutoff_date_fmt: str = ""
+    ) -> list:
+        """
+        Extract cutoffs from a docx file
+
+        Arguments:
+            docx_path: Path object or path-like string to docx file
+            cutoff_date_fmt: Date format for cutoffs
+
+        Returns:
+            List of cutoffs
+        """
         date_fmt = self.config.date_format
         raw_cutoff_list = list_from_docx_table(docx_path)
 
@@ -282,25 +341,28 @@ class Transcriptor(BaseTranscriptor):
         cutoffs_list.insert(0, raw_cutoff_list[0])
         return cutoffs_list
 
-    def save_cutoffs(self, cutoffs_list):
+    def save_cutoffs(self, cutoffs_list: list) -> None:
+        """
+        Save cutoffs
+
+        Arguments:
+            cutoffs_list: List of cutoffs
+        """
         cutoff_file = self.base_dir.joinpath("cutoffs.csv")
         with open(cutoff_file, "w") as fd:
             writer = csv.writer(fd)
             writer.writerows(cutoffs_list)
 
-    def load_cutoffs(self, cutoffs_path=""):
+    def load_cutoffs(self, cutoffs_path: str = ""):
+        """
+        Load cutoffs
+
+        Arguments:
+            cutoffs_path: Path object or path-like string to cutoffs
+
+        Returns:
+            List of cutoffs
+        """
         cutoff_file = cutoffs_path or self.base_dir.joinpath("cutoffs.csv")
         with open(cutoff_file, "r") as fd:
             return list(csv.reader(fd))
-
-
-if __name__ == "__main__":
-    app = Transcriptor()
-
-    # docx = '/home/kamikaze/Desktop/TRANSCRIBER JOB CUT OFF 2023.docx'
-    # cutoff_list = app.extract_cutoffs_from_docx(docx)
-    # app.save_cutoffs(cutoff_list)
-    print(app.load_cutoffs())
-
-    # def get_cutoffs(self):
-    #     cutoffs_file = base_dir.joinpath("cutoffs.yml")

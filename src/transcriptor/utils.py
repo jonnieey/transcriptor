@@ -7,6 +7,7 @@ from decimal import Decimal
 from fractions import Fraction
 from io import StringIO
 from pathlib import Path
+from types import GeneratorType
 from typing import Callable, List, Match, Optional, Pattern
 
 import docx  # type: ignore
@@ -54,10 +55,10 @@ def convert_case(string: str, from_: str, to_: str) -> str:
     return pattern.sub(to_, string)
 
 
-sc = lambda s: convert_case(s, r"[ -]", "_")
-nc = lambda s: convert_case(s, r"[-_]", " ")
-kc = lambda s: convert_case(s, r"[ _]", "-")
-tc = lambda s: nc(s).title()
+sc = lambda s: convert_case(s, r"[ -]", "_")  # snake case
+nc = lambda s: convert_case(s, r"[-_]", " ")  # normal case
+kc = lambda s: convert_case(s, r"[ _]", "-")  # kebab case
+tc = lambda s: nc(s).title()  # title case
 
 
 def parse_job_number(file: str) -> str:
@@ -588,21 +589,18 @@ date_validator = MyValidator(is_valid_date, "Invalid date")
 gt0_validator = MyValidator(is_gt_0, "Is less than 0")
 
 
-def quote_values(text: str):
+def quote_operands(text: str) -> GeneratorType:
     """
-    input -> "name=John amount>=100 amount_paid!>200 status!=Pending"
-    return -> 'name="John" amount>="100" amount_paid!>"200" status!="Pending"'
-    """
-    pattern = r"(\S+)([><]=?|![=><]|(?<!=)=)(\S+)"
-    matches = re.findall(pattern, text)
-    quoted_list = [f"{m[0]}{m[1]}" + f'"{m[2]}"' for m in matches]
-    return " ".join(quoted_list)
+    Quote value operands after operators
 
+    Args:
+        text: String to quote
+    Returns:
+        List generator of quoted strings
 
-def quote_operands(text):
-    """
-    input ->  "name<=john and sophia second=second third>=third forth!=fifth sixth>sixth seventh<eighth and ninth"
-    return -> ["name<='john and sophia'", "second='second'", "third>='third'", "forth!='fifth'", "sixth>'sixth'", "seventh<'eighth and ninth'"]
+    Example:
+        input ->  "name<=john and sophia second=second third>=third forth!=fifth sixth>sixth seventh<eighth and ninth"
+        output ->[ 'name<="john and sophia"', 'second="second"', 'third>="third"', 'forth!="fifth"', 'sixth>"sixth"', 'seventh<"eighth and ninth"', ]
     """
     operator_pattern = r"[><]=?|![=><]|(?<!=)="
     space_pattern = r"\s(?=[^\s]*$)"
@@ -640,8 +638,3 @@ def quote_operands(text):
         yield pre_text + quoted_text
 
         yield from quote_operands(text[cursor_index + 1 + last_space_index + 1 :])
-
-
-if __name__ == "__main__":
-    conditions = ["name<=john anderson"]
-    print(",".join(quote_operands(conditions[0])))

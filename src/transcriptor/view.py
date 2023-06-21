@@ -11,7 +11,14 @@ class ConsoleView:
             show_header=True, header_style="bold red", title_justify="center"
         )
 
-    def print_table(self, data: dict, orientation="vert"):
+    def print_table(self, data: dict | list, orientation: str = "vert") -> None:
+        """
+        Print a table
+
+        Arguments:
+            data: Data to print
+            orientation: Orientation of the table (vert or hor)
+        """
         if orientation == "vert":
             for column in ["Option", "Value"]:
                 self.table.add_column(tc(column))
