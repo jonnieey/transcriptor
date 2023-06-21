@@ -7,7 +7,33 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from types import GeneratorType
 
-from transcriptor.utils import *
+from transcriptor.utils import convert_case
+from transcriptor.utils import date_to_str as dts
+from transcriptor.utils import (
+    format_date,
+    get_media_duration,
+    get_media_files,
+    is_gt_0,
+    is_in_choices,
+    is_valid_date,
+    is_valid_email,
+    is_valid_file,
+    is_valid_float,
+    is_valid_string,
+    is_valid_yes_no,
+    kc,
+    list_of_rows_to_csv,
+    mkdirp,
+    nc,
+    parse_date_due,
+    parse_job_number,
+    parse_quantity,
+    rel_date,
+    sc,
+    sec_to_min,
+)
+from transcriptor.utils import str_to_date as std
+from transcriptor.utils import touch, truncate
 
 
 class TestTouch(unittest.TestCase):
@@ -133,13 +159,13 @@ class TestDateParses(unittest.TestCase):
         )  # current year
 
     def test_str_to_date(self):
-        self.assertIsInstance(str_to_date("2023-01-01", "%Y-%m-%d"), datetime)
+        self.assertIsInstance(std("2023-01-01", "%Y-%m-%d"), datetime)
         self.assertIsInstance(std("2023-01-01", "%Y-%m-%d"), datetime)
         self.assertEqual(std("2023-01-01", "%Y-%m-%d").year, 2023)
 
     def test_date_to_str(self):
         d = std("2023-01-01", "%Y-%m-%d")
-        self.assertIsInstance(date_to_str(d, "%Y-%m-%d"), str)
+        self.assertIsInstance(dts(d, "%Y-%m-%d"), str)
         self.assertIsInstance(dts(d, "%Y-%m-%d"), str)
         self.assertEqual(dts(d, "%Y-%m-%d"), "2023-01-01")
 
