@@ -62,7 +62,7 @@ class TestAPI(unittest.TestCase):
         self.assertIsInstance(jobs[0], dict)
 
     def test_update_client(self):
-        self.api.update("Clients", {"name": "tester"}, {"id": 1})
+        self.api.update("Clients", ["name=tester"], ["id=1"])
         clients = self.api.conn.cursor().execute("SELECT * FROM clients").fetchall()
         self.assertEqual(len(clients), 1)
         self.assertEqual(clients[0]["name"], "tester")
