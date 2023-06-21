@@ -1,17 +1,19 @@
 -- Create tables for transcriptor app
+PRAGMA foreign_keys = ON;
+
 CREATE TABLE IF NOT EXISTS "Rates"  (
 	id INTEGER PRIMARY KEY, 
 	normal FLOAT NOT NULL, 
 	expedite FLOAT NOT NULL, 
-	interpreted FLOAT NOT NULL
+	interpreted FLOAT NOT NULL,
+	client_id INTEGER,
+	FOREIGN KEY (client_id) REFERENCES "Clients" (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS "Clients"  (
 	id INTEGER PRIMARY KEY, 
 	name VARCHAR NOT NULL UNIQUE, 
-	email VARCHAR NOT NULL, 
-	rates_id INTEGER NOT NULL, 
-	FOREIGN KEY(rates_id) REFERENCES "Rates" (id)
+	email VARCHAR NOT NULL 
 );
 --
 CREATE TABLE IF NOT EXISTS "Jobs"  (
@@ -30,5 +32,5 @@ CREATE TABLE IF NOT EXISTS "Jobs"  (
 	amount_paid FLOAT NOT NULL DEFAULT 0.0, 
 	job_path VARCHAR(100) NOT NULL, 
 	note VARCHAR NOT NULL DEFAULT "", 
-	FOREIGN KEY(client_id) REFERENCES "Clients" (id)
+	FOREIGN KEY(client_id) REFERENCES "Clients" (id) ON DELETE CASCADE
 );
