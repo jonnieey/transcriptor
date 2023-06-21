@@ -21,12 +21,12 @@ class API:
         Add clients to database
 
         Arguments:
-            clients: tuple of (name, email, rates_id)
+            clients: tuple of (name, email)
 
         Returns:
             id of changed row or None
         """
-        stmt = "INSERT INTO clients (id, name, email, rates_id) VALUES (NULL, :name, :email, :rates_id)"
+        stmt = "INSERT INTO clients (id, name, email) VALUES (NULL, :name, :email)"
         self.cursor.execute(stmt, clients)
         self.conn.commit()
         return self.cursor.lastrowid
@@ -41,7 +41,7 @@ class API:
         Returns:
             id of changed row or None
         """
-        stmt = "INSERT INTO rates (id, normal, expedite, interpreted) VALUES (NULL, :normal, :expedite, :interpreted)"
+        stmt = "INSERT INTO rates (id, normal, expedite, interpreted, client_id) VALUES (NULL, :normal, :expedite, :interpreted, :client_id)"
         self.cursor.execute(stmt, rates)
         self.conn.commit()
         return self.cursor.lastrowid
@@ -76,7 +76,7 @@ class API:
         stmt = """
             SELECT c.id AS client_id, c.name, c.email, r.normal, r.expedite, r.interpreted
             FROM clients AS c
-            JOIN rates AS r ON c.rates_id = r.id 
+            JOIN rates AS r ON c.id = r.client_id 
             """
         if conditions:
             searchstrs = " and ".join(qv(conditions[0]))
@@ -96,7 +96,7 @@ class API:
         """
         stmt = """
         SELECT c.name, r.id, r.normal, r.expedite, r.interpreted 
-        FROM rates AS r JOIN clients AS c ON c.rates_id = r.id
+        FROM rates AS r JOIN clients AS c ON c.id = r.client_id
         """
         if conditions:
             searchstrs = " and ".join(qv(conditions[0]))

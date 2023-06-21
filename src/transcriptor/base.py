@@ -144,17 +144,20 @@ class Transcriptor(BaseTranscriptor):
         Returns:
             New client ID
         """
+        client_dict = {"name": name, "email": email}
+        client_id = self.api.add_clients(client_dict)
+
         client_rates = {"normal": 0.4, "expedite": 0.6, "interpreted": 0.3}
+        client_rates["client_id"] = client_id
         client_rates.update(rates)
         rates_id = self.api.add_rates(client_rates)
-
-        client_dict = {"name": name, "email": email, "rates_id": rates_id}
-        client_id = self.api.add_clients(client_dict)
 
         client_dir = self.base_dir.joinpath("clients").joinpath(sc(name))
         mkdirp([client_dir])
         template_path = Path(__file__).parent.joinpath("templates")
-        shutil.copytree(template_path, client_dir.joinpath("templates"))
+        shutil.copytree(
+            template_path, client_dir.joinpath("templates"), dirs_exist_ok=True
+        )
         return client_id
 
     def create_job_dir(
@@ -248,7 +251,7 @@ class Transcriptor(BaseTranscriptor):
         stmt = """
             SELECT c.name, r.normal, r.expedite, r.interpreted
             FROM clients AS c
-            JOIN rates AS r ON c.rates_id = r.id
+            JOIN rates AS r ON c.id = r.client_id
             WHERE c.id = ?
         """
         client = self.api.cursor.execute(stmt, (job_info["client_id"],)).fetchone()
@@ -275,8 +278,11 @@ class Transcriptor(BaseTranscriptor):
         jobs = []
 
         for task in tasks:
+            cb_task_info = task_callback(task)
+            if not cb_task_info:
+                continue
             task_info = copy(job_info)
-            task_info.update(task_callback(task))
+            task_info.update(cb_task_info)
 
             template_path = self.get_job_template_path(
                 client_name, task_info["job_template"]
@@ -312,7 +318,9 @@ class Transcriptor(BaseTranscriptor):
                 "note": task_info["note"],
             }
             jobs.append(jobs_dict)
-        self.api.add_jobs(jobs)
+
+        if jobs:
+            self.api.add_jobs(jobs)
 
     def extract_cutoffs_from_docx(
         self, docx_path: str | Path, cutoff_date_fmt: str = ""

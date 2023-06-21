@@ -20,6 +20,7 @@ from transcriptor.utils import (
     str_to_date,
     template_type_validator,
     work_validator,
+    yes_no_validator,
 )
 from transcriptor.view import ConsoleView
 
@@ -109,6 +110,9 @@ add_job_parser.add_argument("-w", "--wof", help="work on file")
 add_job_parser.add_argument("-t", "--job-type", help="job type")
 add_job_parser.add_argument("-T", "--job-template", help="job template")
 add_job_parser.add_argument("-N", "--note", help="job note")
+add_job_parser.add_argument(
+    "-P", "--no-prompt", action="store_true", help="Do not prompt"
+)
 
 update_parser = base_subparsers.add_parser("update", help="update object")
 update_subparsers = update_parser.add_subparsers(
@@ -167,8 +171,14 @@ delete_client_parser = delete_subparsers.add_parser("client", help="delete clien
 delete_client_parser.add_argument(
     "-w", "--where-cond", nargs="*", help="Update condition"
 )
+delete_client_parser.add_argument(
+    "-P", "--no-prompt", action="store_true", help="Do not prompt"
+)
 delete_job_parser = delete_subparsers.add_parser("job", help="delete job")
 delete_job_parser.add_argument("-w", "--where-cond", nargs="*", help="Update condition")
+delete_job_parser.add_argument(
+    "-P", "--no-prompt", action="store_true", help="Do not prompt"
+)
 delete_rates_parser = delete_subparsers.add_parser("rates", help="delete rate")
 delete_rates_parser.add_argument(
     "-w", "--where-cond", nargs="*", help="Update condition"
@@ -405,6 +415,12 @@ class TranscriptorCMD(cmd2.Cmd):
             }
 
         def task_callback(task_file):
+            args.wof = args.wof or prompt(
+                "Work on file? ",
+                validator=yes_no_validator,
+            )
+            if not args.wof.strip().startswith(("y", "Y")):
+                return {}
             args.job_type = args.job_type or prompt(
                 "Enter job type: ",
                 validator=work_validator,
@@ -412,10 +428,13 @@ class TranscriptorCMD(cmd2.Cmd):
             )
 
             total_quantity = get_media_duration(task_file)
-            args.quantity = args.quantity or prompt(
-                "Enter quantity: ",
-                default=str(total_quantity),
-            )
+            if args.no_prompt and not args.quantity:
+                args.quantity = total_quantity
+            else:
+                args.quantity = args.quantity or prompt(
+                    "Enter quantity: ",
+                    default=str(total_quantity),
+                )
             args.job_template = args.job_template or prompt(
                 "Enter job template: ",
                 validator=template_type_validator,
@@ -485,14 +504,15 @@ class TranscriptorCMD(cmd2.Cmd):
             return
         where_cond = " ".join(args.where_cond)
 
-        clients = self.app.api.get_clients([where_cond])
-        ConsoleView().print_table(clients, orientation="hor") if clients else ""
-        confirm = prompt(
-            "Are you sure you want to delete these clients? (y/n): ",
-            default="n",
-        )
-        if confirm.lower() != "y":
-            return
+        if not args.no_prompt:
+            clients = self.app.api.get_clients([where_cond])
+            ConsoleView().print_table(clients, orientation="hor") if clients else ""
+            confirm = prompt(
+                "Are you sure you want to delete these clients? (y/n): ",
+                default="n",
+            )
+            if confirm.lower() != "y":
+                return
         where_cond = where_cond.replace("client_id", "id")
         # TODO Should cascade rates
         self.app.api.delete("clients", [where_cond])
@@ -503,14 +523,15 @@ class TranscriptorCMD(cmd2.Cmd):
         if not args.where_cond:
             return
         where_cond = " ".join(args.where_cond)
-        jobs = self.app.api.get_jobs([where_cond])
-        ConsoleView().print_table(jobs, orientation="hor") if jobs else ""
-        confirm = prompt(
-            "Are you sure you want to delete these jobs? (y/n): ",
-            default="n",
-        )
-        if confirm.lower() != "y":
-            return
+        if not args.no_prompt:
+            jobs = self.app.api.get_jobs([where_cond])
+            ConsoleView().print_table(jobs, orientation="hor") if jobs else ""
+            confirm = prompt(
+                "Are you sure you want to delete these jobs? (y/n): ",
+                default="n",
+            )
+            if confirm.lower() != "y":
+                return
         self.app.api.delete("jobs", [where_cond])
 
     delete_job_parser.set_defaults(func=delete_job)

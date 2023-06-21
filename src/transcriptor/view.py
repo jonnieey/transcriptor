@@ -19,6 +19,8 @@ class ConsoleView:
             data: Data to print
             orientation: Orientation of the table (vert or hor)
         """
+        if not data:
+            return
         if orientation == "vert":
             for column in ["Option", "Value"]:
                 self.table.add_column(tc(column))
