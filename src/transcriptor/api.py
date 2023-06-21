@@ -2,7 +2,7 @@ from pathlib import Path
 
 from transcriptor.database import Database
 from transcriptor.utils import mkdirp
-from transcriptor.utils import quote_values as qv
+from transcriptor.utils import quote_operands as qv
 
 
 class API:
@@ -43,7 +43,7 @@ class API:
             JOIN rates AS r ON c.rates_id = r.id 
             """
         if conditions:
-            searchstrs = " and ".join(qv(conditions[0]).split(" "))
+            searchstrs = " and ".join(qv(conditions[0]))
             stmt += " WHERE " + searchstrs
         # if where:
         #     searchstrs = " and ".join(f"{pk}=:{pk}" for pk in where.keys())
@@ -76,7 +76,7 @@ class API:
          FROM JOBS AS j
         """
         if conditions:
-            searchstrs = " and ".join(qv(conditions[0]).split(" "))
+            searchstrs = " and ".join(qv(conditions[0]))
             stmt += " WHERE " + searchstrs
 
         jobs = self.cursor.execute(stmt).fetchall()
@@ -93,14 +93,14 @@ class API:
     ):
         # args = list(data.values())
         # set_clause = ", ".join(f"{column} = :{column}" for column in data.keys())
-        setstr = ", ".join(qv(set_conditions[0]).split(" "))
+        setstr = ", ".join(qv(set_conditions[0]))
         stmt = f"UPDATE {table_name} SET {setstr} "
 
-        searchstrs = " and ".join(qv(search_conditions[0]).split(" "))
+        searchstrs = " and ".join(qv(search_conditions[0]))
         stmt += " WHERE " + searchstrs
 
         if other_conditions:
-            stmt += qv(other_conditions[0])
+            stmt += other_conditions[0]
 
         # if where:
         #     searchstrs = " and ".join(f"{pk}=:{pk}" for pk in where.keys())

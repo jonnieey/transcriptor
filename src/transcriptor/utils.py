@@ -599,8 +599,49 @@ def quote_values(text: str):
     return " ".join(quoted_list)
 
 
+def quote_operands(text):
+    """
+    input ->  "name<=john and sophia second=second third>=third forth!=fifth sixth>sixth seventh<eighth and ninth"
+    return -> ["name<='john and sophia'", "second='second'", "third>='third'", "forth!='fifth'", "sixth>'sixth'", "seventh<'eighth and ninth'"]
+    """
+    operator_pattern = r"[><]=?|![=><]|(?<!=)="
+    space_pattern = r"\s(?=[^\s]*$)"
+
+    operator_matches = re.finditer(operator_pattern, text)
+    operator_indices = (
+        [match.start() for match in operator_matches] if operator_matches else []
+    )
+
+    if operator_indices:
+        if len(operator_indices) == 1:
+            pre_text = text[: operator_indices[0] + 1]
+            quoted_text = f'"{text[operator_indices[0] + 1:]}"'
+            yield pre_text + quoted_text
+            return
+
+        cursor_index = operator_indices[0]
+
+        if text[cursor_index + 1] in ["=", ">", "<"]:
+            cursor_index += 1
+
+        try:
+            operand_text = text[cursor_index + 1 : operator_indices[1]]
+        except IndexError:
+            operand_text = text[cursor_index + 1 : operator_indices[0]]
+
+        space_matches = re.finditer(space_pattern, operand_text)
+        space_indices = (
+            [match.start() for match in space_matches] if space_matches else []
+        )
+        last_space_index = space_indices[0] if space_indices else 0
+
+        pre_text = text[: cursor_index + 1]
+        quoted_text = f'"{text[cursor_index + 1: cursor_index + 1 + last_space_index]}"'
+        yield pre_text + quoted_text
+
+        yield from quote_operands(text[cursor_index + 1 + last_space_index + 1 :])
+
+
 if __name__ == "__main__":
-    conditions = [
-        "name<=john second=second third>=third forth!=fifth sixth>sixth seventh<eigth"
-    ]
-    print(quote_values(conditions[0]))
+    conditions = ["name<=john anderson"]
+    print(",".join(quote_operands(conditions[0])))

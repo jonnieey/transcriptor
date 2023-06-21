@@ -37,6 +37,7 @@ class Transcriptor(BaseTranscriptor):
     config_dir = user_config_dir(APP_NAME)
     config_file = Path(config_dir).joinpath("configuration.yml")
     mkdirp([config_dir])
+    config_changed = False
 
     def __init__(self, api=None, config: dict = None):
         self.config = config if config is not None else self.load_config()
@@ -74,18 +75,36 @@ class Transcriptor(BaseTranscriptor):
 
     def save_profile(self, profile_dict: dict = {}):
         profile_file = self.base_dir.joinpath("profile.yml")
-        self.profile = ProfileModel(**profile_dict)
+        profile = ProfileModel(**profile_dict) if profile_dict else ProfileModel()
         with open(profile_file, "w") as fd:
-            self.profile.save(fd)
+            profile.save(fd)
+        self.profile = profile
 
     def load_profile(self):
         profile_file = self.base_dir.joinpath("profile.yml")
         if profile_file.exists():
-            with open(profile_file, "r") as fd:
-                return ProfileModel(**yaml.safe_load(fd))
+            try:
+                with open(profile_file, "r") as fd:
+                    return ProfileModel(**yaml.safe_load(fd))
+            except TypeError:
+                self.save_profile()
+                return ProfileModel()
         else:
             self.save_profile()
             return ProfileModel()
+
+    @property
+    def profile(self):
+        return self.load_profile()
+
+    @profile.setter
+    def profile(self, profile):
+        if isinstance(profile, ProfileModel):
+            self._profile = profile
+        elif isinstance(profile, dict):
+            self._profile = ProfileModel(**profile)
+        else:
+            raise TypeError
 
     def create_client(self, name, email, rates={}):
         client_rates = {"normal": 0.4, "expedite": 0.6, "interpreted": 0.3}
