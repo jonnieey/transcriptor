@@ -16,6 +16,7 @@ from transcriptor.utils import (
     job_file_validator,
     name_validator,
     parse_date_due,
+    parse_job_number,
     str_to_date,
     template_type_validator,
     work_validator,
@@ -99,6 +100,7 @@ add_client_parser.add_argument(
 add_job_parser = add_subparsers.add_parser("job", help="add job")
 add_job_parser.add_argument("-c", "--client_id", type=int, help="client id")
 add_job_parser.add_argument("-f", "--job-file", help="job file")
+add_job_parser.add_argument("-j", "--job-num", help="job number")
 add_job_parser.add_argument("-r", "--date-received", help="date received")
 add_job_parser.add_argument("-d", "--date-due", help="date due")
 add_job_parser.add_argument("-q", "--quantity", help="quantity")
@@ -175,11 +177,12 @@ class TranscriptorCMD(cmd2.Cmd):
     show_profile_parser.set_defaults(func=show_profile)
 
     def show_clients(self, args):
-        clients = self.app.api.get_clients(args.key_val)
-        if clients:
-            ConsoleView().print_table(clients, orientation="hor")
-            return 0
-        return 1
+        clients = (
+            self.app.api.get_clients(args.key_val)
+            if args and args.key_val
+            else self.app.api.get_clients()
+        )
+        return ConsoleView().print_table(clients, orientation="hor") if clients else 1
 
     show_clients_parser.set_defaults(func=show_clients)
 
@@ -225,7 +228,7 @@ class TranscriptorCMD(cmd2.Cmd):
             )
 
             # if args.email is None:
-            args.email = prompt(
+            args.email = args.email or prompt(
                 "Enter client's email: ",
                 validator=email_validator,
                 validate_while_typing=True,
@@ -248,11 +251,20 @@ class TranscriptorCMD(cmd2.Cmd):
 
         def job_callback(job_file):
             if not args.client_id:
-                if self.show_clients("") == 1:
+                if self.show_clients({}) == 1:
                     return
                 args.client_id = int(
                     prompt("Enter client id: ", validator=gt0_validator)
                 )
+
+            args.job_num = (
+                args.job_num
+                or parse_job_number(str(job_file))
+                or prompt(
+                    "Enter job number: ",
+                    validator=gt0_validator,
+                )
+            )
 
             date_received = args.date_received or prompt(
                 "Enter date received: ",
@@ -275,6 +287,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
             return {
                 "client_id": args.client_id,
+                "job_num": args.job_num,
                 "date_rec": args.date_received,
                 "date_due": args.date_due,
             }

@@ -14,10 +14,8 @@ from transcriptor.utils import (
     list_from_docx_table,
     mkdirp,
     next_non_existant_file,
-    parse_job_number,
     sc,
 )
-from transcriptor.utils import str_to_date
 from transcriptor.utils import str_to_date as std
 from transcriptor.utils import truncate
 
@@ -103,8 +101,8 @@ class Transcriptor(BaseTranscriptor):
         shutil.copytree(template_path, client_dir.joinpath("templates"))
 
     def create_job_dir(self, client_name, job_num, date_rec, date_due):
-        date_rec = str_to_date(date_rec, self.date_format)
-        date_due = str_to_date(date_due, self.date_format)
+        date_rec = std(date_rec, self.date_format)
+        date_due = std(date_due, self.date_format)
 
         job_dir = (
             self.base_dir.joinpath("clients")
@@ -164,11 +162,7 @@ class Transcriptor(BaseTranscriptor):
         return template_path
 
     def create_job(self, job_file, job_callback, task_callback):
-        job_num = parse_job_number(str(job_file))
-
-        job_info = {}
-        job_info["job_num"] = job_num
-        job_info.update(job_callback(job_file))
+        job_info = job_callback(job_file)
         # return {
         #     "client_id": client_id,
         #     "date_rec": date_rec,
@@ -225,7 +219,7 @@ class Transcriptor(BaseTranscriptor):
             job_path = next_non_existant_file(
                 job_dir.joinpath(
                     "{} Due {}.doc".format(
-                        job_num,
+                        job_info["job_num"],
                         job_info["date_due"].strftime("%m.%d"),
                     )
                 ),
@@ -240,7 +234,7 @@ class Transcriptor(BaseTranscriptor):
             jobs_dict = {
                 "client_id": job_info["client_id"],
                 "date_received": job_info["date_rec"],
-                "job_number": job_num,
+                "job_number": job_info["job_num"],
                 "status": "Pending",
                 "amount": task_info["amount"],
                 "job_type": task_info["job_type"],
