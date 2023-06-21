@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import sys
+from copy import copy
 
 import cmd2
 from prompt_toolkit import prompt
@@ -370,17 +371,25 @@ class TranscriptorCMD(cmd2.Cmd):
         args.job_file = args.job_file or prompt(
             "Enter job file path: ", validator=job_file_validator
         )
+        # copy args to avoid defaults being overwritten
+        # ex. If job_dir has multiple tasks, the info on first
+        # task such  as arg.quantity will apply to following
+        # tasks as defaults. if arg.quantity on first task is 5,
+        # the second task will have arg.quantity set to 5.
+        # This is not wanted, therefore a copy is required of args with
+        # no defaults.
 
         def job_callback(job_file):
-            if not args.client_id:
+            temp_args = copy(args)
+            if not temp_args.client_id:
                 if self.show_clients({}) == 1:
                     return
-                args.client_id = int(
+                temp_args.client_id = int(
                     prompt("Enter client id: ", validator=gt0_validator)
                 )
 
-            args.job_num = (
-                args.job_num
+            temp_args.job_num = (
+                temp_args.job_num
                 or parse_job_number(str(job_file))
                 or prompt(
                     "Enter job number: ",
@@ -388,63 +397,66 @@ class TranscriptorCMD(cmd2.Cmd):
                 )
             )
 
-            date_received = args.date_received or prompt(
+            date_received = temp_args.date_received or prompt(
                 "Enter date received: ",
                 validator=date_validator,
                 validate_while_typing=True,
             )
             date_due = (
-                args.date_due
-                or parse_date_due(args.job_file)
+                temp_args.date_due
+                or parse_date_due(temp_args.job_file)
                 or prompt(
                     "Enter date due: ",
                     validator=date_validator,
                     validate_while_typing=True,
                 )
             )
-            args.date_received = str_to_date(
+            temp_args.date_received = str_to_date(
                 date_received, self.app.config.date_format
             ).date()
-            args.date_due = str_to_date(date_due, self.app.config.date_format).date()
+            temp_args.date_due = str_to_date(
+                date_due, self.app.config.date_format
+            ).date()
 
             return {
-                "client_id": args.client_id,
-                "job_num": args.job_num,
-                "date_rec": args.date_received,
-                "date_due": args.date_due,
+                "client_id": temp_args.client_id,
+                "job_num": temp_args.job_num,
+                "date_rec": temp_args.date_received,
+                "date_due": temp_args.date_due,
             }
 
         def task_callback(task_file):
-            args.wof = args.wof or prompt(
+            temp_args = copy(args)
+            temp_args.wof = temp_args.wof or prompt(
                 "Work on file? ",
                 validator=yes_no_validator,
             )
-            if not args.wof.strip().startswith(("y", "Y")):
+            if not temp_args.wof.strip().startswith(("y", "Y")):
                 return {}
-            args.job_type = args.job_type or prompt(
+            temp_args.job_type = temp_args.job_type or prompt(
                 "Enter job type: ",
                 validator=work_validator,
                 validate_while_typing=True,
             )
 
             total_quantity = get_media_duration(task_file)
-            if args.no_prompt and not args.quantity:
-                args.quantity = total_quantity
+            if temp_args.no_prompt and not temp_args.quantity:
+                temp_args.quantity = total_quantity
             else:
-                args.quantity = args.quantity or prompt(
+                temp_args.quantity = temp_args.quantity or prompt(
                     "Enter quantity: ",
                     default=str(total_quantity),
                 )
-            args.job_template = args.job_template or prompt(
+            temp_args.job_template = temp_args.job_template or prompt(
                 "Enter job template: ",
                 validator=template_type_validator,
             )
-            args.note = args.note or prompt("Enter notes: ", default="")
+            temp_args.note = temp_args.note or prompt("Enter notes: ", default="")
             return {
-                "job_type": args.job_type,
-                "quantity": args.quantity,
-                "job_template": args.job_template,
-                "note": args.note,
+                "job_type": temp_args.job_type,
+                "quantity": temp_args.quantity,
+                "job_template": temp_args.job_template,
+                "note": temp_args.note,
                 "total_quantity": total_quantity,
             }
 
