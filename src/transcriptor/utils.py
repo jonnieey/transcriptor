@@ -195,9 +195,6 @@ def str_to_date(date_string: str, date_fmt: str) -> datetime:
     return datetime.strptime(date_string, date_fmt)
 
 
-std = str_to_date
-
-
 def date_to_str(date_obj: datetime, date_fmt: str) -> str:
     """
     Convert a datetime object to a date string.
@@ -210,9 +207,6 @@ def date_to_str(date_obj: datetime, date_fmt: str) -> str:
         A string representing the date in the given format,
     """
     return date_obj.strftime(date_fmt)
-
-
-dts = date_to_str
 
 
 def parse_quantity(
@@ -381,7 +375,7 @@ def csv_from_list(l: list[list[str, str]]) -> str:
     return csv_file.getvalue()
 
 
-def table_list_from_docx(docx_path: str) -> List[List[str]]:
+def list_from_docx_table(docx_path: str) -> List[List[str]]:
     """
     Convert docx file with table to list of list.
 

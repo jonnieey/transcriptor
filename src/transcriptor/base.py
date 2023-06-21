@@ -1,3 +1,4 @@
+import csv
 import shutil
 import zipfile
 from copy import copy
@@ -7,15 +8,18 @@ import yaml
 from appdirs import user_config_dir, user_data_dir
 
 from transcriptor.models import ConfigModel, ProfileModel
+from transcriptor.utils import date_to_str as dts
 from transcriptor.utils import (
     get_media_files,
+    list_from_docx_table,
     mkdirp,
     next_non_existant_file,
     parse_job_number,
     sc,
-    str_to_date,
-    truncate,
 )
+from transcriptor.utils import str_to_date
+from transcriptor.utils import str_to_date as std
+from transcriptor.utils import truncate
 
 APP_NAME = "transcriptor4"
 
@@ -249,3 +253,41 @@ class Transcriptor(BaseTranscriptor):
             }
             jobs.append(jobs_dict)
         self.api.add_jobs(jobs)
+
+    def extract_cutoffs_from_docx(self, docx_path, cutoff_date_fmt=""):
+        date_fmt = self.config.date_format
+        raw_cutoff_list = list_from_docx_table(docx_path)
+
+        cutoff_date_fmt = cutoff_date_fmt or "%m/%d/%Y"
+        cutoffs_list = [
+            [
+                dts(std(cutoff, cutoff_date_fmt), date_fmt),
+                dts(std(deposit, cutoff_date_fmt), date_fmt),
+            ]
+            for (cutoff, deposit) in raw_cutoff_list[1:]
+        ]
+        cutoffs_list.insert(0, raw_cutoff_list[0])
+        return cutoffs_list
+
+    def save_cutoffs(self, cutoffs_list):
+        cutoff_file = self.base_dir.joinpath("cutoffs.csv")
+        with open(cutoff_file, "w") as fd:
+            writer = csv.writer(fd)
+            writer.writerows(cutoffs_list)
+
+    def load_cutoffs(self, cutoffs_path=""):
+        cutoff_file = cutoffs_path or self.base_dir.joinpath("cutoffs.csv")
+        with open(cutoff_file, "r") as fd:
+            return list(csv.reader(fd))
+
+
+if __name__ == "__main__":
+    app = Transcriptor()
+
+    # docx = '/home/kamikaze/Desktop/TRANSCRIBER JOB CUT OFF 2023.docx'
+    # cutoff_list = app.extract_cutoffs_from_docx(docx)
+    # app.save_cutoffs(cutoff_list)
+    print(app.load_cutoffs())
+
+    # def get_cutoffs(self):
+    #     cutoffs_file = base_dir.joinpath("cutoffs.yml")

@@ -73,7 +73,7 @@ show_clients_parser.add_argument("-v", "--key-val", nargs="*", help="Show client
 show_jobs_parser = show_subparsers.add_parser("jobs", help="show jobs")
 show_jobs_parser.add_argument("-v", "--key-val", nargs="*", help="Show jobs")
 show_jobs_parser.add_argument("-a", "--all", action="store_true", help="Show all jobs")
-# show_cutoffs_parser = show_subparsers.add_parser("cutoffs", help="show cutoffs")
+show_cutoffs_parser = show_subparsers.add_parser("cutoffs", help="show cutoffs")
 
 add_parser = base_subparsers.add_parser("add", help="add object")
 add_subparsers = add_parser.add_subparsers(title="subcommands", help="subcommand help")
@@ -194,7 +194,11 @@ class TranscriptorCMD(cmd2.Cmd):
 
     #
     show_jobs_parser.set_defaults(func=show_jobs)
-    # show_cutoffs_parser.set_defaults(func=show_cutoffs)
+
+    def show_cutoffs(self, arg):
+        ConsoleView().print_table(self.app.load_cutoffs(), orientation="hor")
+
+    show_cutoffs_parser.set_defaults(func=show_cutoffs)
 
     def add_client(self, args):
         # name, email, rates

@@ -28,13 +28,20 @@ class ConsoleView:
                 columns = data.keys()
                 rows = data.values()
             elif isinstance(data, (list, tuple)):
-                columns = data[0].keys()
-                rows = data
+                try:
+                    columns = data[0].keys()
+                    rows = data
+                except AttributeError as e:
+                    columns = data[0]
+                    rows = data[1:]
 
             for column in columns:
                 self.table.add_column(tc(column))
             for idx, row in enumerate(rows):
-                row_values = list(map(str, row.values()))
-                self.table.add_row(*row_values)
+                try:
+                    row_values = list(map(str, row.values()))
+                    self.table.add_row(*row_values)
+                except AttributeError as e:
+                    self.table.add_row(*row)
 
         self.console.print(self.table)
