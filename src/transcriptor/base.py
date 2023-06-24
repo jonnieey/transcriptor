@@ -1,13 +1,17 @@
 import csv
+import re
 import shutil
 import zipfile
 from copy import copy
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Callable, Optional
 
 import yaml
 from appdirs import user_config_dir, user_data_dir
+from jinja2 import Environment, PackageLoader, select_autoescape
+from markdownify import MarkdownConverter
+from weasyprint import HTML
 
 from transcriptor.models import ConfigModel, ProfileModel
 from transcriptor.utils import date_to_str as dts
@@ -22,6 +26,22 @@ from transcriptor.utils import str_to_date as std
 from transcriptor.utils import truncate
 
 APP_NAME = "transcriptor4"
+
+
+class MDConverter(MarkdownConverter):
+    """
+    Converter for Markdown to HTML
+    """
+
+    def convert_tr(self, el, text, convert_as_inline):
+        return super().convert_tr(el, text, convert_as_inline) + "\n"
+
+
+def md(html, **options):
+    """
+    Convert Markdown to HTML
+    """
+    return MDConverter(**options).convert(html)
 
 
 class BaseTranscriptor:
@@ -374,3 +394,97 @@ class Transcriptor(BaseTranscriptor):
         cutoff_file = cutoffs_path or self.base_dir.joinpath("cutoffs.csv")
         with open(cutoff_file, "r") as fd:
             return list(csv.reader(fd))
+
+    def invoice_html(self, client: list[dict], jobs: list[dict]):
+        if not jobs:
+            return
+        invoice_counter_file = self.base_dir.joinpath(
+            "clients", client[0]["name"], "invoice_counter.txt"
+        )
+        try:
+            with open(invoice_counter_file, "r") as fd:
+                count = fd.readline()
+                invoice_counter = 0 if count == "" else int(count)
+        except FileNotFoundError:
+            invoice_counter = 0
+
+        profile = self.profile
+        context = {
+            "client": client,
+            "jobs": jobs,
+            "amount": 0.0,
+            "profile": profile,
+            "data": {
+                "invoice_number": f"{invoice_counter + 1:05}",
+                "created": date.today().strftime(self.config.date_format),
+                "due": (datetime.today() + timedelta(days=7)).strftime(
+                    self.config.date_format
+                ),
+            },
+        }
+
+        env = Environment(
+            loader=PackageLoader("transcriptor", "invoice_templates"),
+            autoescape=select_autoescape(["html", "xml", "css"]),
+        )
+        template = env.get_template("invoice.html")
+        invoice_html = template.render(context)
+        return invoice_html
+
+    def invoice_html_to_md(self, html):
+        markdown = md(html)
+        md_table = markdown[markdown.find("![]()") + 5 :]
+        md_table = re.sub(r"\n{2,}", "\n\n", md_table)
+        return md_table
+
+    def invoice_html_to_pdf(self, html, invoice_file):
+        HTML(string=html).write_pdf(invoice_file)
+
+    def create_invoice(
+        self,
+        client_id,
+        jobs_conditions: list[list[str]] = [],
+        save_pdf=False,
+        save_html=False,
+    ):
+        if not client_id:
+            return
+        condition = f"client_id={client_id}"
+        client = self.api.get_clients(
+            [
+                condition,
+            ]
+        )
+        if not client:
+            return
+        jobs = self.api.get_jobs(*jobs_conditions)
+        if not jobs:
+            return
+
+        client_name = client[0]["name"]
+        invoice_dir = self.base_dir.joinpath(client_name, "invoices")
+        mkdirp([invoice_dir])
+        invoice_file_name = f"{date.today().strftime('%Y-%m-%d')}_{client_name}_invoice"
+        invoice_file = invoice_dir.joinpath(invoice_file_name)
+
+        invoice_html = self.invoice_html(client, jobs)
+
+        if save_pdf:
+            self.invoice_html_to_pdf(invoice_html, invoice_file.with_suffix(".pdf"))
+        #
+        if save_html:
+            with open(invoice_file.with_suffix(".html"), "w") as fd:
+                fd.write(invoice_html)
+        else:
+            return self.invoice_html_to_md(invoice_html)
+
+
+if __name__ == "__main__":
+    app = Transcriptor()
+    cond = "client_id=1"
+    client = app.api.get_clients([cond])
+    wc = "date_submitted>=2023-05-02 date_submitted<=2023-05-15"
+    jobs = app.api.get_jobs([wc])
+    # print(app.create_invoice_html(client[0], jobs))
+    # print(app.create_invoice_md(client[0], jobs))
+    print(app.create_invoice(client[0], jobs, save_pdf=False))

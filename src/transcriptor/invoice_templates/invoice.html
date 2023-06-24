@@ -87,6 +87,7 @@
 		}
 	</style>
 </head>
+
 <body>
 	<div class="header">
 		<img alt="">
@@ -152,7 +153,7 @@
 				  <tfoot>
 					<tr>
 						<td colspan="5">TOTAL</td>
-						<td>&#36;{{ "%.2f" | format(amount) }}</td>
+						<td>&#36;{{ jobs|sum(attribute='amount') }}</td>
 					</tr>
 				  </tfoot>
 			</tbody>

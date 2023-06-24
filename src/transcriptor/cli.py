@@ -185,6 +185,21 @@ delete_rates_parser.add_argument(
     "-w", "--where-cond", nargs="*", help="Update condition"
 )
 
+invoice_parser = base_subparsers.add_parser("invoice", help="Invoice commands")
+invoice_subparsers = invoice_parser.add_subparsers(
+    title="subcommands", help="subcommand help"
+)
+create_invoice_parser = invoice_subparsers.add_parser("create", help="Create Invoice")
+create_invoice_parser.add_argument("-c", "--client-id", help="client id")
+
+create_invoice_parser.add_argument("-v", "--key-val", nargs="*", help="Show jobs")
+create_invoice_parser.add_argument(
+    "-p", "--to-pdf", action="store_true", help="Create invoice PDF"
+)
+create_invoice_parser.add_argument(
+    "-l", "--to-html", action="store_true", help="Create invoice html"
+)
+
 
 class TranscriptorCMD(cmd2.Cmd):
     prompt = "(trans) "
@@ -565,6 +580,34 @@ class TranscriptorCMD(cmd2.Cmd):
 
     delete_rates_parser.set_defaults(func=delete_rates)
 
+    def create_invoice(self, args):
+        try:
+            if not args.client_id:
+                if self.show_clients({}) == 1:
+                    return
+                client_id = int(prompt("Enter client id: ", validator=gt0_validator))
+            else:
+                client_id = args.client_id
+
+            args.key_val = args.key_val or []
+            conditions = f"client_id={client_id} date_submitted!=NULL"
+            if args.key_val:
+                args.key_val[0] += " " + conditions
+            else:
+                args.key_val = [conditions]
+
+            inv = self.app.create_invoice(
+                client_id, [args.key_val, []], args.to_pdf, args.to_html
+            )
+            if inv:
+                ConsoleView().console.print(inv)
+
+        except (KeyboardInterrupt, EOFError):
+            self.poutput("**")
+            return
+
+    create_invoice_parser.set_defaults(func=create_invoice)
+
     @cmd2.with_argparser(show_parser)
     def do_show(self, args):
         """
@@ -602,6 +645,17 @@ class TranscriptorCMD(cmd2.Cmd):
     def do_delete(self, args):
         """
         Delete command help
+        """
+        func = getattr(args, "func", None)
+        if func is not None:
+            func(self, args)
+        else:
+            self.do_help("base")
+
+    @cmd2.with_argparser(create_invoice_parser)
+    def do_invoice(self, args):
+        """
+        Invoice command help
         """
         func = getattr(args, "func", None)
         if func is not None:

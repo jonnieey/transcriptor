@@ -63,7 +63,7 @@ class API:
         self.cursor.executemany(stmt, jobs)
         self.conn.commit()
 
-    def get_clients(self, conditions: str = "") -> list:
+    def get_clients(self, conditions: list[str] = []) -> list:
         """
         Get clients from database
 
@@ -105,7 +105,7 @@ class API:
         rates = self.cursor.execute(stmt).fetchall()
         return rates
 
-    def get_jobs(self, conditions: str = "") -> list:
+    def get_jobs(self, conditions: str = [], other_conditions: str = "") -> list:
         """
         Get jobs from database
 
@@ -125,6 +125,8 @@ class API:
             searchstrs = " and ".join(qv(conditions[0]))
             stmt += " WHERE " + searchstrs
 
+        if other_conditions:
+            stmt += other_conditions[0]
         jobs = self.cursor.execute(stmt).fetchall()
         return jobs
 
