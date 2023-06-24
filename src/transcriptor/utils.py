@@ -612,8 +612,12 @@ def quote_operands(text: str) -> GeneratorType:
 
     if operator_indices:
         if len(operator_indices) == 1:
-            pre_text = text[: operator_indices[0] + 1]
-            quoted_text = f'"{text[operator_indices[0] + 1:]}"'
+            cursor_index = operator_indices[0]
+            if text[cursor_index + 1] in ["=", ">", "<"]:
+                cursor_index += 1
+                # cursor_index = cursor_idx + 1
+            pre_text = text[: cursor_index + 1]
+            quoted_text = f'"{text[cursor_index + 1:]}"'
             yield pre_text + quoted_text
             return
 
