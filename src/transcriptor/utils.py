@@ -591,19 +591,22 @@ gt0_validator = MyValidator(is_gt_0, "Is less than 0")
 
 def quote_operands(text: str) -> GeneratorType:
     """
-    Quote value operands after operators
+    Yields quoted operands from the input text
 
     Args:
         text: String to quote
-    Returns:
-        List generator of quoted strings
+
+    Yields:
+         generator of quoted strings
 
     Example:
-        input ->  "name<=john and sophia second=second third>=third forth!=fifth sixth>sixth seventh<eighth and ninth"
-        output ->[ 'name<="john and sophia"', 'second="second"', 'third>="third"', 'forth!="fifth"', 'sixth>"sixth"', 'seventh<"eighth and ninth"', ]
+        input ->  "name<=john and sophia forth!=fifth sixth>sixth seventh<eighth and ninth"
+        output ->[ 'name<="john and sophia"', 'forth!="fifth"', 'sixth>"sixth"', 'seventh<"eighth and ninth"', ]
     """
-    operator_pattern = r"[><]=?|![=><]|(?<!=)="
-    space_pattern = r"\s(?=[^\s]*$)"
+    if not text:
+        return
+
+    operator_pattern = r"(\s*)([><]=?|![=><]|(?<!=)=)(\s*)"
 
     operator_matches = re.finditer(operator_pattern, text)
     operator_indices = (
@@ -611,34 +614,28 @@ def quote_operands(text: str) -> GeneratorType:
     )
 
     if operator_indices:
-        if len(operator_indices) == 1:
-            cursor_index = operator_indices[0]
-            if text[cursor_index + 1] in ["=", ">", "<"]:
-                cursor_index += 1
-                # cursor_index = cursor_idx + 1
-            pre_text = text[: cursor_index + 1]
-            quoted_text = f'"{text[cursor_index + 1:]}"'
-            yield pre_text + quoted_text
-            return
-
         cursor_index = operator_indices[0]
+        operand_text_start = re.search("[\w]", text[cursor_index + 1 :]).start()
 
-        if text[cursor_index + 1] in ["=", ">", "<"]:
-            cursor_index += 1
+        if len(operator_indices) == 1:
+            # Only one operator; extract pre-text and the remaining text as the quoted text
+            pre_text = text[: cursor_index + 1 + operand_text_start]
+            quoted_text = text[cursor_index + 1 + operand_text_start :]
 
-        try:
-            operand_text = text[cursor_index + 1 : operator_indices[1]]
-        except IndexError:
-            operand_text = text[cursor_index + 1 : operator_indices[0]]
+        else:
+            # Multiple operators, extract operand text between the first and second operators
+            next_operator_index = (
+                operator_indices[1]
+                if len(operator_indices) > 1
+                else operator_indices[0]
+            )
+            operand_text = text[
+                cursor_index + 1 + operand_text_start : next_operator_index
+            ]
+            last_space_index = text[: operator_indices[1]].rfind(" ") or 0
+            pre_text = text[: cursor_index + 1 + operand_text_start]
+            quoted_text = text[cursor_index + 1 + operand_text_start : last_space_index]
 
-        space_matches = re.finditer(space_pattern, operand_text)
-        space_indices = (
-            [match.start() for match in space_matches] if space_matches else []
-        )
-        last_space_index = space_indices[0] if space_indices else 0
+        yield pre_text + f'"{quoted_text}"'
 
-        pre_text = text[: cursor_index + 1]
-        quoted_text = f'"{text[cursor_index + 1: cursor_index + 1 + last_space_index]}"'
-        yield pre_text + quoted_text
-
-        yield from quote_operands(text[cursor_index + 1 + last_space_index + 1 :])
+        yield from quote_operands(text[len(pre_text + quoted_text) + 1 :])
