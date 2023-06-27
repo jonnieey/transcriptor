@@ -62,7 +62,9 @@ class Transcriptor(BaseTranscriptor):
     config_changed = False
 
     def __init__(self, api=None, config: dict = None):
-        self.config = config if config is not None else self.load_config()
+        self.config = (
+            ConfigModel(**config) if config is not None else self.load_config()
+        )
 
         if api is None:
             from transcriptor.api import API
@@ -334,7 +336,7 @@ class Transcriptor(BaseTranscriptor):
                 "total_quantity": task_info["total_quantity"],
                 "quantity": task_info["quantity"],
                 "job_rate": client.get(task_info["job_type"].lower()),
-                "job_path": str(task),
+                "job_path": f"{task}",
                 "note": task_info["note"],
             }
             jobs.append(jobs_dict)
@@ -471,12 +473,37 @@ class Transcriptor(BaseTranscriptor):
 
         if save_pdf:
             self.invoice_html_to_pdf(invoice_html, invoice_file.with_suffix(".pdf"))
-        #
         if save_html:
             with open(invoice_file.with_suffix(".html"), "w") as fd:
                 fd.write(invoice_html)
         else:
             return self.invoice_html_to_md(invoice_html)
+
+    def delete_clients(self, condition: str, purge=False):
+        on_errors = lambda func, path, exec_info: f"{exec_info[0]} -> {exec_info[1]}"
+        clients = self.api.get_clients([condition])
+        condition = condition.replace("client_id", "id")
+        self.api.delete("clients", [condition])
+        if purge:
+            if clients:
+                for client in clients:
+                    client_name = client["name"]
+                    client_dir = self.base_dir.joinpath("clients", client_name)
+                    if purge:
+                        shutil.rmtree(client_dir, onerror=on_errors)
+
+    def delete_jobs(self, condition, delete_file=False, purge=False):
+        on_errors = lambda func, path, exec_info: f"{exec_info[0]} -> {exec_info[1]}"
+        jobs = self.api.get_jobs([condition])
+        self.api.delete("jobs", [condition])
+        if delete_file or purge:
+            for job in jobs:
+                job_path = Path(job["job_path"])
+                if purge:
+                    shutil.rmtree(job_path.parent, onerror=on_errors)
+                    continue
+                if delete_file:
+                    job_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

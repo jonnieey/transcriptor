@@ -19,6 +19,15 @@ class ConsoleView:
             data: Data to print
             orientation: Orientation of the table (vert or hor)
         """
+
+        # TODO let user choose to show job path in table
+        def generate_table(columns, rows):
+            for column in columns:
+                self.table.add_column(tc(column))
+            for idx, row in enumerate(rows):
+                row = list(map(str, row))
+                self.table.add_row(*row)
+
         if not data:
             return
         if orientation == "vert":
@@ -34,23 +43,24 @@ class ConsoleView:
 
         elif orientation == "hor":
             if isinstance(data, dict):
-                columns = data.keys()
-                rows = data.values()
+                columns = list(data.keys())
+                try:
+                    columns.remove("job_path")
+                except ValueError:
+                    pass
+                rows = [data[column] for column in columns]
             elif isinstance(data, (list, tuple)):
                 try:
-                    columns = data[0].keys()
-                    rows = data
+                    columns = list(data[0].keys())
+                    try:
+                        columns.remove("job_path")
+                    except ValueError:
+                        pass
+                    rows = [[row[column] for column in columns] for row in data]
+                    generate_table(columns, rows)
                 except AttributeError as e:
                     columns = data[0]
                     rows = data[1:]
-
-            for column in columns:
-                self.table.add_column(tc(column))
-            for idx, row in enumerate(rows):
-                try:
-                    row_values = list(map(str, row.values()))
-                    self.table.add_row(*row_values)
-                except AttributeError as e:
-                    self.table.add_row(*row)
+                    generate_table(columns, rows)
 
         self.console.print(self.table)

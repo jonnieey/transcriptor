@@ -1,9 +1,7 @@
 import unittest
 import unittest.mock
 
-from transcriptor.utils import (
-    quote_operands,
-)
+from transcriptor.utils import quote_operands
 
 
 class TestTouch(unittest.TestCase):

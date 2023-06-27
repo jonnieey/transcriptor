@@ -118,7 +118,7 @@ class API:
         stmt = """
          SELECT  j.client_id,  j.date_received, j.id AS job_id, j.job_number, j.job_type,
          j.status, j.date_due, j.total_quantity, j.quantity, j.job_rate,
-         j.date_submitted, j.amount, j.amount_paid, j.note
+         j.date_submitted, j.amount, j.amount_paid, j.note, j.job_path
          FROM JOBS AS j
         """
         if conditions:

@@ -151,10 +151,14 @@ update_client_parser.add_argument(
     "-m", "--many", nargs="*", help="Allow multiple updates"
 )
 
-update_job_parser = update_subparsers.add_parser("job", help="update job")
-update_job_parser.add_argument("-s", "--set-cond", nargs="*", help="Set condition")
-update_job_parser.add_argument("-w", "--where-cond", nargs="*", help="Update condition")
-update_job_parser.add_argument("-m", "--many", nargs="*", help="Allow multiple updates")
+update_jobs_parser = update_subparsers.add_parser("jobs", help="update job")
+update_jobs_parser.add_argument("-s", "--set-cond", nargs="*", help="Set condition")
+update_jobs_parser.add_argument(
+    "-w", "--where-cond", nargs="*", help="Update condition"
+)
+update_jobs_parser.add_argument(
+    "-m", "--many", nargs="*", help="Allow multiple updates"
+)
 #
 update_rates_parser = update_subparsers.add_parser("rates", help="update rate")
 update_rates_parser.add_argument("-s", "--set-cond", nargs="*", help="Set condition")
@@ -175,10 +179,22 @@ delete_client_parser.add_argument(
 delete_client_parser.add_argument(
     "-P", "--no-prompt", action="store_true", help="Do not prompt"
 )
-delete_job_parser = delete_subparsers.add_parser("job", help="delete job")
-delete_job_parser.add_argument("-w", "--where-cond", nargs="*", help="Update condition")
-delete_job_parser.add_argument(
+delete_client_parser.add_argument(
+    "-p", "--purge", action="store_true", help="Remove clients all files"
+)
+
+delete_jobs_parser = delete_subparsers.add_parser("jobs", help="delete job")
+delete_jobs_parser.add_argument(
+    "-w", "--where-cond", nargs="*", help="Update condition"
+)
+delete_jobs_parser.add_argument(
     "-P", "--no-prompt", action="store_true", help="Do not prompt"
+)
+delete_jobs_parser.add_argument(
+    "-p", "--purge", action="store_true", help="Remove job directory, all files"
+)
+delete_jobs_parser.add_argument(
+    "-d", "--delete", action="store_true", help="Delete task file"
 )
 delete_rates_parser = delete_subparsers.add_parser("rates", help="delete rate")
 delete_rates_parser.add_argument(
@@ -506,7 +522,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
         # self.yaml_update(arg, obj)
 
-    def update_job(self, args):
+    def update_jobs(self, args):
         if not args.set_cond or not args.where_cond:
             return
         set_cond = " ".join(args.set_cond)
@@ -523,7 +539,7 @@ class TranscriptorCMD(cmd2.Cmd):
     update_config_parser.set_defaults(func=update_config)
     update_profile_parser.set_defaults(func=update_profile)
     update_client_parser.set_defaults(func=update_client)
-    update_job_parser.set_defaults(func=update_job)
+    update_jobs_parser.set_defaults(func=update_jobs)
     update_rates_parser.set_defaults(func=update_rates)
 
     def delete_client(self, args):
@@ -538,15 +554,15 @@ class TranscriptorCMD(cmd2.Cmd):
                 "Are you sure you want to delete these clients? (y/n): ",
                 default="n",
             )
-            if confirm.lower() != "y":
+            if confirm.lower() != "n":
                 return
-        where_cond = where_cond.replace("client_id", "id")
+        # where_cond = where_cond.replace("client_id", "id")
         # TODO Should cascade rates
-        self.app.api.delete("clients", [where_cond])
+        self.app.delete_clients(where_cond, args.purge)
 
     delete_client_parser.set_defaults(func=delete_client)
 
-    def delete_job(self, args):
+    def delete_jobs(self, args):
         if not args.where_cond:
             return
         where_cond = " ".join(args.where_cond)
@@ -559,9 +575,9 @@ class TranscriptorCMD(cmd2.Cmd):
             )
             if confirm.lower() != "y":
                 return
-        self.app.api.delete("jobs", [where_cond])
+        self.app.delete_jobs(where_cond, args.delete, args.purge)
 
-    delete_job_parser.set_defaults(func=delete_job)
+    delete_jobs_parser.set_defaults(func=delete_jobs)
 
     def delete_rates(self, args):
         if not args.where_cond:
