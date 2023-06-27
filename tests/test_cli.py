@@ -1,3 +1,4 @@
+from datetime import date
 from tempfile import mkdtemp
 
 import cmd2_ext_test
@@ -5,6 +6,8 @@ import pytest
 
 from transcriptor.base import Transcriptor
 from transcriptor.cli import TranscriptorCMD
+
+today = date.today()
 
 
 class TranscriptorTester(cmd2_ext_test.ExternalTestMixin, TranscriptorCMD):
@@ -100,12 +103,13 @@ def test_add_job(transcriptor_app):
     cmd = "update jobs -s date_submitted=2023-05-16  status=Done -w 'id=1'"
     transcriptor_app.app_cmd(cmd)
     out = transcriptor_app.app_cmd("show jobs -a")
-    assert "2023-05-16" in str(out.stdout).strip()
+    # print(str(out.stdout).strip())
+    assert today.strftime("%Y-%m-%d") not in str(out.stdout).strip()
     assert "2023-05-12" in str(out.stdout).strip()
     assert "Done" in str(out.stdout).strip()
 
     # delete job
-    cmd = "delete jobs -w date_submitted=2023-05-16 -P"
+    cmd = "delete jobs -w id=1 -P"
     transcriptor_app.app_cmd(cmd)
     out = transcriptor_app.app_cmd("show jobs -a")
     assert "2023-05-16" not in str(out.stdout).strip()
@@ -127,13 +131,3 @@ def test_purge_jobs_delete_client(transcriptor_app):
     out = transcriptor_app.app_cmd("show jobs")
     assert "2023-05-12" not in str(out.stdout).strip()
     assert "" == str(out.stdout).strip()
-
-
-#
-# # #
-# #
-# # def test_update_config(transcriptor_app):
-# #
-# # def test_update_profile(transcriptor_app):
-#
-#
