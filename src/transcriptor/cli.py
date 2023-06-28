@@ -51,8 +51,10 @@ class KeyValueAction(argparse.Action):
         else:
             try:
                 value = json.loads(values)
-            except ValueError:
-                raise argparse.ArgumentTypeError(f"Invalid {self.dest} value: {values}")
+            except ValueError as e:
+                raise argparse.ArgumentTypeError(
+                    f"Invalid {self.dest} value: {values}"
+                ) from e
             if not isinstance(value, dict):
                 raise argparse.ArgumentTypeError(f"{values} is must be a dictionary")
             getattr(namespace, self.dest).update(value)
@@ -249,7 +251,7 @@ class TranscriptorCMD(cmd2.Cmd):
         return True
 
     def postloop(self):
-        if self.app.config_changed == True:
+        if self.app.config_changed is True:
             c = prompt("** Config changed ** Save changes? (y/n)")
             if c.lower() == "y":
                 self.app.save_config(self.app.config.__dict__)
@@ -279,8 +281,7 @@ class TranscriptorCMD(cmd2.Cmd):
         Ex.
            show profile
         """
-        profile = self.app.profile
-        if profile:
+        if profile := self.app.profile:
             ConsoleView().print_table(profile.__dict__)
         else:
             self.poutput("** Profile doesn't exist **.")
@@ -311,7 +312,7 @@ class TranscriptorCMD(cmd2.Cmd):
         """
         if args.all:
             args.key_val = []
-        elif not args.key_val and not args.all:
+        elif not args.key_val:
             args.key_val = ["status=Pending"]
         jobs = self.app.api.get_jobs(args.key_val)
         if jobs:
@@ -599,28 +600,27 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def create_invoice(self, args):
         try:
-            if not args.client_id:
-                if self.show_clients({}) == 1:
-                    return
-                client_id = int(prompt("Enter client id: ", validator=gt0_validator))
-            else:
+            if args.client_id:
                 client_id = args.client_id
 
+            elif self.show_clients({}) == 1:
+                return
+            else:
+                client_id = int(prompt("Enter client id: ", validator=gt0_validator))
             args.key_val = args.key_val or []
             conditions = f"client_id={client_id} date_submitted!=NULL"
             if args.key_val:
-                args.key_val[0] += " " + conditions
+                args.key_val[0] += f" {conditions}"
             else:
                 args.key_val = [conditions]
 
-            inv = self.app.create_invoice(
+            if inv := self.app.create_invoice(
                 client_id,
                 [args.key_val, []],
                 args.to_pdf,
                 args.to_html,
                 args.title,
-            )
-            if inv:
+            ):
                 ConsoleView().console.print(inv)
 
         except (KeyboardInterrupt, EOFError):

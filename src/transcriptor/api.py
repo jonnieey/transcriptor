@@ -26,10 +26,10 @@ class API:
         Returns:
             id of changed row or None
         """
-        stmt = "INSERT INTO clients (id, name, email) VALUES (NULL, :name, :email)"
-        self.cursor.execute(stmt, clients)
-        self.conn.commit()
-        return self.cursor.lastrowid
+        return self.execute_sql_with_args(
+            "INSERT INTO clients (id, name, email) VALUES (NULL, :name, :email)",
+            clients,
+        )
 
     def add_rates(self, rates: tuple) -> Optional[int]:
         """
@@ -41,8 +41,15 @@ class API:
         Returns:
             id of changed row or None
         """
-        stmt = "INSERT INTO rates (id, normal, expedite, interpreted, client_id) VALUES (NULL, :normal, :expedite, :interpreted, :client_id)"
-        self.cursor.execute(stmt, rates)
+        return self.execute_sql_with_args(
+            "INSERT INTO rates (id, normal, expedite, interpreted, client_id) VALUES (NULL, :normal, :expedite, :interpreted, :client_id)",
+            rates,
+        )
+
+    # TODO Rename this here and in `add_clients` and `add_rates`
+    def execute_sql_with_args(self, arg0, arg1):
+        stmt = arg0
+        self.cursor.execute(stmt, arg1)
         self.conn.commit()
         return self.cursor.lastrowid
 
@@ -56,14 +63,12 @@ class API:
                     job_rate, date_submitted, amount, amount_paid, note)
         """
         columns = ", ".join(jobs[0].keys())
-        placeholders = ", ".join(":" + column for column in jobs[0].keys())
-        stmt = (
-            "INSERT INTO jobs (id, " + columns + ") VALUES (NULL, " + placeholders + ")"
-        )
+        placeholders = ", ".join(f":{column}" for column in jobs[0].keys())
+        stmt = f"INSERT INTO jobs (id, {columns}) VALUES (NULL, {placeholders})"
         self.cursor.executemany(stmt, jobs)
         self.conn.commit()
 
-    def get_clients(self, conditions: list[str] = []) -> list:
+    def get_clients(self, conditions: list[str] = None) -> list:
         """
         Get clients from database
 
@@ -73,6 +78,8 @@ class API:
         Returns:
             list of dicts
         """
+        if conditions is None:
+            conditions = []
         stmt = """
             SELECT c.id AS client_id, c.name, c.email, r.normal, r.expedite, r.interpreted
             FROM clients AS c
@@ -80,9 +87,8 @@ class API:
             """
         if conditions:
             searchstrs = " and ".join(qv(conditions[0]))
-            stmt += " WHERE " + searchstrs
-        clients = self.cursor.execute(stmt).fetchall()
-        return clients
+            stmt += f" WHERE {searchstrs}"
+        return self.cursor.execute(stmt).fetchall()
 
     def get_rates(self, conditions: str = "") -> list:
         """
@@ -100,12 +106,11 @@ class API:
         """
         if conditions:
             searchstrs = " and ".join(qv(conditions[0]))
-            stmt += " WHERE " + searchstrs
+            stmt += f" WHERE {searchstrs}"
 
-        rates = self.cursor.execute(stmt).fetchall()
-        return rates
+        return self.cursor.execute(stmt).fetchall()
 
-    def get_jobs(self, conditions: str = [], other_conditions: str = "") -> list:
+    def get_jobs(self, conditions: str = None, other_conditions: str = "") -> list:
         """
         Get jobs from database
 
@@ -115,6 +120,8 @@ class API:
         Returns:
             list of dicts
         """
+        if conditions is None:
+            conditions = []
         stmt = """
          SELECT  j.client_id,  j.date_received, j.id AS job_id, j.job_number, j.job_type,
          j.status, j.date_due, j.total_quantity, j.quantity, j.job_rate,
@@ -123,12 +130,11 @@ class API:
         """
         if conditions:
             searchstrs = " and ".join(qv(conditions[0]))
-            stmt += " WHERE " + searchstrs
+            stmt += f" WHERE {searchstrs}"
 
         if other_conditions:
             stmt += other_conditions[0]
-        jobs = self.cursor.execute(stmt).fetchall()
-        return jobs
+        return self.cursor.execute(stmt).fetchall()
 
     def update(
         self,
@@ -153,7 +159,7 @@ class API:
         stmt = f"UPDATE {table_name} SET {setstr} "
 
         searchstrs = " and ".join(qv(search_conditions[0]))
-        stmt += " WHERE " + searchstrs
+        stmt += f" WHERE {searchstrs}"
 
         if other_conditions:
             stmt += other_conditions[0]
@@ -180,7 +186,7 @@ class API:
         stmt = f"DELETE FROM {table_name} "
 
         searchstrs = " and ".join(qv(search_conditions[0]))
-        stmt += " WHERE " + searchstrs
+        stmt += f" WHERE {searchstrs}"
 
         self.cursor.execute(stmt)
         self.conn.commit()

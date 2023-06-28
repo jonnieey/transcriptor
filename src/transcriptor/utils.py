@@ -75,8 +75,7 @@ def parse_job_number(file: str) -> str:
     job_number_pattern: Pattern = re.compile(r"\b(\d{6,8})\b")
     job_number_matches: Optional[Match] = job_number_pattern.search(file)
 
-    job_number = job_number_matches.group(1) if job_number_matches else ""
-    return job_number
+    return job_number_matches.group(1) if job_number_matches else ""
 
 
 def parse_date_due(file: str) -> str:
@@ -93,8 +92,7 @@ def parse_date_due(file: str) -> str:
         r"(?i)(DUE|BACK)[_/\s-](\d{1,2}[-.what is 0o666]\d{1,2})"
     )
     date_due_matches = date_due_pattern.search(file)
-    date_due = date_due_matches.group(2) if date_due_matches else ""
-    return date_due
+    return date_due_matches[2] if date_due_matches else ""
 
 
 def format_date(date_str: str, date_fmt: str) -> str:
@@ -128,13 +126,16 @@ def get_media_files(directory: Path) -> list[Path]:
     for file in directory.iterdir():
         if file.is_file():
             mime_type, _ = mimetypes.guess_type(str(file))
-            if mime_type and mime_type is not None:
-                if (
+            if (
+                mime_type
+                and mime_type is not None
+                and (
                     mime_type.startswith("audio/")
                     or mime_type.startswith("video/")
                     or mime_type == "application/octet-stream"
-                ):
-                    yield file
+                )
+            ):
+                yield file
 
 
 def truncate(num: float, dp: int) -> float:
@@ -249,11 +250,10 @@ def parse_quantity(
             f = Fraction(quantity)
             if f > 1:
                 return truncate(float(quantity), 2)
+            if total_quantity:
+                return truncate(float(f) * float(total_quantity), 2)
             else:
-                if not total_quantity:
-                    raise TypeError("Total quantity required")
-                else:
-                    return truncate(float(f) * float(total_quantity), 2)
+                raise TypeError("Total quantity required")
         except ValueError:
             # logger
             print("Valid fraction, int, float, str required")
@@ -286,7 +286,7 @@ class CSVTextBuilder:
         self.csv_string.append(row)
 
 
-def dict_to_csv(dic: dict, headers: list = []) -> str:
+def dict_to_csv(dic: dict, headers: list = None) -> str:
     """
     Convert a dictionary to a CSV string.
 
@@ -296,6 +296,8 @@ def dict_to_csv(dic: dict, headers: list = []) -> str:
     Returns:
         A CSV string.
     """
+    if headers is None:
+        headers = []
     csv_builder = CSVTextBuilder()
 
     writer = csv.DictWriter(csv_builder, fieldnames=headers)
@@ -328,7 +330,7 @@ def list_of_tuples_to_csv(l: list) -> str:
 
 
 def list_of_rows_to_csv(
-    rows: List[object], headers: List[str] = [], omit: List[str] = []
+    rows: List[object], headers: List[str] = None, omit: List[str] = None
 ) -> str:
     """
     Convert a list of rows to a CSV byte string.
@@ -341,6 +343,10 @@ def list_of_rows_to_csv(
     Returns:
         A CSV byte string.
     """
+    if headers is None:
+        headers = []
+    if omit is None:
+        omit = []
     dicts = [
         {k: getattr(row, k) for k in row.__dict__ if k != "_sa_instance_state"}
         for row in rows
@@ -477,7 +483,7 @@ def is_valid_yes_no(text: str) -> bool:
     return bool(re.match(r"(?i)^[YyNn](?:es|o)?$", text))
 
 
-def is_in_choices(text: str, choices: list = []):
+def is_in_choices(text: str, choices: list = None):
     """
     Check if a string is in a list of choices.
 
@@ -487,6 +493,8 @@ def is_in_choices(text: str, choices: list = []):
     Returs:
         True if the string is in the choices, otherwise False.
     """
+    if choices is None:
+        choices = []
     return text.strip() in choices
 
 
@@ -552,11 +560,10 @@ def is_gt_0(text: str) -> bool:
     Retuns:
         True if the string is greater than zero, otherwise False.
     """
-    if text != "":
-        d = Decimal(text).to_integral()
-        return (int(d)) > 0
-    else:
+    if not text:
         return False
+    d = Decimal(text).to_integral()
+    return (int(d)) > 0
 
 
 def MyValidator(func: Callable, error_mesage: str, mve: bool = True):
@@ -622,9 +629,6 @@ def quote_operands(text: str, as_tuple=False) -> GeneratorType:
         operand_text_start = re.search("[\w/]", text[cursor_index:]).start()
 
         if len(operator_indices) == 1:
-            # Only one operator; extract pre-text and the remaining text as the quoted text
-            pre_text = text[:cursor_index]
-            operator = text[cursor_index : cursor_index + operand_text_start]
             quoted_text = text[cursor_index + operand_text_start :]
 
         else:
@@ -635,9 +639,10 @@ def quote_operands(text: str, as_tuple=False) -> GeneratorType:
                 else operator_indices[0]
             )
             last_space_index = text[:next_operator_index].rfind(" ") or 0
-            pre_text = text[:cursor_index]
-            operator = text[cursor_index : cursor_index + operand_text_start]
             quoted_text = text[cursor_index + operand_text_start : last_space_index]
+
+        operator = text[cursor_index : cursor_index + operand_text_start]
+        pre_text = text[:cursor_index]
 
         if as_tuple is True:
             yield tuple_operand(pre_text.strip(), operator.strip(), f'"{quoted_text}"')

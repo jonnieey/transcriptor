@@ -99,24 +99,28 @@ class Transcriptor(BaseTranscriptor):
             self.save_config(config_dict)
             return ConfigModel(**config_dict)
 
-    def save_config(self, config_dict: dict = {}) -> None:
+    def save_config(self, config_dict: dict = None) -> None:
         """
         Save config to file
 
         Arguments:
             config_dict: dict of config
         """
+        if config_dict is None:
+            config_dict = {}
         self.config = ConfigModel(**config_dict)
         with open(self.config_file, "w") as fd:
             self.config.save(fd)
 
-    def save_profile(self, profile_dict: dict = {}) -> None:
+    def save_profile(self, profile_dict: dict = None) -> None:
         """
         Save profile
 
         Arguments:
             profile_dict: dict of profile
         """
+        if profile_dict is None:
+            profile_dict = {}
         profile_file = self.base_dir.joinpath("profile.yml")
         profile = ProfileModel(**profile_dict) if profile_dict else ProfileModel()
         with open(profile_file, "w") as fd:
@@ -155,7 +159,7 @@ class Transcriptor(BaseTranscriptor):
         else:
             raise TypeError
 
-    def create_client(self, name: str, email: str, rates: dict = {}) -> Optional[int]:
+    def create_client(self, name: str, email: str, rates: dict = None) -> Optional[int]:
         """
         Create a client
 
@@ -170,10 +174,16 @@ class Transcriptor(BaseTranscriptor):
         client_dict = {"name": name, "email": email}
         client_id = self.api.add_clients(client_dict)
 
-        client_rates = {"normal": 0.4, "expedite": 0.6, "interpreted": 0.3}
-        client_rates["client_id"] = client_id
-        client_rates.update(rates)
-        rates_id = self.api.add_rates(client_rates)
+        if rates is None:
+            rates = {}
+
+        client_rates = {
+            "normal": 0.4,
+            "expedite": 0.6,
+            "interpreted": 0.3,
+            "client_id": client_id,
+        } | rates
+        self.api.add_rates(client_rates)
 
         client_dir = self.base_dir.joinpath("clients").joinpath(sc(name))
         mkdirp([client_dir])
@@ -255,8 +265,7 @@ class Transcriptor(BaseTranscriptor):
             jobs_templates_path = Path(__file__).parent.joinpath("templates")
             shutil.copytree(jobs_templates_path, client_template_dir)
 
-        template_path = client_template_dir.joinpath(template_mapping[template])
-        return template_path
+        return client_template_dir.joinpath(template_mapping[template])
 
     def create_job(
         self, job_file: str | Path, job_callback: Callable, task_callback: Callable
@@ -313,11 +322,8 @@ class Transcriptor(BaseTranscriptor):
 
             job_path = next_non_existant_file(
                 job_dir.joinpath(
-                    "{} Due {}.doc".format(
-                        job_info["job_num"],
-                        job_info["date_due"].strftime("%m.%d"),
-                    )
-                ),
+                    f'{job_info["job_num"]} Due {job_info["date_due"].strftime("%m.%d")}.doc'
+                )
             )
             shutil.copy(template_path, job_path)
 
@@ -433,8 +439,7 @@ class Transcriptor(BaseTranscriptor):
             autoescape=select_autoescape(["html", "xml", "css"]),
         )
         template = env.get_template("invoice.html")
-        invoice_html = template.render(context)
-        return invoice_html
+        return template.render(context)
 
     def invoice_html_to_md(self, html):
         markdown = md(html)
@@ -495,23 +500,26 @@ class Transcriptor(BaseTranscriptor):
             return self.invoice_html_to_md(invoice_html)
 
     def delete_clients(self, condition: str, purge=False):
-        on_errors = lambda func, path, exec_info: f"{exec_info[0]} -> {exec_info[1]}"
         clients = self.api.get_clients([condition])
         condition = condition.replace("client_id", "id")
         self.api.delete("clients", [condition])
-        if purge:
-            if clients:
-                for client in clients:
-                    client_name = client["name"]
-                    client_dir = self.base_dir.joinpath("clients", client_name)
-                    if purge:
-                        shutil.rmtree(client_dir, onerror=on_errors)
+        if purge and clients:
+            on_errors = (
+                lambda func, path, exec_info: f"{exec_info[0]} -> {exec_info[1]}"
+            )
+            for client in clients:
+                client_name = client["name"]
+                client_dir = self.base_dir.joinpath("clients", client_name)
+                if purge:
+                    shutil.rmtree(client_dir, onerror=on_errors)
 
     def delete_jobs(self, condition, delete_file=False, purge=False):
-        on_errors = lambda func, path, exec_info: f"{exec_info[0]} -> {exec_info[1]}"
         jobs = self.api.get_jobs([condition])
         self.api.delete("jobs", [condition])
         if delete_file or purge:
+            on_errors = (
+                lambda func, path, exec_info: f"{exec_info[0]} -> {exec_info[1]}"
+            )
             for job in jobs:
                 job_path = Path(job["job_path"])
                 if purge:
@@ -522,32 +530,31 @@ class Transcriptor(BaseTranscriptor):
 
     def update_jobs(self, set_cond, where_cond):
         cursor = self.api.update("Jobs", [set_cond], [where_cond])
-        if cursor.rowcount > 0:
-            if "client_id" in set_cond:
-                set_cond_tuple = quote_operands(set_cond, as_tuple=True)
-                client_cond = [
-                    "".join([op[0], op[1], op[2].replace('"', "")])
-                    for op in set_cond_tuple
-                    if op.operand == "client_id"
-                ]
-                clients = self.api.get_clients(client_cond)
-                for client in clients:
-                    client_dir = self.base_dir.joinpath("clients", sc(client["name"]))
-                    jobs = self.api.get_jobs([where_cond])
-                    for job in jobs:
-                        # print(job)
-                        job_path = Path(job["job_path"])
-                        job_dir = job_path.parent
-                        parts_to_join = job_path.parts[-4:]
-                        new_job_path = client_dir.joinpath(*parts_to_join)
+        if cursor.rowcount > 0 and "client_id" in set_cond:
+            set_cond_tuple = quote_operands(set_cond, as_tuple=True)
+            client_cond = [
+                "".join([op[0], op[1], op[2].replace('"', "")])
+                for op in set_cond_tuple
+                if op.operand == "client_id"
+            ]
+            clients = self.api.get_clients(client_cond)
+            for client in clients:
+                client_dir = self.base_dir.joinpath("clients", sc(client["name"]))
+                jobs = self.api.get_jobs([where_cond])
+                for job in jobs:
+                    # print(job)
+                    job_path = Path(job["job_path"])
+                    job_dir = job_path.parent
+                    parts_to_join = job_path.parts[-4:]
+                    new_job_path = client_dir.joinpath(*parts_to_join)
 
-                        try:
-                            shutil.move(job_dir, new_job_path.parent)
-                            set_cond = "job_path = {}".format(new_job_path)
-                            where_cond = f'id = {job["job_id"]}'
-                            cursor = self.api.update("Jobs", [set_cond], [where_cond])
-                        except Exception as e:
-                            print(e)
+                    try:
+                        shutil.move(job_dir, new_job_path.parent)
+                        set_cond = f"job_path = {new_job_path}"
+                        where_cond = f'id = {job["job_id"]}'
+                        cursor = self.api.update("Jobs", [set_cond], [where_cond])
+                    except Exception as e:
+                        print(e)
 
 
 if __name__ == "__main__":

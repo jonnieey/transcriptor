@@ -1,3 +1,5 @@
+import contextlib
+
 from rich.console import Console
 from rich.table import Table
 
@@ -44,21 +46,17 @@ class ConsoleView:
         elif orientation == "hor":
             if isinstance(data, dict):
                 columns = list(data.keys())
-                try:
+                with contextlib.suppress(ValueError):
                     columns.remove("job_path")
-                except ValueError:
-                    pass
                 rows = [data[column] for column in columns]
             elif isinstance(data, (list, tuple)):
                 try:
                     columns = list(data[0].keys())
-                    try:
+                    with contextlib.suppress(ValueError):
                         columns.remove("job_path")
-                    except ValueError:
-                        pass
                     rows = [[row[column] for column in columns] for row in data]
                     generate_table(columns, rows)
-                except AttributeError as e:
+                except AttributeError:
                     columns = data[0]
                     rows = data[1:]
                     generate_table(columns, rows)

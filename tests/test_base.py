@@ -33,6 +33,7 @@ class TestTranscriptor(unittest.TestCase):
         self.assertTrue(self.temp_dir.joinpath("clients", "test_name").exists())
 
     def test_create_job(self):
+        self.app.create_client("testclient", "testclientemail")
         media_file = Path(__file__).parent.joinpath(
             "media_files", "488460 BACKUP - 22 MINS.m4a"
         )

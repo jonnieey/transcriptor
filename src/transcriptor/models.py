@@ -76,7 +76,7 @@ class ProfileModel(Model):
                 for attr, value in obj_dict.items():
                     setattr(self, attr, value)
                 return self
-        except FileNotFoundError as error:
+        except FileNotFoundError:
             touch([file_path])
             with open(file_path, "w") as fd:
                 self.save(fd)
