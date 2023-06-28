@@ -1,0 +1,25 @@
+#!/bin/bash
+OLD_DB="$1"
+NEW_DB="$2"
+
+sqlite3 "$NEW_DB" <<EOF
+DELETE FROM clients WHERE id>=1;
+DELETE FROM jobs WHERE id>=1;
+EOF
+
+sqlite3 -header -csv "$OLD_DB" <<EOF
+.output rates.csv
+SELECT r.id, r.normal, r.expedite, r.interpreted, c.rates_id FROM rates AS r JOIN clients AS c WHERE r.id = c.rates_id;
+.output clients.csv
+SELECT id, name, email FROM clients;
+.output jobs.csv
+SELECT * from jobs;
+EOF
+
+sqlite3 -csv "$NEW_DB" <<EOF
+.import clients.csv clients
+.import rates.csv rates
+.import jobs.csv jobs
+EOF
+
+rm {jobs,clients,rates}.csv
