@@ -555,7 +555,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 "Are you sure you want to delete these clients? (y/n): ",
                 default="n",
             )
-            if confirm.lower() != "n":
+            if confirm.lower() != "y":
                 return
         # where_cond = where_cond.replace("client_id", "id")
         # TODO Should cascade rates
