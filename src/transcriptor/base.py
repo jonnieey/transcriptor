@@ -23,7 +23,7 @@ from transcriptor.utils import (
     sc,
 )
 from transcriptor.utils import str_to_date as std
-from transcriptor.utils import truncate
+from transcriptor.utils import touch, truncate
 
 APP_NAME = "transcriptor4"
 
@@ -397,18 +397,19 @@ class Transcriptor(BaseTranscriptor):
         with open(cutoff_file, "r") as fd:
             return list(csv.reader(fd))
 
-    def invoice_html(self, client: list[dict], jobs: list[dict]):
+    def invoice_html(self, client: list[dict], jobs: list[dict], title=""):
         if not jobs:
             return
         invoice_counter_file = self.base_dir.joinpath(
             "clients", client[0]["name"], "invoice_counter.txt"
         )
         try:
-            with open(invoice_counter_file, "r") as fd:
-                count = fd.readline()
-                invoice_counter = 0 if count == "" else int(count)
+            inv_count = invoice_counter_file.read_text()
+            invoice_counter = 0 if inv_count == "" else int(inv_count)
         except FileNotFoundError:
             invoice_counter = 0
+            touch([invoice_counter_file])
+            invoice_counter_file.write_text(f"{invoice_counter}")
 
         profile = self.profile
         context = {
@@ -417,6 +418,7 @@ class Transcriptor(BaseTranscriptor):
             "amount": 0.0,
             "profile": profile,
             "data": {
+                "title": title,
                 "invoice_number": f"{invoice_counter + 1:05}",
                 "created": date.today().strftime(self.config.date_format),
                 "due": (datetime.today() + timedelta(days=7)).strftime(
@@ -448,7 +450,13 @@ class Transcriptor(BaseTranscriptor):
         jobs_conditions: list[list[str]] = [],
         save_pdf=False,
         save_html=False,
+        title="",
     ):
+        def increase_invoice_counter(invoice_file):
+            invoice_file = Path(invoice_file)
+            counter = invoice_file.read_text()
+            invoice_file.write_text(f"{int(counter) + 1:05}")
+
         if not client_id:
             return
         condition = f"client_id={client_id}"
@@ -464,19 +472,25 @@ class Transcriptor(BaseTranscriptor):
             return
 
         client_name = client[0]["name"]
-        invoice_dir = self.base_dir.joinpath(client_name, "invoices")
+        invoice_dir = self.base_dir.joinpath("clients", client_name, "invoices")
         mkdirp([invoice_dir])
         invoice_file_name = f"{date.today().strftime('%Y-%m-%d')}_{client_name}_invoice"
         invoice_file = invoice_dir.joinpath(invoice_file_name)
+        invoice_counter_file = self.base_dir.joinpath(
+            "clients", client_name, "invoice_counter.txt"
+        )
 
-        invoice_html = self.invoice_html(client, jobs)
+        invoice_html = self.invoice_html(client, jobs, title)
+
+        if save_pdf or save_html:
+            increase_invoice_counter(invoice_counter_file)
 
         if save_pdf:
             self.invoice_html_to_pdf(invoice_html, invoice_file.with_suffix(".pdf"))
         if save_html:
             with open(invoice_file.with_suffix(".html"), "w") as fd:
                 fd.write(invoice_html)
-        else:
+        if not save_pdf and not save_html:
             return self.invoice_html_to_md(invoice_html)
 
     def delete_clients(self, condition: str, purge=False):

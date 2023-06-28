@@ -215,6 +215,7 @@ create_invoice_parser.add_argument(
 create_invoice_parser.add_argument(
     "-l", "--to-html", action="store_true", help="Create invoice html"
 )
+create_invoice_parser.add_argument("-t", "--title", help="Invoice title")
 
 
 class TranscriptorCMD(cmd2.Cmd):
@@ -613,7 +614,11 @@ class TranscriptorCMD(cmd2.Cmd):
                 args.key_val = [conditions]
 
             inv = self.app.create_invoice(
-                client_id, [args.key_val, []], args.to_pdf, args.to_html
+                client_id,
+                [args.key_val, []],
+                args.to_pdf,
+                args.to_html,
+                args.title,
             )
             if inv:
                 ConsoleView().console.print(inv)

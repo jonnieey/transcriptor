@@ -91,6 +91,9 @@
 <body>
 	<div class="header">
 		<img alt="">
+		{% if data.title %}
+			<h1> {{data.title}} </h1>
+		{% endif %}
 		<h1>Invoice  #{{ data.invoice_number }}</h1>
 					
 	</div>
