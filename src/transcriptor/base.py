@@ -20,7 +20,7 @@ from transcriptor.utils import (
     list_from_docx_table,
     mkdirp,
     next_non_existant_file,
-    quote_operands_as_tuple,
+    quote_operands,
     sc,
 )
 from transcriptor.utils import str_to_date as std
@@ -524,7 +524,7 @@ class Transcriptor(BaseTranscriptor):
         cursor = self.api.update("Jobs", [set_cond], [where_cond])
         if cursor.rowcount > 0:
             if "client_id" in set_cond:
-                set_cond_tuple = quote_operands_as_tuple(set_cond)
+                set_cond_tuple = quote_operands(set_cond, as_tuple=True)
                 client_cond = [
                     "".join([op[0], op[1], op[2].replace('"', "")])
                     for op in set_cond_tuple
@@ -548,6 +548,7 @@ class Transcriptor(BaseTranscriptor):
                             cursor = self.api.update("Jobs", [set_cond], [where_cond])
                         except Exception as e:
                             print(e)
+
 
 if __name__ == "__main__":
     app = Transcriptor()
