@@ -53,7 +53,7 @@ BEGIN
 	SET 
 		date_submitted = CASE
 			WHEN NEW.status = 'Pending' THEN NULL
-			WHEN NEW.status = 'Done' AND NEW.date_submitted IS NULL THEN DATE("NOW")
+			WHEN NEW.status = 'Done' AND NEW.date_submitted IS NULL THEN DATE("NOW", 'localtime')
 			ELSE date_submitted
 		END
 		WHERE id = NEW.id;
