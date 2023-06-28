@@ -2,6 +2,7 @@ import csv
 import math
 import mimetypes
 import re
+from collections import namedtuple
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from fractions import Fraction
@@ -589,7 +590,10 @@ date_validator = MyValidator(is_valid_date, "Invalid date")
 gt0_validator = MyValidator(is_gt_0, "Is less than 0")
 
 
-def quote_operands(text: str) -> GeneratorType:
+tuple_operand = namedtuple("TupleOperand", ["operand", "operator", "result"])
+
+
+def quote_operands(text: str, as_tuple=False) -> GeneratorType:
     """
     Yields quoted operands from the input text
 
@@ -615,12 +619,13 @@ def quote_operands(text: str) -> GeneratorType:
 
     if operator_indices:
         cursor_index = operator_indices[0]
-        operand_text_start = re.search("[\w]", text[cursor_index + 1 :]).start()
+        operand_text_start = re.search("[\w/]", text[cursor_index:]).start()
 
         if len(operator_indices) == 1:
             # Only one operator; extract pre-text and the remaining text as the quoted text
-            pre_text = text[: cursor_index + 1 + operand_text_start]
-            quoted_text = text[cursor_index + 1 + operand_text_start :]
+            pre_text = text[:cursor_index]
+            operator = text[cursor_index : cursor_index + operand_text_start]
+            quoted_text = text[cursor_index + operand_text_start :]
 
         else:
             # Multiple operators, extract operand text between the first and second operators
@@ -629,13 +634,17 @@ def quote_operands(text: str) -> GeneratorType:
                 if len(operator_indices) > 1
                 else operator_indices[0]
             )
-            operand_text = text[
-                cursor_index + 1 + operand_text_start : next_operator_index
-            ]
-            last_space_index = text[: operator_indices[1]].rfind(" ") or 0
-            pre_text = text[: cursor_index + 1 + operand_text_start]
-            quoted_text = text[cursor_index + 1 + operand_text_start : last_space_index]
+            last_space_index = text[:next_operator_index].rfind(" ") or 0
+            pre_text = text[:cursor_index]
+            operator = text[cursor_index : cursor_index + operand_text_start]
+            quoted_text = text[cursor_index + operand_text_start : last_space_index]
 
-        yield pre_text + f'"{quoted_text}"'
+        if as_tuple is True:
+            yield tuple_operand(pre_text.strip(), operator.strip(), f'"{quoted_text}"')
+        else:
+            yield pre_text.strip() + operator + f'"{quoted_text}"'
 
-        yield from quote_operands(text[len(pre_text + quoted_text) + 1 :])
+        yield from quote_operands(
+            text[len(pre_text + quoted_text) + 1 + operand_text_start :],
+            as_tuple=as_tuple,
+        )
