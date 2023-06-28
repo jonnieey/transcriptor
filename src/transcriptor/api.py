@@ -160,7 +160,7 @@ class API:
 
         self.cursor.execute(stmt)
         self.conn.commit()
-        return self.cursor.lastrowid
+        return self.cursor
 
     def delete(
         self,

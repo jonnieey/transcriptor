@@ -528,7 +528,7 @@ class TranscriptorCMD(cmd2.Cmd):
             return
         set_cond = " ".join(args.set_cond)
         where_cond = " ".join(args.where_cond)
-        self.app.api.update("jobs", [set_cond], [where_cond])
+        self.app.update_jobs(set_cond, where_cond)
 
     def update_rates(self, args):
         if not args.set_cond or not args.where_cond:

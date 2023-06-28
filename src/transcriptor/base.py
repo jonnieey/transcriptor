@@ -20,6 +20,7 @@ from transcriptor.utils import (
     list_from_docx_table,
     mkdirp,
     next_non_existant_file,
+    quote_operands_as_tuple,
     sc,
 )
 from transcriptor.utils import str_to_date as std
@@ -519,6 +520,34 @@ class Transcriptor(BaseTranscriptor):
                 if delete_file:
                     job_path.unlink(missing_ok=True)
 
+    def update_jobs(self, set_cond, where_cond):
+        cursor = self.api.update("Jobs", [set_cond], [where_cond])
+        if cursor.rowcount > 0:
+            if "client_id" in set_cond:
+                set_cond_tuple = quote_operands_as_tuple(set_cond)
+                client_cond = [
+                    "".join([op[0], op[1], op[2].replace('"', "")])
+                    for op in set_cond_tuple
+                    if op.operand == "client_id"
+                ]
+                clients = self.api.get_clients(client_cond)
+                for client in clients:
+                    client_dir = self.base_dir.joinpath("clients", sc(client["name"]))
+                    jobs = self.api.get_jobs([where_cond])
+                    for job in jobs:
+                        # print(job)
+                        job_path = Path(job["job_path"])
+                        job_dir = job_path.parent
+                        parts_to_join = job_path.parts[-4:]
+                        new_job_path = client_dir.joinpath(*parts_to_join)
+
+                        try:
+                            shutil.move(job_dir, new_job_path.parent)
+                            set_cond = "job_path = {}".format(new_job_path)
+                            where_cond = f'id = {job["job_id"]}'
+                            cursor = self.api.update("Jobs", [set_cond], [where_cond])
+                        except Exception as e:
+                            print(e)
 
 if __name__ == "__main__":
     app = Transcriptor()
