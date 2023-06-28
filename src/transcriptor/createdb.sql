@@ -86,3 +86,16 @@ BEGIN
 		)
 		WHERE Jobs.id = New.id;
 END;
+
+CREATE TRIGGER IF NOT EXISTS update_job_rates
+	AFTER UPDATE OF client_id ON Jobs
+BEGIN
+	UPDATE Jobs
+		SET job_rate = CASE
+			WHEN LOWER(job_type) = 'normal' THEN (SELECT normal FROM Rates WHERE Rates.id = New.client_id)
+			WHEN LOWER(job_type) = 'expedite' THEN (SELECT expedite FROM Rates WHERE Rates.id = New.client_id)
+			WHEN LOWER(job_type) = 'interpreted' THEN (SELECT interpreted FROM Rates WHERE Rates.id = New.client_id)
+			ELSE job_rate
+		END
+	WHERE id = NEW.id;
+END;
