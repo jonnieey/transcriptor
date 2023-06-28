@@ -3,9 +3,12 @@ OLD_DB="$1"
 NEW_DB="$2"
 
 sqlite3 "$NEW_DB" <<EOF
-DELETE FROM clients WHERE id>=1;
-DELETE FROM jobs WHERE id>=1;
+DROP TABLE IF EXISTS Clients;
+DROP TABLE IF EXISTS Rates;
+DROP TABLE IF EXISTS Jobs;
 EOF
+
+sqlite3 "$NEW_DB" < createdb.sql
 
 sqlite3 -header -csv "$OLD_DB" <<EOF
 .output rates.csv
