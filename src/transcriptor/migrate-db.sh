@@ -2,6 +2,15 @@
 OLD_DB="$1"
 NEW_DB="$2"
 
+if [[ ! -f "$OLD_DB" ]]; then
+  echo "old db not found"
+  exit 1
+fi
+if [[ ! -f "$NEW_DB" ]]; then
+  mkdir -p "$(dirname "$NEW_DB")"
+  touch "$NEW_DB"
+fi
+
 sqlite3 "$NEW_DB" <<EOF
 DROP TABLE IF EXISTS Clients;
 DROP TABLE IF EXISTS Rates;
