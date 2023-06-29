@@ -271,7 +271,7 @@ def rel_date(days: int) -> date:
     Return:
         date object
     """
-    return datetime.today().date() + timedelta(days=days)
+    return datetime.now().date() + timedelta(days=days)
 
 
 class CSVTextBuilder:

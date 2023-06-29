@@ -347,6 +347,16 @@ class TranscriptorCMD(cmd2.Cmd):
         Ex.
            add client -n name -e email -r rates 0.4 0.3 0.2
         """
+
+        def parse_rates(rates):
+            if not rates:
+                return
+            default_dict = dict(
+                zip(["normal", "expedite", "interpreted"], [0.40, 0.60, 0.30])
+            )
+            rates_dict = dict(zip(["normal", "expedite", "interpreted"], rates))
+            return default_dict | rates_dict
+
         # name, email, rates
         try:
             get_rates = lambda: {
@@ -362,16 +372,6 @@ class TranscriptorCMD(cmd2.Cmd):
                     )
                 ),
             }
-
-            def parse_rates(rates):
-                if not rates:
-                    return
-                default_dict = dict(
-                    zip(["normal", "expedite", "interpreted"], [0.40, 0.60, 0.30])
-                )
-                rates_dict = dict(zip(["normal", "expedite", "interpreted"], rates))
-                return default_dict | rates_dict
-
             # if not args.name:
             args.name = args.name or prompt(
                 "Enter Client's name: ",
