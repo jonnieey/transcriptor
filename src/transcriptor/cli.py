@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from copy import copy
+from datetime import datetime
 
 import cmd2
 from prompt_toolkit import prompt
@@ -12,6 +13,7 @@ from transcriptor.utils import (
     date_validator,
     email_validator,
     float_validator,
+    format_date,
     get_media_duration,
     gt0_validator,
     job_file_validator,
@@ -443,15 +445,15 @@ class TranscriptorCMD(cmd2.Cmd):
                 "Enter date received: ",
                 validator=date_validator,
                 validate_while_typing=True,
+                default=datetime.now().strftime(self.app.config.date_format),
             )
-            date_due = (
-                temp_args.date_due
-                or parse_date_due(temp_args.job_file)
-                or prompt(
-                    "Enter date due: ",
-                    validator=date_validator,
-                    validate_while_typing=True,
-                )
+            date_due = temp_args.date_due or prompt(
+                "Enter date due: ",
+                validator=date_validator,
+                validate_while_typing=True,
+                default=format_date(
+                    parse_date_due(temp_args.job_file), self.app.config.date_format
+                ),
             )
             temp_args.date_received = str_to_date(
                 date_received, self.app.config.date_format
@@ -470,7 +472,7 @@ class TranscriptorCMD(cmd2.Cmd):
         def task_callback(task_file):
             temp_args = copy(args)
             temp_args.wof = temp_args.wof or prompt(
-                "Work on file? ",
+                f"Work on file? ...{'/'.join(task_file.parts[-2:])}: ",
                 validator=yes_no_validator,
             )
             if not temp_args.wof.strip().startswith(("y", "Y")):
