@@ -286,7 +286,7 @@ class CSVTextBuilder:
         self.csv_string.append(row)
 
 
-def dict_to_csv(dic: dict, headers: list = None) -> str:
+def dicts_to_csv(dics: list[dict], headers: list = None) -> str:
     """
     Convert a dictionary to a CSV string.
 
@@ -297,13 +297,13 @@ def dict_to_csv(dic: dict, headers: list = None) -> str:
         A CSV string.
     """
     if headers is None:
-        headers = []
+        headers = dics[0].keys()
     csv_builder = CSVTextBuilder()
 
     writer = csv.DictWriter(csv_builder, fieldnames=headers)
     if headers:
         writer.writeheader()
-    for row in dic:
+    for row in dics:
         writer.writerow(row)
     return "".join(csv_builder.csv_string)
 
@@ -653,3 +653,25 @@ def quote_operands(text: str, as_tuple=False) -> GeneratorType:
             text[len(pre_text + quoted_text) + 1 + operand_text_start :],
             as_tuple=as_tuple,
         )
+
+
+def dicts_to_md(data: list[dict], orientation="vert"):
+    if not data:
+        return ""
+    keys = data[0].keys()  # Assume all dictionaries have the same keys
+
+    if orientation == "hor":
+        markdown = "| " + " | ".join(keys) + " |\n"
+        markdown += "| " + " | ".join(["---"] * len(keys)) + " |\n"
+
+        for item in data:
+            markdown += "| " + " | ".join(str(item[key]) for key in keys) + " |\n"
+
+    elif orientation == "vert":
+        markdown = """"""
+        for item in data:
+            for key, value in item.items():
+                markdown += f"**{tc(key)}**: {value}"
+                markdown += "\n\n"
+        print(markdown)
+    return markdown
