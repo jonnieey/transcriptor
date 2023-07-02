@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 from tempfile import mkdtemp
 
 import cmd2_ext_test
@@ -6,6 +7,7 @@ import pytest
 
 from transcriptor.base import Transcriptor
 from transcriptor.cli import TranscriptorCMD
+from transcriptor.utils import str_to_date as std
 
 today = date.today()
 
@@ -24,39 +26,41 @@ def transcriptor_app():
     app.fixture_teardown()
 
 
-# def test_show_config(transcriptor_app):
-#     out = transcriptor_app.app_cmd("show config")
-#     assert "Date Format" in str(out.stdout).strip()
-#     assert "Base Dir" in str(out.stdout).strip()
-#
-#     # update config
-#     cmd = "update config -b /tmp/testing -d %Y=%m=%d"
-#     transcriptor_app.app_cmd(cmd)
-#     out = transcriptor_app.app_cmd("show config")
-#     assert "testing" in str(out.stdout).strip()
-#     assert "%Y=%m=%d" in str(out.stdout).strip()
-#
-# def test_show_profile(transcriptor_app):
-#     out = transcriptor_app.app_cmd("show profile")
-#     assert "First Name" in str(out.stdout).strip()
-#     assert "Country" in str(out.stdout).strip()
-#     assert "Area" in str(out.stdout).strip()
-#
-#     cmd = "update profile -f TestFName -l TestLName -a TestArea -c TestCountry"
-#     transcriptor_app.app_cmd(cmd)
-#     out = transcriptor_app.app_cmd("show profile")
-#     assert "TestFName" in str(out.stdout).strip()
-#     assert "TestLName" in str(out.stdout).strip()
-#     assert "TestArea" in str(out.stdout).strip()
-#     assert "TestCountry" in str(out.stdout).strip()
-#
-# def test_show_rates(transcriptor_app):
-#     cmd = "add client -n Anderson -e Anderson@gmail.com -r 0.3 0.4 0.5"
-#     transcriptor_app.app_cmd(cmd)
-#     out = transcriptor_app.app_cmd("show rates")
-#     assert "Expedite" in str(out.stdout).strip()
-#     assert "0.3" in str(out.stdout).strip()
-#     assert "Anderson" in str(out.stdout).strip()
+def test_show_config(transcriptor_app):
+    out = transcriptor_app.app_cmd("show config")
+    assert "Date Format" in str(out.stdout).strip()
+    assert "Base Dir" in str(out.stdout).strip()
+
+    # update config
+    cmd = "update config -b /tmp/testing -d %Y=%m=%d"
+    transcriptor_app.app_cmd(cmd)
+    out = transcriptor_app.app_cmd("show config")
+    assert "testing" in str(out.stdout).strip()
+    assert "%Y=%m=%d" in str(out.stdout).strip()
+
+
+def test_show_profile(transcriptor_app):
+    out = transcriptor_app.app_cmd("show profile")
+    assert "First Name" in str(out.stdout).strip()
+    assert "Country" in str(out.stdout).strip()
+    assert "Area" in str(out.stdout).strip()
+
+    cmd = "update profile -f TestFName -l TestLName -a TestArea -c TestCountry"
+    transcriptor_app.app_cmd(cmd)
+    out = transcriptor_app.app_cmd("show profile")
+    assert "TestFName" in str(out.stdout).strip()
+    assert "TestLName" in str(out.stdout).strip()
+    assert "TestArea" in str(out.stdout).strip()
+    assert "TestCountry" in str(out.stdout).strip()
+
+
+def test_show_rates(transcriptor_app):
+    cmd = "add client -n Anderson -e Anderson@gmail.com -r 0.3 0.4 0.5"
+    transcriptor_app.app_cmd(cmd)
+    out = transcriptor_app.app_cmd("show rates")
+    assert "Expedite" in str(out.stdout).strip()
+    assert "0.3" in str(out.stdout).strip()
+    assert "Anderson" in str(out.stdout).strip()
 
 
 def test_add_clients(transcriptor_app):
@@ -88,7 +92,6 @@ def test_add_clients(transcriptor_app):
     assert "" == str(out.stdout).strip()
 
 
-#
 def test_add_job(transcriptor_app):
     # TODO use mocks
     cmd = "add client -n TestClient -e TestClient@gmail.com -r 0.3 0.4 0.5"
@@ -109,8 +112,8 @@ def test_add_job(transcriptor_app):
     assert "Done" in str(out.stdout).strip()
 
     # delete job
-    cmd = "delete jobs -w id=1 -P"
-    transcriptor_app.app_cmd(cmd)
+    cmd = "delete jobs -w 'id>=1' -P"
+    out = transcriptor_app.app_cmd(cmd)
     out = transcriptor_app.app_cmd("show jobs -a")
     assert "2023-05-16" not in str(out.stdout).strip()
     assert "2023-05-12" not in str(out.stdout).strip()
@@ -124,10 +127,31 @@ def test_purge_jobs_delete_client(transcriptor_app):
     cmd = "add job -c 1 -f '/home/kamikaze/.python/projects/transcriptor/tests/media_files/488460 BACKUP - 22 MINS.m4a' -r 2023-05-12 -d 2023-05-17 -w Yes -t Normal -T zd -N 'Testing one 2' -q 50"
     transcriptor_app.app_cmd(cmd)
     cmd = "delete client -w client_id=1 -P"
-    out = transcriptor_app.app_cmd(cmd)
+    transcriptor_app.app_cmd(cmd)
     out = transcriptor_app.app_cmd("show clients")
     assert "TestClient" not in str(out.stdout).strip()
     assert "" == str(out.stdout).strip()
     out = transcriptor_app.app_cmd("show jobs")
     assert "2023-05-12" not in str(out.stdout).strip()
     assert "" == str(out.stdout).strip()
+
+
+def test_purge_files(transcriptor_app):
+    cmd = "add client -n TestClient -e TestClient@gmail.com -r 0.3 0.4 0.5"
+    transcriptor_app.app_cmd(cmd)
+    cmd = "add job -c 1 -f '/home/kamikaze/.python/projects/transcriptor/tests/media_files/488460 BACKUP - 22 MINS.m4a' -r 2023-05-12 -d 2023-05-17 -w Yes -t Normal -T zd -N 'Testing one 2' -q 50"
+    transcriptor_app.app_cmd(cmd)
+    date_r = std("2023-05-12", "%Y-%m-%d")
+    date_d = std("2023-05-17", "%Y-%m-%d")
+    job_file = Path(transcriptor_app.app.config.base_dir).joinpath(
+        "clients",
+        "TestClient",
+        f"{date_r.year}",
+        f'{date_r.strftime("%B")}',
+        f"{date_r.strftime('%d_%a')}_488460_DUE_{date_d.strftime('%d_%a')}",
+        "488460 BACKUP - 22 MINS.m4a",
+    )
+    assert job_file.exists() is True
+    cmd = "purge -P -w 'job_id>=1'"
+    transcriptor_app.app_cmd(cmd)
+    assert job_file.exists() is False
