@@ -210,7 +210,7 @@ invoice_subparsers = invoice_parser.add_subparsers(
 create_invoice_parser = invoice_subparsers.add_parser("create", help="Create Invoice")
 create_invoice_parser.add_argument("-c", "--client-id", help="client id")
 
-create_invoice_parser.add_argument("-v", "--key-val", nargs="*", help="Show jobs")
+create_invoice_parser.add_argument("-v", "--key-val", help="Show jobs")
 create_invoice_parser.add_argument(
     "-p", "--to-pdf", action="store_true", help="Create invoice PDF"
 )
@@ -218,6 +218,12 @@ create_invoice_parser.add_argument(
     "-l", "--to-html", action="store_true", help="Create invoice html"
 )
 create_invoice_parser.add_argument("-t", "--title", help="Invoice title")
+create_invoice_parser.add_argument(
+    "-T", "--table", action="store_true", help="show cutoff table"
+)
+create_invoice_parser.add_argument(
+    "-P", "--no-prompt", action="store_true", help="Do not prompt"
+)
 
 purge_files_parser = base_subparsers.add_parser("purge", help="Invoice commands")
 purge_files_subparsers = purge_files_parser.add_subparsers(
@@ -602,22 +608,46 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def create_invoice(self, args):
         try:
-            if args.client_id:
-                client_id = args.client_id
-
-            elif self.show_clients({}) == 1:
+            if not args.client_id and self.show_clients({}) == 1:
+                return
+            if args.no_prompt and not args.client_id:
+                print("Error : No client id provided")
                 return
             else:
-                client_id = int(prompt("Enter client id: ", validator=gt0_validator))
-            args.key_val = args.key_val or []
-            conditions = f"client_id={client_id} date_submitted!=NULL"
-            if args.key_val:
-                args.key_val[0] += f" {conditions}"
-            else:
-                args.key_val = [conditions]
+                args.client_id = args.client_id or int(
+                    prompt("Enter client id: ", validator=gt0_validator)
+                )
+
+            if not args.table:
+                args.key_val = args.key_val or []
+                conditions = f"client_id={args.client_id} date_submitted!=NULL"
+                if args.key_val:
+                    args.key_val[0] += f" {conditions}"
+                else:
+                    args.key_val = [conditions]
+
+            if not args.no_prompt and args.table and not args.key_val:
+                cutoff_list = self.app.load_cutoffs()
+                for idx, row in enumerate(cutoff_list):
+                    if idx == 0:
+                        row.insert(0, "")
+                    else:
+                        row.insert(0, idx)
+                ConsoleView().print_table(cutoff_list, orientation="hor")
+                cutoff = int(
+                    prompt(
+                        "Enter DEPOSIT date number (on second column): ",
+                        validator=gt0_validator,
+                    )
+                )
+                _, start, _ = cutoff_list[cutoff - 1]
+                _, end, _ = cutoff_list[cutoff]
+
+                cutoff_condition = f"date_submitted>{start} date_submitted<={end} date_submitted != NULL amount > amount_paid"
+                args.key_val = [f"client_id={args.client_id} {cutoff_condition}"]
 
             if inv := self.app.create_invoice(
-                client_id,
+                args.client_id,
                 [args.key_val, []],
                 args.to_pdf,
                 args.to_html,

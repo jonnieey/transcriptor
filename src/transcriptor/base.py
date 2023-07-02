@@ -420,7 +420,7 @@ class Transcriptor(BaseTranscriptor):
 
         profile = self.profile
         context = {
-            "client": client,
+            "client": client[0],
             "jobs": jobs,
             "amount": 0.0,
             "profile": profile,
