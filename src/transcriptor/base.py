@@ -514,8 +514,8 @@ class Transcriptor(BaseTranscriptor):
                     shutil.rmtree(client_dir, onerror=on_errors)
 
     def delete_jobs(self, condition, delete_file=False, purge=False):
-        jobs = self.api.get_jobs([condition])
-        self.api.delete("jobs", [condition])
+        jobs = self.api.get_jobs(condition)
+        self.api.delete("jobs", condition)
         if delete_file or purge:
             on_errors = (
                 lambda func, path, exec_info: f"{exec_info[0]} -> {exec_info[1]}"
@@ -556,13 +556,27 @@ class Transcriptor(BaseTranscriptor):
                     except Exception as e:
                         print(e)
 
+    def purge_files(self, jobs):
+        for job in jobs:
+            job_path = Path(job["job_path"])
+            if job_path.exists():
+                if job_path.is_dir():
+                    purge_path = job_path
+                elif job_path.is_file():
+                    purge_path = job_path.parent
+
+            unwanted_files = filter(
+                lambda x: x, list(purge_path.glob("**/*[mwzM][p4aiP][3avp3]"))
+            )
+            [p.unlink(missing_ok=True) for p in unwanted_files]
+
 
 if __name__ == "__main__":
     app = Transcriptor()
     cond = "client_id=1"
     client = app.api.get_clients([cond])
-    wc = "date_submitted>=2023-05-02 date_submitted<=2023-05-15"
+    wc = "date_submitted>=2023-06-02"
     jobs = app.api.get_jobs([wc])
     # print(app.create_invoice_html(client[0], jobs))
     # print(app.create_invoice_md(client[0], jobs))
-    print(app.create_invoice(client[0], jobs, save_pdf=False))
+    # app.purge_files(jobs)

@@ -219,17 +219,22 @@ create_invoice_parser.add_argument(
 )
 create_invoice_parser.add_argument("-t", "--title", help="Invoice title")
 
+purge_files_parser = base_subparsers.add_parser("purge", help="Invoice commands")
+purge_files_subparsers = purge_files_parser.add_subparsers(
+    title="subcommands", help="subcommand help"
+)
+purge_files_parser.add_argument("-w", "--where", nargs="+", help="where conditions")
+purge_files_parser.add_argument(
+    "-P", "--no-prompt", action="store_true", help="Do not prompt"
+)
+
 
 class TranscriptorCMD(cmd2.Cmd):
     prompt = "(trans) "
 
     def __init__(self, app=None):
         super().__init__()
-        if app is None:
-            self.app = Transcriptor()
-        else:
-            self.app = app
-
+        self.app = Transcriptor() if app is None else app
         self.debug = True
         self.add_settable(cmd2.Settable("debug", bool, "debug", self))
 
@@ -314,8 +319,7 @@ class TranscriptorCMD(cmd2.Cmd):
             args.key_val = []
         elif not args.key_val:
             args.key_val = ["status=Pending"]
-        jobs = self.app.api.get_jobs(args.key_val)
-        if jobs:
+        if jobs := self.app.api.get_jobs(args.key_val):
             ConsoleView().print_table(jobs, orientation="hor")
 
     #
@@ -396,8 +400,7 @@ class TranscriptorCMD(cmd2.Cmd):
     add_client_parser.set_defaults(func=add_client)
 
     def add_job(self, args):
-        """
-        Add job
+        """Add job
         Ex.
            add job -f file ...
         """
@@ -567,9 +570,8 @@ class TranscriptorCMD(cmd2.Cmd):
     def delete_jobs(self, args):
         if not args.where_cond:
             return
-        where_cond = " ".join(args.where_cond)
         if not args.no_prompt:
-            jobs = self.app.api.get_jobs([where_cond])
+            jobs = self.app.api.get_jobs(args.where_cond)
             ConsoleView().print_table(jobs, orientation="hor") if jobs else ""
             confirm = prompt(
                 "Are you sure you want to delete these jobs? (y/n): ",
@@ -577,7 +579,7 @@ class TranscriptorCMD(cmd2.Cmd):
             )
             if confirm.lower() != "y":
                 return
-        self.app.delete_jobs(where_cond, args.delete, args.purge)
+        self.app.delete_jobs(args.where_cond, args.delete, args.purge)
 
     delete_jobs_parser.set_defaults(func=delete_jobs)
 
@@ -629,6 +631,23 @@ class TranscriptorCMD(cmd2.Cmd):
 
     create_invoice_parser.set_defaults(func=create_invoice)
 
+    def purge_files(self, args):
+        if not args.where:
+            return
+
+        jobs = self.app.api.get_jobs(args.where)
+        if not args.no_prompt:
+            ConsoleView().print_table(jobs, orientation="hor") if jobs else ""
+            confirm = prompt(
+                "Are you sure you want to delete these job files? (y/n): ",
+                default="n",
+            )
+            if confirm.lower() != "y":
+                return
+        self.app.purge_files(jobs)
+
+    purge_files_parser.set_defaults(func=purge_files)
+
     @cmd2.with_argparser(show_parser)
     def do_show(self, args):
         """
@@ -677,6 +696,17 @@ class TranscriptorCMD(cmd2.Cmd):
     def do_invoice(self, args):
         """
         Invoice command help
+        """
+        func = getattr(args, "func", None)
+        if func is not None:
+            func(self, args)
+        else:
+            self.do_help("base")
+
+    @cmd2.with_argparser(purge_files_parser)
+    def do_purge(self, args):
+        """
+        Purge command help
         """
         func = getattr(args, "func", None)
         if func is not None:
