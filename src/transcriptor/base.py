@@ -408,7 +408,7 @@ class Transcriptor(BaseTranscriptor):
         if not jobs:
             return
         invoice_counter_file = self.base_dir.joinpath(
-            "clients", client[0]["name"], "invoice_counter.txt"
+            "clients", sc(client[0]["name"]), "invoice_counter.txt"
         )
         try:
             inv_count = invoice_counter_file.read_text()
@@ -427,8 +427,8 @@ class Transcriptor(BaseTranscriptor):
             "data": {
                 "title": title,
                 "invoice_number": f"{invoice_counter + 1:05}",
-                "created": date.today().strftime(self.config.date_format),
-                "due": (datetime.today() + timedelta(days=7)).strftime(
+                "created": datetime.now().strftime(self.config.date_format),
+                "due": (datetime.now() + timedelta(days=7)).strftime(
                     self.config.date_format
                 ),
             },
@@ -478,7 +478,7 @@ class Transcriptor(BaseTranscriptor):
             return
 
         client_name = client[0]["name"]
-        invoice_dir = self.base_dir.joinpath("clients", client_name, "invoices")
+        invoice_dir = self.base_dir.joinpath("clients", sc(client_name), "invoices")
         mkdirp([invoice_dir])
         invoice_file_name = f"{date.today().strftime('%Y-%m-%d')}_{client_name}_invoice"
         invoice_file = invoice_dir.joinpath(invoice_file_name)
