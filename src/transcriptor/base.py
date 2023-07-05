@@ -544,12 +544,19 @@ class Transcriptor(BaseTranscriptor):
                 for job in jobs:
                     # print(job)
                     job_path = Path(job["job_path"])
-                    job_dir = job_path.parent
-                    parts_to_join = job_path.parts[-4:]
-                    new_job_path = client_dir.joinpath(*parts_to_join)
+                    if job_path.is_dir():
+                        job_dir = job_path
+                        parts_to_join = job_path.parts[-3:]
+                        new_job_dir = client_dir.joinpath(*parts_to_join)
+                        new_job_path = new_job_dir
+                    else:
+                        job_dir = job_path.parent
+                        parts_to_join = job_path.parts[-4:]
+                        new_job_path = client_dir.joinpath(*parts_to_join)
+                        new_job_dir = new_job_path.parent
 
                     try:
-                        shutil.move(job_dir, new_job_path.parent)
+                        shutil.move(job_dir, new_job_dir)
                         set_cond = f"job_path = {new_job_path}"
                         where_cond = f'id = {job["job_id"]}'
                         cursor = self.api.update("Jobs", [set_cond], [where_cond])
