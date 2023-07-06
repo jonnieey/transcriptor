@@ -164,6 +164,8 @@ class TranscriptorApp(App):
     BINDINGS = [
         ("ctrl+b", "toggle_client_list", "Clients"),
         ("ctrl+t", "change_cursor_type", "Cursor Type"),
+        ("ctrl+n", "next_tab", "next tab"),
+        ("ctrl+p", "previous_tab", "previous tab"),
     ]
     cursors = cycle(["column", "row", "cell"])
 
@@ -211,10 +213,10 @@ class TranscriptorApp(App):
                 ):
                     self.query_one("#md-invoice").update(invoice)
 
-    def key_n(self):
+    def action_next_tab(self):
         self.query_one(Tabs).action_next_tab()
 
-    def key_p(self):
+    def action_previous_tab(self):
         self.query_one(Tabs).action_previous_tab()
 
     def update_tabs(self, client_id):
