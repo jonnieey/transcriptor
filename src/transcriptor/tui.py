@@ -7,9 +7,9 @@ import contextlib
 from itertools import cycle
 
 from textual.app import App
-from textual.containers import Container, Horizontal, VerticalScroll
+from textual.containers import Container, Grid, Horizontal, VerticalScroll
 from textual.reactive import reactive
-from textual.screen import Screen
+from textual.screen import ModalScreen, Screen
 from textual.widgets import (
     Button,
     DataTable,
@@ -30,13 +30,31 @@ from transcriptor.utils import dicts_to_md
 transapp = Transcriptor()
 
 
+class QuitScreen(ModalScreen):
+    def compose(self):
+        yield Grid(
+            Label("Are you sure you want to quit", id="question"),
+            Button("Quit", variant="error", id="quit"),
+            Button("Cancel", variant="primary", id="cancel"),
+            id="dialog",
+        )
+
+    def on_button_pressed(self, event):
+        if event.button.id == "quit":
+            self.dismiss(True)
+        else:
+            self.dismiss(False)
+
+
 class ClientsList(VerticalScroll):
     def compose(self):
         if clients := transapp.api.get_clients():
             for client in clients:
                 btn_label = client["name"]
                 btn_id = client["client_id"]
-                yield Button(label=btn_label, id=f"client-{btn_id}")
+                yield Button(
+                    label=btn_label, id=f"client-{btn_id}", classes="clientbtn"
+                )
 
         else:
             yield Button("No Clients")
@@ -166,6 +184,7 @@ class TranscriptorApp(App):
         ("ctrl+t", "change_cursor_type", "Cursor Type"),
         ("ctrl+n", "next_tab", "next tab"),
         ("ctrl+p", "previous_tab", "previous tab"),
+        ("q", "request_quit", "Quit"),
     ]
     cursors = cycle(["column", "row", "cell"])
 
@@ -173,6 +192,13 @@ class TranscriptorApp(App):
 
     def on_mount(self):
         self.push_screen(TranscriptorScreen())
+
+    def action_request_quit(self):
+        def check_quit(quit):
+            if quit:
+                self.exit()
+
+        self.push_screen(QuitScreen(), check_quit)
 
     def action_toggle_client_list(self):
         client_list = self.query_one(ClientsList)
@@ -216,7 +242,7 @@ class TranscriptorApp(App):
     def action_next_tab(self):
         self.query_one(Tabs).action_next_tab()
 
-    def action_previous_tab(self):
+    def previous_tab(self):
         self.query_one(Tabs).action_previous_tab()
 
     def update_tabs(self, client_id):
