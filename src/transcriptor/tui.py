@@ -22,6 +22,7 @@ from textual.widgets import (
     TabPane,
     Tabs,
 )
+from textual.widgets.data_table import RowDoesNotExist
 
 from transcriptor.base import Transcriptor
 from transcriptor.utils import dicts_to_md
@@ -110,13 +111,28 @@ class SortableTable(DataTable):
 
 class GenerateInvoice(Container):
     def compose(self):
-        yield Label("Client Name: ", id="invoice-client-name")
-        yield Label("From: ")
-        yield Input(placeholder="From", id="invoice-from")
-        yield Label("To: ")
-        yield Input(placeholder="To", id="invoice-to")
-        yield Button("Generate", id="invoice-btn", disabled=True)
-        yield VerticalScroll(Markdown(id="md-invoice"), id="invoice-md-container")
+        yield Container(
+            Label("From: "),
+            Input(placeholder="From", id="invoice-from"),
+            Label("To: "),
+            Input(placeholder="To", id="invoice-to"),
+            Button("Generate", id="invoice-btn", disabled=True),
+            classes="box",
+        )
+        yield DataTable(id="cutoffs-table", classes="box")
+        yield VerticalScroll(
+            Markdown(id="md-invoice"), id="invoice-md-container", classes="box"
+        )
+
+    def on_data_table_cell_selected(self, event):
+        column = event.coordinate.column
+        if column == 1:
+            # TODO When start doesn't exist popup prompt window
+            with contextlib.suppress(RowDoesNotExist):
+                start = event.data_table.get_row_at(event.coordinate.row - 1)[0]
+                end = event.data_table.get_row_at(event.coordinate.row)[0]
+                self.query_one("#invoice-from").value = start
+                self.query_one("#invoice-to").value = end
 
 
 class ClientTabs(VerticalScroll):
@@ -129,7 +145,6 @@ class ClientTabs(VerticalScroll):
             with TabPane("Invoice", id="invoice"):
                 yield Horizontal(
                     GenerateInvoice(id="gen-invoice"),
-                    DataTable(id="cutoffs-table"),
                     id="invoice-container",
                 )
 
@@ -185,7 +200,7 @@ class TranscriptorApp(App):
             start = self.query_one("#invoice-from").value
             end = self.query_one("#invoice-to").value
             if all([start, end]):
-                invoice = transapp.create_invoice(
+                if invoice := transapp.create_invoice(
                     client_id=self.client_id,
                     jobs_conditions=[
                         [
@@ -193,8 +208,8 @@ class TranscriptorApp(App):
                         ],
                         [],
                     ],
-                )
-                self.query_one("#md-invoice").update(invoice)
+                ):
+                    self.query_one("#md-invoice").update(invoice)
 
     def key_n(self):
         self.query_one(Tabs).action_next_tab()
