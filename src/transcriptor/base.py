@@ -3,7 +3,7 @@ import re
 import shutil
 import zipfile
 from copy import copy
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -404,19 +404,16 @@ class Transcriptor(BaseTranscriptor):
         with open(cutoff_file, "r") as fd:
             return list(csv.reader(fd))
 
-    def invoice_html(self, client: list[dict], jobs: list[dict], title=""):
+    def invoice_html(
+        self,
+        client: list[dict],
+        jobs: list[dict],
+        title="",
+        invoice_count=0,
+        deposit_date="",
+    ):
         if not jobs:
             return
-        invoice_counter_file = self.base_dir.joinpath(
-            "clients", sc(client[0]["name"]), "invoice_counter.txt"
-        )
-        try:
-            inv_count = invoice_counter_file.read_text()
-            invoice_counter = 0 if inv_count == "" else int(inv_count)
-        except FileNotFoundError:
-            invoice_counter = 0
-            touch([invoice_counter_file])
-            invoice_counter_file.write_text(f"{invoice_counter}")
 
         profile = self.profile
         context = {
@@ -426,11 +423,9 @@ class Transcriptor(BaseTranscriptor):
             "profile": profile,
             "data": {
                 "title": title,
-                "invoice_number": f"{invoice_counter + 1:05}",
+                "invoice_number": f"{invoice_count + 1:05}",
                 "created": datetime.now().strftime(self.config.date_format),
-                "due": (datetime.now() + timedelta(days=7)).strftime(
-                    self.config.date_format
-                ),
+                "due": deposit_date,
             },
         }
 
@@ -458,11 +453,6 @@ class Transcriptor(BaseTranscriptor):
         save_html=False,
         title="",
     ):
-        def increase_invoice_counter(invoice_file):
-            invoice_file = Path(invoice_file)
-            counter = invoice_file.read_text()
-            invoice_file.write_text(f"{int(counter) + 1:05}")
-
         if not client_id:
             return
         condition = f"client_id={client_id}"
@@ -477,16 +467,47 @@ class Transcriptor(BaseTranscriptor):
         if not jobs:
             return
 
+        def increase_invoice_counter(invoice_counter_file):
+            invoice_counter_file = Path(invoice_counter_file)
+            counter = invoice_counter_file.read_text()
+            invoice_counter_file.write_text(f"{int(counter) + 1:05}")
+
+        def invoice_counter(invoice_counter_file):
+            try:
+                inv_count = invoice_counter_file.read_text()
+                invoice_counter = 0 if inv_count == "" else int(inv_count)
+            except FileNotFoundError:
+                invoice_counter = 0
+                touch([invoice_counter_file])
+                invoice_counter_file.write_text(f"{invoice_counter}")
+            return invoice_counter
+
+        invoice_counter_file = self.base_dir.joinpath(
+            "clients", sc(client[0]["name"]), "invoice_counter.txt"
+        )
+        invoice_count = invoice_counter(invoice_counter_file)
+
+        jobs_cond_as_tuple = quote_operands(jobs_conditions[0][0], as_tuple=True)
+        date_submitted_conds = [
+            x
+            for x in list(jobs_cond_as_tuple)
+            if x.result != '"NULL"' and x.operand == "date_submitted"
+        ]
+        cutoff_date = max(
+            date_submitted_conds[0].result.strip('"'),
+            date_submitted_conds[1].result.strip('"'),
+        )
+        deposit_date = dict(self.load_cutoffs()).get(cutoff_date, "")
+
         client_name = client[0]["name"]
         invoice_dir = self.base_dir.joinpath("clients", sc(client_name), "invoices")
         mkdirp([invoice_dir])
         invoice_file_name = f"{date.today().strftime('%Y-%m-%d')}_{client_name}_invoice"
         invoice_file = invoice_dir.joinpath(invoice_file_name)
-        invoice_counter_file = self.base_dir.joinpath(
-            "clients", client_name, "invoice_counter.txt"
-        )
 
-        invoice_html = self.invoice_html(client, jobs, title)
+        invoice_html = self.invoice_html(
+            client, jobs, title, invoice_count, deposit_date
+        )
 
         if save_pdf or save_html:
             increase_invoice_counter(invoice_counter_file)
