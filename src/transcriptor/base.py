@@ -494,8 +494,7 @@ class Transcriptor(BaseTranscriptor):
             if x.result != '"NULL"' and x.operand == "date_submitted"
         ]
         cutoff_date = max(
-            date_submitted_conds[0].result.strip('"'),
-            date_submitted_conds[1].result.strip('"'),
+            list(map(lambda x: x.result.strip('"'), date_submitted_conds))
         )
         deposit_date = dict(self.load_cutoffs()).get(cutoff_date, "")
 
