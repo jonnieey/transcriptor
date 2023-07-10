@@ -148,27 +148,21 @@ update_profile_parser.add_argument(
 update_client_parser = update_subparsers.add_parser("client", help="update client")
 
 update_client_parser.add_argument("-s", "--set-cond", nargs="*", help="Set condition")
-update_client_parser.add_argument(
-    "-w", "--where", nargs="*", help="Filter condition"
-)
+update_client_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
 update_client_parser.add_argument(
     "-m", "--many", nargs="*", help="Allow multiple updates"
 )
 
 update_jobs_parser = update_subparsers.add_parser("jobs", help="update job")
-update_jobs_parser.add_argument("-s", "--set", nargs="*", help="Set condition")
-update_jobs_parser.add_argument(
-    "-w", "--where", nargs="*", help="Filter condition"
-)
+update_jobs_parser.add_argument("-s", "--set-cond", nargs="*", help="Set condition")
+update_jobs_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
 update_jobs_parser.add_argument(
     "-m", "--many", nargs="*", help="Allow multiple updates"
 )
 #
 update_rates_parser = update_subparsers.add_parser("rates", help="update rate")
 update_rates_parser.add_argument("-s", "--set-cond", nargs="*", help="Set condition")
-update_rates_parser.add_argument(
-    "-w", "--where", nargs="*", help="Filter condition"
-)
+update_rates_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
 update_rates_parser.add_argument(
     "-m", "--many", nargs="*", help="Allow multiple updates"
 )
@@ -177,9 +171,7 @@ delete_subparsers = delete_parser.add_subparsers(
     title="subcommands", help="subcommand help"
 )
 delete_client_parser = delete_subparsers.add_parser("client", help="delete client")
-delete_client_parser.add_argument(
-    "-w", "--where", nargs="*", help="Filter condition"
-)
+delete_client_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
 delete_client_parser.add_argument(
     "-P", "--no-prompt", action="store_true", help="Do not prompt"
 )
@@ -188,9 +180,7 @@ delete_client_parser.add_argument(
 )
 
 delete_jobs_parser = delete_subparsers.add_parser("jobs", help="delete job")
-delete_jobs_parser.add_argument(
-    "-w", "--where", nargs="*", help="Filter condition"
-)
+delete_jobs_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
 delete_jobs_parser.add_argument(
     "-P", "--no-prompt", action="store_true", help="Do not prompt"
 )
@@ -201,9 +191,7 @@ delete_jobs_parser.add_argument(
     "-d", "--delete", action="store_true", help="Delete task file"
 )
 delete_rates_parser = delete_subparsers.add_parser("rates", help="delete rate")
-delete_rates_parser.add_argument(
-    "-w", "--where", nargs="*", help="Filter condition"
-)
+delete_rates_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
 
 invoice_parser = base_subparsers.add_parser("invoice", help="Invoice commands")
 invoice_subparsers = invoice_parser.add_subparsers(
@@ -212,7 +200,7 @@ invoice_subparsers = invoice_parser.add_subparsers(
 create_invoice_parser = invoice_subparsers.add_parser("create", help="Create Invoice")
 create_invoice_parser.add_argument("-c", "--client-id", help="client id")
 
-create_invoice_parser.add_argument("-w", "--where", nargs='*', help="Filter criteria")
+create_invoice_parser.add_argument("-w", "--where", nargs="*", help="Filter criteria")
 create_invoice_parser.add_argument(
     "-p", "--to-pdf", action="store_true", help="Create invoice PDF"
 )
@@ -328,7 +316,7 @@ class TranscriptorCMD(cmd2.Cmd):
         elif not args.where:
             args.where = ["status=Pending"]
         else:
-            args.where = [' '.join(args.where)]
+            args.where = [" ".join(args.where)]
         if jobs := self.app.api.get_jobs(args.where):
             ConsoleView().print_table(jobs, orientation="hor")
 
@@ -626,7 +614,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 conditions = f"client_id={args.client_id} date_submitted!=NULL"
                 if args.where:
                     args.where.append(f" {conditions}")
-                    args.where = [' '.join(args.where)]
+                    args.where = [" ".join(args.where)]
                 else:
                     args.where = [conditions]
 

@@ -1,3 +1,4 @@
+import contextlib
 import csv
 import re
 import shutil
@@ -497,7 +498,14 @@ class Transcriptor(BaseTranscriptor):
             list(map(lambda x: x.result.strip('"'), date_submitted_conds))
         )
         deposit_date = dict(self.load_cutoffs()).get(cutoff_date, "")
-
+        if not deposit_date:
+            with contextlib.suppress(Exception):
+                today = datetime.now().strftime(self.config.date_format)
+                cutoffs = self.load_cutoffs()[1:]
+                for idx, i in enumerate(cutoffs):
+                    if i[0] > today:
+                        deposit_date = cutoffs[idx - 1][1]
+                        break
         client_name = client[0]["name"]
         invoice_dir = self.base_dir.joinpath("clients", sc(client_name), "invoices")
         mkdirp([invoice_dir])
