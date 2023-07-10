@@ -7,9 +7,9 @@ import contextlib
 from itertools import cycle
 
 from textual.app import App
-from textual.containers import Container, Horizontal, VerticalScroll
+from textual.containers import Container, Grid, Horizontal, VerticalScroll
 from textual.reactive import reactive
-from textual.screen import Screen
+from textual.screen import ModalScreen, Screen
 from textual.widgets import (
     Button,
     DataTable,
@@ -22,11 +22,28 @@ from textual.widgets import (
     TabPane,
     Tabs,
 )
+from textual.widgets.data_table import RowDoesNotExist
 
 from transcriptor.base import Transcriptor
 from transcriptor.utils import dicts_to_md
 
 transapp = Transcriptor()
+
+
+class QuitScreen(ModalScreen):
+    def compose(self):
+        yield Grid(
+            Label("Are you sure you want to quit", id="question"),
+            Button("Quit", variant="error", id="quit"),
+            Button("Cancel", variant="primary", id="cancel"),
+            id="dialog",
+        )
+
+    def on_button_pressed(self, event):
+        if event.button.id == "quit":
+            self.dismiss(True)
+        else:
+            self.dismiss(False)
 
 
 class ClientsList(VerticalScroll):
@@ -35,7 +52,9 @@ class ClientsList(VerticalScroll):
             for client in clients:
                 btn_label = client["name"]
                 btn_id = client["client_id"]
-                yield Button(label=btn_label, id=f"client-{btn_id}")
+                yield Button(
+                    label=btn_label, id=f"client-{btn_id}", classes="clientbtn"
+                )
 
         else:
             yield Button("No Clients")
@@ -110,13 +129,28 @@ class SortableTable(DataTable):
 
 class GenerateInvoice(Container):
     def compose(self):
-        yield Label("Client Name: ", id="invoice-client-name")
-        yield Label("From: ")
-        yield Input(placeholder="From", id="invoice-from")
-        yield Label("To: ")
-        yield Input(placeholder="To", id="invoice-to")
-        yield Button("Generate", id="invoice-btn", disabled=True)
-        yield VerticalScroll(Markdown(id="md-invoice"), id="invoice-md-container")
+        yield Container(
+            Label("From: "),
+            Input(placeholder="From", id="invoice-from"),
+            Label("To: "),
+            Input(placeholder="To", id="invoice-to"),
+            Button("Generate", id="invoice-btn", disabled=True),
+            classes="box",
+        )
+        yield DataTable(id="cutoffs-table", classes="box")
+        yield VerticalScroll(
+            Markdown(id="md-invoice"), id="invoice-md-container", classes="box"
+        )
+
+    def on_data_table_cell_selected(self, event):
+        column = event.coordinate.column
+        if column == 1:
+            # TODO When start doesn't exist popup prompt window
+            with contextlib.suppress(RowDoesNotExist):
+                start = event.data_table.get_row_at(event.coordinate.row - 1)[0]
+                end = event.data_table.get_row_at(event.coordinate.row)[0]
+                self.query_one("#invoice-from").value = start
+                self.query_one("#invoice-to").value = end
 
 
 class ClientTabs(VerticalScroll):
@@ -129,7 +163,6 @@ class ClientTabs(VerticalScroll):
             with TabPane("Invoice", id="invoice"):
                 yield Horizontal(
                     GenerateInvoice(id="gen-invoice"),
-                    DataTable(id="cutoffs-table"),
                     id="invoice-container",
                 )
 
@@ -149,6 +182,9 @@ class TranscriptorApp(App):
     BINDINGS = [
         ("ctrl+b", "toggle_client_list", "Clients"),
         ("ctrl+t", "change_cursor_type", "Cursor Type"),
+        ("ctrl+n", "next_tab", "next tab"),
+        ("ctrl+p", "previous_tab", "previous tab"),
+        ("q", "request_quit", "Quit"),
     ]
     cursors = cycle(["column", "row", "cell"])
 
@@ -156,6 +192,13 @@ class TranscriptorApp(App):
 
     def on_mount(self):
         self.push_screen(TranscriptorScreen())
+
+    def action_request_quit(self):
+        def check_quit(quit):
+            if quit:
+                self.exit()
+
+        self.push_screen(QuitScreen(), check_quit)
 
     def action_toggle_client_list(self):
         client_list = self.query_one(ClientsList)
@@ -185,7 +228,7 @@ class TranscriptorApp(App):
             start = self.query_one("#invoice-from").value
             end = self.query_one("#invoice-to").value
             if all([start, end]):
-                invoice = transapp.create_invoice(
+                if invoice := transapp.create_invoice(
                     client_id=self.client_id,
                     jobs_conditions=[
                         [
@@ -193,13 +236,13 @@ class TranscriptorApp(App):
                         ],
                         [],
                     ],
-                )
-                self.query_one("#md-invoice").update(invoice)
+                ):
+                    self.query_one("#md-invoice").update(invoice)
 
-    def key_n(self):
+    def action_next_tab(self):
         self.query_one(Tabs).action_next_tab()
 
-    def key_p(self):
+    def previous_tab(self):
         self.query_one(Tabs).action_previous_tab()
 
     def update_tabs(self, client_id):
