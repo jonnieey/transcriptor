@@ -600,10 +600,8 @@ class Transcriptor(BaseTranscriptor):
                 elif job_path.is_file():
                     purge_path = job_path.parent
 
-            unwanted_files = filter(
-                lambda x: x, list(purge_path.glob("**/*[mwzM][p4aiP][3avp3]"))
-            )
-            [p.unlink(missing_ok=True) for p in unwanted_files]
+                unwanted_files = list(purge_path.glob("**/*[mwzM][p4aiP][3avp3]"))
+                [p.unlink(missing_ok=True) for p in unwanted_files]
 
 
 if __name__ == "__main__":

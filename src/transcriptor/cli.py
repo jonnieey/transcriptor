@@ -656,8 +656,8 @@ class TranscriptorCMD(cmd2.Cmd):
     def purge_files(self, args):
         if not args.where:
             return
-
-        jobs = self.app.api.get_jobs(args.where)
+        args.where = " ".join(args.where)
+        jobs = self.app.api.get_jobs([args.where])
         if not args.no_prompt:
             ConsoleView().print_table(jobs, orientation="hor") if jobs else ""
             confirm = prompt(
