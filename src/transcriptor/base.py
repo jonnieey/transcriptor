@@ -233,10 +233,15 @@ class Transcriptor(BaseTranscriptor):
             job_file: Path object or path-like string to job file
             job_dir: Path object or path-like string to job directory
         """
-        # moved_file = shutil.move(job_file, job_dir)
-        moved_file = shutil.copy(job_file, job_dir)
-        if zipfile.is_zipfile(moved_file):
-            zipfile.ZipFile(moved_file).extractall(job_dir)
+        if zipfile.is_zipfile(job_file):
+            try:
+                zipfile.ZipFile(job_file).extractall(job_dir)
+                Path(job_file).unlink(missing_ok=True)
+            except Exception as e:
+                print("Could not extract zip file ->", e)
+
+        else:
+            shutil.move(job_file, job_dir)
 
     def get_job_template_path(self, client: str, template: str) -> Path:
         """
