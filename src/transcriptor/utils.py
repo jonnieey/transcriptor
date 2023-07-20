@@ -123,7 +123,7 @@ def get_media_files(directory: Path) -> list[Path]:
     Arguments:
         directory: Directory to get media files from.
     """
-    for file in directory.iterdir():
+    for file in directory.glob("**/*"):
         if file.is_file():
             mime_type, _ = mimetypes.guess_type(str(file))
             if (

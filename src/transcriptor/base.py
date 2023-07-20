@@ -577,24 +577,22 @@ class Transcriptor(BaseTranscriptor):
                 for job in jobs:
                     # print(job)
                     job_path = Path(job["job_path"])
-                    if job_path.is_dir():
-                        job_dir = job_path
-                        parts_to_join = job_path.parts[-3:]
-                        new_job_dir = client_dir.joinpath(*parts_to_join)
-                        new_job_path = new_job_dir
-                    else:
-                        job_dir = job_path.parent
-                        parts_to_join = job_path.parts[-4:]
-                        new_job_path = client_dir.joinpath(*parts_to_join)
-                        new_job_dir = new_job_path.parent
+                    job_path_parts = job_path.parts
+                    clients_dir_idx = job_path_parts.index("clients")
 
-                    try:
-                        shutil.move(job_dir, new_job_dir)
+                    job_dir = Path().joinpath(*job_path.parts[: clients_dir_idx + 5])
+                    new_job_dir = client_dir.joinpath(
+                        *job_path_parts[clients_dir_idx + 2 : clients_dir_idx + 5]
+                    )
+                    new_job_path = client_dir.joinpath(
+                        *job_path_parts[clients_dir_idx + 2 :]
+                    )
+
+                    with contextlib.suppress(Exception):
                         set_cond = f"job_path = {new_job_path}"
                         where_cond = f'id = {job["job_id"]}'
                         cursor = self.api.update("Jobs", [set_cond], [where_cond])
-                    except Exception as e:
-                        print(e)
+                job_dir.rename(new_job_dir)
 
     def purge_files(self, jobs):
         for job in jobs:
