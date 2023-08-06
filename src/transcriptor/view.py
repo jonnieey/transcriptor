@@ -76,8 +76,7 @@ class ConsoleView:
                     columns = list(data[0].keys())
                     with contextlib.suppress(ValueError):
                         columns.remove("job_path")
-                    rows = [[row[column] for column in columns]
-                            for row in data]
+                    rows = [[row[column] for column in columns] for row in data]
                     self.generate_table(columns, rows)
                 except AttributeError:
                     columns = data[0]

@@ -635,8 +635,10 @@ class TranscriptorCMD(cmd2.Cmd):
                 _, start, _ = cutoff_list[cutoff - 1]
                 _, end, _ = cutoff_list[cutoff]
 
-                cutoff_condition = f"date_submitted>{start} date_submitted<={end} date_submitted != NULL amount > amount_paid"
-                args.where = [f"client_id={args.client_id} {cutoff_condition}"]
+                cutoff_condition = f"date_submitted>{start} date_submitted<={end}"
+                args.where = [f"client_id={args.client_id}"]
+            unpaid_jobs_cond = "date_submitted != NULL amount > amount_paid"
+            args.where[0] = f"{args.where[0]} {unpaid_jobs_cond}"
 
             if inv := self.app.create_invoice(
                 args.client_id,

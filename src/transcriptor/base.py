@@ -4,7 +4,7 @@ import re
 import shutil
 import zipfile
 from copy import copy
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -421,6 +421,7 @@ class Transcriptor(BaseTranscriptor):
         if not jobs:
             return
 
+        today = datetime.now()
         profile = self.profile
         context = {
             "client": client[0],
@@ -430,8 +431,9 @@ class Transcriptor(BaseTranscriptor):
             "data": {
                 "title": title,
                 "invoice_number": f"{invoice_count + 1:05}",
-                "created": datetime.now().strftime(self.config.date_format),
-                "due": deposit_date,
+                "created": today.strftime(self.config.date_format),
+                "due": deposit_date
+                or (today + timedelta(days=7)).strftime(self.config.date_format),
             },
         }
 
@@ -496,21 +498,22 @@ class Transcriptor(BaseTranscriptor):
         jobs_cond_as_tuple = quote_operands(jobs_conditions[0][0], as_tuple=True)
         date_submitted_conds = [
             x
-            for x in list(jobs_cond_as_tuple)
+            for x in jobs_cond_as_tuple
             if x.result != '"NULL"' and x.operand == "date_submitted"
         ]
-        cutoff_date = max(
-            list(map(lambda x: x.result.strip('"'), date_submitted_conds))
-        )
-        deposit_date = dict(self.load_cutoffs()).get(cutoff_date, "")
-        if not deposit_date:
-            with contextlib.suppress(Exception):
+        if date_submitted_conds:
+            cutoff_date = max(x.result.strip('"') for x in date_submitted_conds)
+            deposit_date = dict(self.load_cutoffs()).get(cutoff_date, "")
+            if not deposit_date:
                 today = datetime.now().strftime(self.config.date_format)
                 cutoffs = self.load_cutoffs()[1:]
                 for idx, i in enumerate(cutoffs):
                     if i[0] > today:
                         deposit_date = cutoffs[idx - 1][1]
                         break
+        else:
+            deposit_date = ""
+
         client_name = client[0]["name"]
         invoice_dir = self.base_dir.joinpath("clients", sc(client_name), "invoices")
         mkdirp([invoice_dir])
@@ -598,11 +601,7 @@ class Transcriptor(BaseTranscriptor):
         for job in jobs:
             job_path = Path(job["job_path"])
             if job_path.exists():
-                if job_path.is_dir():
-                    purge_path = job_path
-                elif job_path.is_file():
-                    purge_path = job_path.parent
-
+                purge_path = job_path if job_path.is_dir() else job_path.parent
                 unwanted_files = list(purge_path.glob("**/*[mwzM][p4aiP][3avp3]"))
                 [p.unlink(missing_ok=True) for p in unwanted_files]
 
