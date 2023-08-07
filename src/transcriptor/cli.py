@@ -611,14 +611,14 @@ class TranscriptorCMD(cmd2.Cmd):
 
             if not args.table:
                 args.where = args.where or []
-                conditions = f"client_id={args.client_id} date_submitted!=NULL"
+                conditions = f"client_id={args.client_id}"
                 if args.where:
                     args.where.append(f" {conditions}")
                     args.where = [" ".join(args.where)]
                 else:
                     args.where = [conditions]
 
-            if not args.no_prompt and args.table and not args.where:
+            elif not args.no_prompt and args.table and not args.where:
                 cutoff_list = self.app.load_cutoffs()
                 for idx, row in enumerate(cutoff_list):
                     if idx == 0:
@@ -636,13 +636,14 @@ class TranscriptorCMD(cmd2.Cmd):
                 _, end, _ = cutoff_list[cutoff]
 
                 cutoff_condition = f"date_submitted>{start} date_submitted<={end}"
-                args.where = [f"client_id={args.client_id}"]
-            unpaid_jobs_cond = "date_submitted != NULL amount > amount_paid"
-            args.where[0] = f"{args.where[0]} {unpaid_jobs_cond}"
+                args.where = [f"client_id={args.client_id} {cutoff_condition}"]
+            unpaid_jobs_cond = [
+                "AND date_submitted IS NOT NULL AND amount > amount_paid"
+            ]
 
             if inv := self.app.create_invoice(
                 args.client_id,
-                [args.where, []],
+                [args.where, unpaid_jobs_cond],
                 args.to_pdf,
                 args.to_html,
                 args.title,

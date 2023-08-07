@@ -133,7 +133,7 @@ class API:
             stmt += f" WHERE {searchstrs}"
 
         if other_conditions:
-            stmt += other_conditions[0]
+            stmt += f" {other_conditions[0]}"
         return self.cursor.execute(stmt).fetchall()
 
     def update(

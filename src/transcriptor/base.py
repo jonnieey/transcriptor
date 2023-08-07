@@ -453,6 +453,21 @@ class Transcriptor(BaseTranscriptor):
     def invoice_html_to_pdf(self, html, invoice_file):
         HTML(string=html).write_pdf(invoice_file)
 
+    def increase_invoice_counter(self, invoice_counter_file):
+        invoice_counter_file = Path(invoice_counter_file)
+        counter = invoice_counter_file.read_text()
+        invoice_counter_file.write_text(f"{int(counter) + 1:05}")
+
+    def invoice_counter(self, invoice_counter_file):
+        try:
+            inv_count = invoice_counter_file.read_text()
+            invoice_counter = 0 if inv_count == "" else int(inv_count)
+        except FileNotFoundError:
+            invoice_counter = 0
+            touch([invoice_counter_file])
+            invoice_counter_file.write_text(f"{invoice_counter}")
+        return invoice_counter
+
     def create_invoice(
         self,
         client_id,
@@ -471,29 +486,15 @@ class Transcriptor(BaseTranscriptor):
         )
         if not client:
             return
+        # print(jobs_conditions)
         jobs = self.api.get_jobs(*jobs_conditions)
         if not jobs:
             return
 
-        def increase_invoice_counter(invoice_counter_file):
-            invoice_counter_file = Path(invoice_counter_file)
-            counter = invoice_counter_file.read_text()
-            invoice_counter_file.write_text(f"{int(counter) + 1:05}")
-
-        def invoice_counter(invoice_counter_file):
-            try:
-                inv_count = invoice_counter_file.read_text()
-                invoice_counter = 0 if inv_count == "" else int(inv_count)
-            except FileNotFoundError:
-                invoice_counter = 0
-                touch([invoice_counter_file])
-                invoice_counter_file.write_text(f"{invoice_counter}")
-            return invoice_counter
-
         invoice_counter_file = self.base_dir.joinpath(
             "clients", sc(client[0]["name"]), "invoice_counter.txt"
         )
-        invoice_count = invoice_counter(invoice_counter_file)
+        invoice_count = self.invoice_counter(invoice_counter_file)
 
         jobs_cond_as_tuple = quote_operands(jobs_conditions[0][0], as_tuple=True)
         date_submitted_conds = [
@@ -525,7 +526,7 @@ class Transcriptor(BaseTranscriptor):
         )
 
         if save_pdf or save_html:
-            increase_invoice_counter(invoice_counter_file)
+            self.increase_invoice_counter(invoice_counter_file)
 
         if save_pdf:
             self.invoice_html_to_pdf(invoice_html, invoice_file.with_suffix(".pdf"))
