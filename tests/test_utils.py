@@ -54,7 +54,10 @@ class TestMkdirp(unittest.TestCase):
     def test_mkdirp(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create nested directories to test mkdirp
-            dir_paths = [Path(temp_dir) / "foo/bar/baz", Path(temp_dir) / "qux"]
+            dir_paths = [
+                Path(temp_dir) / "foo/bar/baz",
+                Path(temp_dir) / "qux",
+            ]
             mkdirp(dir_paths)
 
             # Check if the directories were created
@@ -127,7 +130,8 @@ class TestDateParses(unittest.TestCase):
             format_date("01.01", "%Y-%m-%d") == f"{datetime.now().year}-01-01"
         )  # current year
         assert (
-            format_date("12.25", "%B %d, %Y") == f"December 25, {datetime.now().year}"
+            format_date("12.25", "%B %d, %Y")
+            == f"December 25, {datetime.now().year}"
         )  # current year
 
     def test_str_to_date(self):
@@ -181,7 +185,9 @@ class TestGetMediaFilesDuration(unittest.TestCase):
             duration = duration_in_sec
 
         # mock the audio_open function to return the mock object
-        with unittest.mock.patch("audioread.audio_open", return_value=MockAudioFile()):
+        with unittest.mock.patch(
+            "audioread.audio_open", return_value=MockAudioFile()
+        ):
             duration_in_min = get_media_duration(media_file)
         self.assertEqual(duration_in_min, expected_duration_in_min)
 
@@ -274,7 +280,9 @@ class TestMathOperations(unittest.TestCase):
         # Test case 6: Invalid fraction quantity (greater than 1)
         try:
             parse_quantity("2/1", None)
-            self.assertFalse("Expected TypeError for invalid fraction quantity")
+            self.assertFalse(
+                "Expected TypeError for invalid fraction quantity"
+            )
         except TypeError:
             pass
 
@@ -308,7 +316,9 @@ class TestObjectsToCSV(unittest.TestCase):
 
         expected_output = "col2,col3\r\n2,3\r\n5,6\r\n8,9\r\n"
 
-        self.assertEqual(list_of_rows_to_csv(rows, headers, omit), expected_output)
+        self.assertEqual(
+            list_of_rows_to_csv(rows, headers, omit), expected_output
+        )
 
     def test_list_of_rows_to_csv_with_headers_no_omit(self):
         class Row:

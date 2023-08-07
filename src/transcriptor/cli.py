@@ -30,7 +30,10 @@ from transcriptor.view import ConsoleView
 
 class StripStrAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        if not hasattr(namespace, self.dest) or getattr(namespace, self.dest) is None:
+        if (
+            not hasattr(namespace, self.dest)
+            or getattr(namespace, self.dest) is None
+        ):
             setattr(namespace, self.dest, "")
 
         setattr(namespace, self.dest, values.strip("'").strip('"'))
@@ -38,7 +41,10 @@ class StripStrAction(argparse.Action):
 
 class KeyValueAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        if not hasattr(namespace, self.dest) or getattr(namespace, self.dest) is None:
+        if (
+            not hasattr(namespace, self.dest)
+            or getattr(namespace, self.dest) is None
+        ):
             setattr(namespace, self.dest, {})
 
         if isinstance(values, list):
@@ -58,7 +64,9 @@ class KeyValueAction(argparse.Action):
                     f"Invalid {self.dest} value: {values}"
                 ) from e
             if not isinstance(value, dict):
-                raise argparse.ArgumentTypeError(f"{values} is must be a dictionary")
+                raise argparse.ArgumentTypeError(
+                    f"{values} is must be a dictionary"
+                )
             getattr(namespace, self.dest).update(value)
 
 
@@ -74,17 +82,31 @@ show_subparsers = show_parser.add_subparsers(
     title="subcommands", help="subcommand help"
 )
 show_config_parser = show_subparsers.add_parser("config", help="show config")
-show_profile_parser = show_subparsers.add_parser("profile", help="show profile")
-show_clients_parser = show_subparsers.add_parser("clients", help="show client")
-show_clients_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
+show_profile_parser = show_subparsers.add_parser(
+    "profile", help="show profile"
+)
+show_clients_parser = show_subparsers.add_parser(
+    "clients", help="show client"
+)
+show_clients_parser.add_argument(
+    "-w", "--where", nargs="*", help="Filter condition"
+)
 show_jobs_parser = show_subparsers.add_parser("jobs", help="show jobs")
-show_jobs_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
-show_jobs_parser.add_argument("-a", "--all", action="store_true", help="Show all jobs")
-show_cutoffs_parser = show_subparsers.add_parser("cutoffs", help="show cutoffs")
+show_jobs_parser.add_argument(
+    "-w", "--where", nargs="*", help="Filter condition"
+)
+show_jobs_parser.add_argument(
+    "-a", "--all", action="store_true", help="Show all jobs"
+)
+show_cutoffs_parser = show_subparsers.add_parser(
+    "cutoffs", help="show cutoffs"
+)
 show_rates_parser = show_subparsers.add_parser("rates", help="show rates")
 
 add_parser = base_subparsers.add_parser("add", help="add object")
-add_subparsers = add_parser.add_subparsers(title="subcommands", help="subcommand help")
+add_subparsers = add_parser.add_subparsers(
+    title="subcommands", help="subcommand help"
+)
 add_client_parser = add_subparsers.add_parser("client", help="add client")
 add_client_parser.add_argument(
     "-n", "--name", type=str, action=StripStrAction, help="client name"
@@ -123,14 +145,21 @@ update_parser = base_subparsers.add_parser("update", help="update object")
 update_subparsers = update_parser.add_subparsers(
     title="subcommands", help="subcommand help"
 )
-update_config_parser = update_subparsers.add_parser("config", help="update config")
+update_config_parser = update_subparsers.add_parser(
+    "config", help="update config"
+)
 update_config_parser.add_argument("-b", "--base-dir", help="base directory")
 update_config_parser.add_argument("-d", "--date-format", help="date format")
 update_config_parser.add_argument(
-    "-p", "--persistent", action="store_true", help="persistent config (write to file)"
+    "-p",
+    "--persistent",
+    action="store_true",
+    help="persistent config (write to file)",
 )
 
-update_profile_parser = update_subparsers.add_parser("profile", help="update profile")
+update_profile_parser = update_subparsers.add_parser(
+    "profile", help="update profile"
+)
 update_profile_parser.add_argument(
     "-f", "--first-name", type=str, nargs="*", help="User first name"
 )
@@ -145,24 +174,40 @@ update_profile_parser.add_argument(
     "-c", "--country", type=str, nargs="+", help="User country"
 )
 
-update_client_parser = update_subparsers.add_parser("client", help="update client")
+update_client_parser = update_subparsers.add_parser(
+    "client", help="update client"
+)
 
-update_client_parser.add_argument("-s", "--set-cond", nargs="*", help="Set condition")
-update_client_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
+update_client_parser.add_argument(
+    "-s", "--set-cond", nargs="*", help="Set condition"
+)
+update_client_parser.add_argument(
+    "-w", "--where", nargs="*", help="Filter condition"
+)
 update_client_parser.add_argument(
     "-m", "--many", nargs="*", help="Allow multiple updates"
 )
 
 update_jobs_parser = update_subparsers.add_parser("jobs", help="update job")
-update_jobs_parser.add_argument("-s", "--set-cond", nargs="*", help="Set condition")
-update_jobs_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
+update_jobs_parser.add_argument(
+    "-s", "--set-cond", nargs="*", help="Set condition"
+)
+update_jobs_parser.add_argument(
+    "-w", "--where", nargs="*", help="Filter condition"
+)
 update_jobs_parser.add_argument(
     "-m", "--many", nargs="*", help="Allow multiple updates"
 )
 #
-update_rates_parser = update_subparsers.add_parser("rates", help="update rate")
-update_rates_parser.add_argument("-s", "--set-cond", nargs="*", help="Set condition")
-update_rates_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
+update_rates_parser = update_subparsers.add_parser(
+    "rates", help="update rate"
+)
+update_rates_parser.add_argument(
+    "-s", "--set-cond", nargs="*", help="Set condition"
+)
+update_rates_parser.add_argument(
+    "-w", "--where", nargs="*", help="Filter condition"
+)
 update_rates_parser.add_argument(
     "-m", "--many", nargs="*", help="Allow multiple updates"
 )
@@ -170,8 +215,12 @@ delete_parser = base_subparsers.add_parser("delete", help="delete object")
 delete_subparsers = delete_parser.add_subparsers(
     title="subcommands", help="subcommand help"
 )
-delete_client_parser = delete_subparsers.add_parser("client", help="delete client")
-delete_client_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
+delete_client_parser = delete_subparsers.add_parser(
+    "client", help="delete client"
+)
+delete_client_parser.add_argument(
+    "-w", "--where", nargs="*", help="Filter condition"
+)
 delete_client_parser.add_argument(
     "-P", "--no-prompt", action="store_true", help="Do not prompt"
 )
@@ -180,27 +229,42 @@ delete_client_parser.add_argument(
 )
 
 delete_jobs_parser = delete_subparsers.add_parser("jobs", help="delete job")
-delete_jobs_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
+delete_jobs_parser.add_argument(
+    "-w", "--where", nargs="*", help="Filter condition"
+)
 delete_jobs_parser.add_argument(
     "-P", "--no-prompt", action="store_true", help="Do not prompt"
 )
 delete_jobs_parser.add_argument(
-    "-p", "--purge", action="store_true", help="Remove job directory, all files"
+    "-p",
+    "--purge",
+    action="store_true",
+    help="Remove job directory, all files",
 )
 delete_jobs_parser.add_argument(
     "-d", "--delete", action="store_true", help="Delete task file"
 )
-delete_rates_parser = delete_subparsers.add_parser("rates", help="delete rate")
-delete_rates_parser.add_argument("-w", "--where", nargs="*", help="Filter condition")
+delete_rates_parser = delete_subparsers.add_parser(
+    "rates", help="delete rate"
+)
+delete_rates_parser.add_argument(
+    "-w", "--where", nargs="*", help="Filter condition"
+)
 
-invoice_parser = base_subparsers.add_parser("invoice", help="Invoice commands")
+invoice_parser = base_subparsers.add_parser(
+    "invoice", help="Invoice commands"
+)
 invoice_subparsers = invoice_parser.add_subparsers(
     title="subcommands", help="subcommand help"
 )
-create_invoice_parser = invoice_subparsers.add_parser("create", help="Create Invoice")
+create_invoice_parser = invoice_subparsers.add_parser(
+    "create", help="Create Invoice"
+)
 create_invoice_parser.add_argument("-c", "--client-id", help="client id")
 
-create_invoice_parser.add_argument("-w", "--where", nargs="*", help="Filter criteria")
+create_invoice_parser.add_argument(
+    "-w", "--where", nargs="*", help="Filter criteria"
+)
 create_invoice_parser.add_argument(
     "-p", "--to-pdf", action="store_true", help="Create invoice PDF"
 )
@@ -215,11 +279,15 @@ create_invoice_parser.add_argument(
     "-P", "--no-prompt", action="store_true", help="Do not prompt"
 )
 
-purge_files_parser = base_subparsers.add_parser("purge", help="Invoice commands")
+purge_files_parser = base_subparsers.add_parser(
+    "purge", help="Invoice commands"
+)
 purge_files_subparsers = purge_files_parser.add_subparsers(
     title="subcommands", help="subcommand help"
 )
-purge_files_parser.add_argument("-w", "--where", nargs="+", help="where conditions")
+purge_files_parser.add_argument(
+    "-w", "--where", nargs="+", help="where conditions"
+)
 purge_files_parser.add_argument(
     "-P", "--no-prompt", action="store_true", help="Do not prompt"
 )
@@ -301,7 +369,11 @@ class TranscriptorCMD(cmd2.Cmd):
             if args and args.where
             else self.app.api.get_clients()
         )
-        return ConsoleView().print_table(clients, orientation="hor") if clients else 1
+        return (
+            ConsoleView().print_table(clients, orientation="hor")
+            if clients
+            else 1
+        )
 
     show_clients_parser.set_defaults(func=show_clients)
 
@@ -355,21 +427,33 @@ class TranscriptorCMD(cmd2.Cmd):
             default_dict = dict(
                 zip(["normal", "expedite", "interpreted"], [0.40, 0.60, 0.30])
             )
-            rates_dict = dict(zip(["normal", "expedite", "interpreted"], rates))
+            rates_dict = dict(
+                zip(["normal", "expedite", "interpreted"], rates)
+            )
             return default_dict | rates_dict
 
         # name, email, rates
         try:
             get_rates = lambda: {
                 "normal": float(
-                    prompt("    Normal: ", default="0.40", validator=float_validator)
+                    prompt(
+                        "    Normal: ",
+                        default="0.40",
+                        validator=float_validator,
+                    )
                 ),
                 "expedite": float(
-                    prompt("    Expedite: ", default="0.60", validator=float_validator)
+                    prompt(
+                        "    Expedite: ",
+                        default="0.60",
+                        validator=float_validator,
+                    )
                 ),
                 "interpreted": float(
                     prompt(
-                        "    Interpreted: ", default="0.30", validator=float_validator
+                        "    Interpreted: ",
+                        default="0.30",
+                        validator=float_validator,
                     )
                 ),
             }
@@ -441,7 +525,8 @@ class TranscriptorCMD(cmd2.Cmd):
                 validator=date_validator,
                 validate_while_typing=True,
                 default=format_date(
-                    parse_date_due(temp_args.job_file), self.app.config.date_format
+                    parse_date_due(temp_args.job_file),
+                    self.app.config.date_format,
                 ),
             )
             temp_args.date_received = str_to_date(
@@ -484,7 +569,9 @@ class TranscriptorCMD(cmd2.Cmd):
                 "Enter job template: ",
                 validator=template_type_validator,
             )
-            temp_args.note = temp_args.note or prompt("Enter notes: ", default="")
+            temp_args.note = temp_args.note or prompt(
+                "Enter notes: ", default=""
+            )
             return {
                 "job_type": temp_args.job_type,
                 "quantity": temp_args.quantity,
@@ -500,7 +587,9 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def update_config(self, args):
         self.app.config.base_dir = args.base_dir or self.app.config.base_dir
-        self.app.config.date_format = args.date_format or self.app.config.date_format
+        self.app.config.date_format = (
+            args.date_format or self.app.config.date_format
+        )
         if args.persistent:
             self.app.save_config(self.app.config.__dict__)
 
@@ -551,7 +640,9 @@ class TranscriptorCMD(cmd2.Cmd):
 
         if not args.no_prompt:
             clients = self.app.api.get_clients([where])
-            ConsoleView().print_table(clients, orientation="hor") if clients else ""
+            ConsoleView().print_table(
+                clients, orientation="hor"
+            ) if clients else ""
             confirm = prompt(
                 "Are you sure you want to delete these clients? (y/n): ",
                 default="n",
@@ -635,8 +726,12 @@ class TranscriptorCMD(cmd2.Cmd):
                 _, start, _ = cutoff_list[cutoff - 1]
                 _, end, _ = cutoff_list[cutoff]
 
-                cutoff_condition = f"date_submitted>{start} date_submitted<={end}"
-                args.where = [f"client_id={args.client_id} {cutoff_condition}"]
+                cutoff_condition = (
+                    f"date_submitted>{start} date_submitted<={end}"
+                )
+                args.where = [
+                    f"client_id={args.client_id} {cutoff_condition}"
+                ]
             unpaid_jobs_cond = [
                 "AND date_submitted IS NOT NULL AND amount > amount_paid"
             ]

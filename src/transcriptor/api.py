@@ -64,7 +64,9 @@ class API:
         """
         columns = ", ".join(jobs[0].keys())
         placeholders = ", ".join(f":{column}" for column in jobs[0].keys())
-        stmt = f"INSERT INTO jobs (id, {columns}) VALUES (NULL, {placeholders})"
+        stmt = (
+            f"INSERT INTO jobs (id, {columns}) VALUES (NULL, {placeholders})"
+        )
         self.cursor.executemany(stmt, jobs)
         self.conn.commit()
 
@@ -110,7 +112,9 @@ class API:
 
         return self.cursor.execute(stmt).fetchall()
 
-    def get_jobs(self, conditions: str = None, other_conditions: str = "") -> list:
+    def get_jobs(
+        self, conditions: str = None, other_conditions: str = ""
+    ) -> list:
         """
         Get jobs from database
 

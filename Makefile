@@ -14,11 +14,11 @@ lint: lint-black lint-isort lint-flake  ## Run linting tools on the code.
 
 .PHONY: lint-black
 lint-black:  ## Lint the code using black.
-	python -m black $(PY_SRC) .
+	python -m black --line-length=78 $(PY_SRC) .
 
 .PHONY: lint-isort
 lint-isort:  ## Sort the imports using isort.
-	python -m isort $(PY_SRC) .
+	python -m isort --line-length=78 $(PY_SRC) .
 
 .PHONY: lint-flake
 lint-flake:

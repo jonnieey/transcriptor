@@ -150,7 +150,9 @@ def truncate(num: float, dp: int) -> float:
         A float number truncated to dp decimal places.
     """
     num_str = str(num)
-    return float(math.trunc(Decimal(num_str) * Decimal(10**dp)) / Decimal(10**dp))
+    return float(
+        math.trunc(Decimal(num_str) * Decimal(10**dp)) / Decimal(10**dp)
+    )
 
 
 def sec_to_min(seconds: float) -> float:
@@ -348,14 +350,19 @@ def list_of_rows_to_csv(
     if omit is None:
         omit = []
     dicts = [
-        {k: getattr(row, k) for k in row.__dict__ if k != "_sa_instance_state"}
+        {
+            k: getattr(row, k)
+            for k in row.__dict__
+            if k != "_sa_instance_state"
+        }
         for row in rows
     ]
     if omit:
         dicts = [{k: v for k, v in d.items() if k not in omit} for d in dicts]
     if headers:
         dicts = [
-            dict(sorted(d.items(), key=lambda t: headers.index(t[0]))) for d in dicts
+            dict(sorted(d.items(), key=lambda t: headers.index(t[0])))
+            for d in dicts
         ]
 
     csv_builder = CSVTextBuilder()
@@ -401,7 +408,9 @@ def list_from_docx_table(docx_path: str) -> List[List[str]]:
 
     table_list = []
     for table in docx_file.tables:
-        table_list.extend([cell.text for cell in row.cells] for row in table.rows)
+        table_list.extend(
+            [cell.text for cell in row.cells] for row in table.rows
+        )
     return table_list
 
 
@@ -438,7 +447,9 @@ def is_valid_email(text: str) -> bool:
     Retuns:
         True if the string is a valid email address, otherwise False.
     """
-    return bool(re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", text))
+    return bool(
+        re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", text)
+    )
 
 
 # ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
@@ -621,7 +632,9 @@ def quote_operands(text: str, as_tuple=False) -> GeneratorType:
 
     operator_matches = re.finditer(operator_pattern, text)
     operator_indices = (
-        [match.start() for match in operator_matches] if operator_matches else []
+        [match.start() for match in operator_matches]
+        if operator_matches
+        else []
     )
 
     if operator_indices:
@@ -639,13 +652,17 @@ def quote_operands(text: str, as_tuple=False) -> GeneratorType:
                 else operator_indices[0]
             )
             last_space_index = text[:next_operator_index].rfind(" ") or 0
-            quoted_text = text[cursor_index + operand_text_start : last_space_index]
+            quoted_text = text[
+                cursor_index + operand_text_start : last_space_index
+            ]
 
         operator = text[cursor_index : cursor_index + operand_text_start]
         pre_text = text[:cursor_index]
 
         if as_tuple is True:
-            yield tuple_operand(pre_text.strip(), operator.strip(), f'"{quoted_text}"')
+            yield tuple_operand(
+                pre_text.strip(), operator.strip(), f'"{quoted_text}"'
+            )
         else:
             yield pre_text.strip() + operator + f'"{quoted_text}"'
 
@@ -665,7 +682,9 @@ def dicts_to_md(data: list[dict], orientation="vert"):
         markdown += "| " + " | ".join(["---"] * len(keys)) + " |\n"
 
         for item in data:
-            markdown += "| " + " | ".join(str(item[key]) for key in keys) + " |\n"
+            markdown += (
+                "| " + " | ".join(str(item[key]) for key in keys) + " |\n"
+            )
 
     elif orientation == "vert":
         markdown = """"""

@@ -30,7 +30,9 @@ class TestTranscriptor(unittest.TestCase):
 
     def test_create_client(self):
         self.app.create_client("test_name", "test_email")
-        self.assertTrue(self.temp_dir.joinpath("clients", "test_name").exists())
+        self.assertTrue(
+            self.temp_dir.joinpath("clients", "test_name").exists()
+        )
 
     def test_create_job(self):
         self.app.create_client("testclient", "testclientemail")
@@ -64,7 +66,9 @@ class TestTranscriptor(unittest.TestCase):
         jobs = self.api.get_jobs()
         self.assertEqual(len(jobs), 1)
         self.assertTrue(
-            self.temp_dir.joinpath("clients", "test_name", "templates").exists()
+            self.temp_dir.joinpath(
+                "clients", "test_name", "templates"
+            ).exists()
         )
 
         self.assertTrue(

@@ -45,7 +45,9 @@ def test_show_profile(transcriptor_app):
     assert "Country" in str(out.stdout).strip()
     assert "Area" in str(out.stdout).strip()
 
-    cmd = "update profile -f TestFName -l TestLName -a TestArea -c TestCountry"
+    cmd = (
+        "update profile -f TestFName -l TestLName -a TestArea -c TestCountry"
+    )
     transcriptor_app.app_cmd(cmd)
     out = transcriptor_app.app_cmd("show profile")
     assert "TestFName" in str(out.stdout).strip()

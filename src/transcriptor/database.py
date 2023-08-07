@@ -23,7 +23,8 @@ class Database:
 
         # Detect types by columns and declaration
         self.conn = sqlite3.connect(
-            db_file, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+            db_file,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
         )
 
         self.conn.row_factory = dict_factory

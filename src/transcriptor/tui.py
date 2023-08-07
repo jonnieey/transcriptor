@@ -46,6 +46,45 @@ class QuitScreen(ModalScreen):
             self.dismiss(False)
 
 
+class AddJobScreen(ModalScreen):
+    def compose(self):
+        yield Container(
+            Container(Label("Job File"), Input(id="job_file")),
+            Button("Add Job", variant="primary", id="add_job"),
+            Button("Cancel", variant="primary", id="cancel"),
+            id="add-job-cont",
+        )
+
+    def on_button_pressed(self, event):
+        if event.button.id == "add_job":
+            job_file = self.query_one("#job_file")
+            self.dismiss(job_file.value)
+        else:
+            self.dismiss(False)
+
+
+class AddTaskScreen(ModalScreen):
+    def compose(self):
+        yield Container(
+            Container(Label("Job File"), Input(id="job_file")),
+            Container(Label("Job Number"), Input(id="job_num")),
+            Container(Label("Date Received"), Input(id="date_rec")),
+            Container(Label("Date Due"), Input(id="date_due")),
+            Container(Label("Job Type"), Input(id="job_type")),
+            Container(Label("Quantity"), Input(id="quantity")),
+            Container(Label("Job Template"), Input(id="job_template")),
+            Button("Add Job", variant="primary", id="add job"),
+            Button("Cancel", variant="primary", id="cancel"),
+            id="add-job-cont",
+        )
+
+    def on_button_pressed(self, event):
+        if event.button.id == "add job":
+            m = self.query("#add-job-cont Input")
+            d = {node.id: node.value for node in m.nodes}
+            print(d)
+
+
 class ClientsList(VerticalScroll):
     def compose(self):
         if clients := transapp.api.get_clients():
@@ -53,7 +92,9 @@ class ClientsList(VerticalScroll):
                 btn_label = client["name"]
                 btn_id = client["client_id"]
                 yield Button(
-                    label=btn_label, id=f"client-{btn_id}", classes="clientbtn"
+                    label=btn_label,
+                    id=f"client-{btn_id}",
+                    classes="clientbtn",
                 )
 
         else:
@@ -78,7 +119,9 @@ class SortableTable(DataTable):
 
     def action_sort(self, reverse=False):
         if self.cursor_type in ["column", "cell"]:
-            column_key = self.coordinate_to_cell_key(self.cursor_coordinate).column_key
+            column_key = self.coordinate_to_cell_key(
+                self.cursor_coordinate
+            ).column_key
             self.sort(column_key, reverse=self.column_reverse)
             self.column_reverse = not self.column_reverse
 
@@ -114,7 +157,9 @@ class SortableTable(DataTable):
 
     def pending_jobs(self, client_id):
         self.client_id = client_id
-        jobs = transapp.api.get_jobs([f"client_id={client_id} status=Pending"])
+        jobs = transapp.api.get_jobs(
+            [f"client_id={client_id} status=Pending"]
+        )
         self.populate_table(jobs)
 
     def all_jobs(self, client_id):
@@ -139,7 +184,9 @@ class GenerateInvoice(Container):
         )
         yield DataTable(id="cutoffs-table", classes="box")
         yield VerticalScroll(
-            Markdown(id="md-invoice"), id="invoice-md-container", classes="box"
+            Markdown(id="md-invoice"),
+            id="invoice-md-container",
+            classes="box",
         )
 
     def on_data_table_cell_selected(self, event):
@@ -147,7 +194,9 @@ class GenerateInvoice(Container):
         if column == 1:
             # TODO When start doesn't exist popup prompt window
             with contextlib.suppress(RowDoesNotExist):
-                start = event.data_table.get_row_at(event.coordinate.row - 1)[0]
+                start = event.data_table.get_row_at(event.coordinate.row - 1)[
+                    0
+                ]
                 end = event.data_table.get_row_at(event.coordinate.row)[0]
                 self.query_one("#invoice-from").value = start
                 self.query_one("#invoice-to").value = end
@@ -170,7 +219,9 @@ class ClientTabs(VerticalScroll):
 class TranscriptorScreen(Screen):
     def compose(self):
         yield Header()
-        with VerticalScroll(id="MainViewContainer", classes="mainviewcontainer hidden"):
+        with VerticalScroll(
+            id="MainViewContainer", classes="mainviewcontainer hidden"
+        ):
             yield ClientTabs(id="client_tabs")
         yield Footer()
         yield ClientsList(id="clients_list", classes="hidden")
@@ -184,6 +235,7 @@ class TranscriptorApp(App):
         ("ctrl+t", "change_cursor_type", "Cursor Type"),
         ("ctrl+n", "next_tab", "next tab"),
         ("ctrl+p", "previous_tab", "previous tab"),
+        ("ctrl+a", "add_job", "add job"),
         ("q", "request_quit", "Quit"),
     ]
     cursors = cycle(["column", "row", "cell"])
@@ -199,6 +251,13 @@ class TranscriptorApp(App):
                 self.exit()
 
         self.push_screen(QuitScreen(), check_quit)
+
+    def action_add_job(self):
+        def check_job_file(job_file):
+            if job_file:
+                self.push_screen(AddTaskScreen(), job_file)
+
+        self.push_screen(AddJobScreen(), check_job_file)
 
     def action_toggle_client_list(self):
         client_list = self.query_one(ClientsList)
@@ -242,7 +301,7 @@ class TranscriptorApp(App):
     def action_next_tab(self):
         self.query_one(Tabs).action_next_tab()
 
-    def previous_tab(self):
+    def action_previous_tab(self):
         self.query_one(Tabs).action_previous_tab()
 
     def update_tabs(self, client_id):

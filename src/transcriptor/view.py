@@ -43,7 +43,9 @@ class ConsoleView:
             summary_row[col_amount_paid] = str(round(total_amount_paid, 2))
             self.table.add_row(*summary_row)
 
-    def print_table(self, data: dict | list, orientation: str = "vert") -> None:
+    def print_table(
+        self, data: dict | list, orientation: str = "vert"
+    ) -> None:
         """
         Print a table
 
@@ -76,7 +78,9 @@ class ConsoleView:
                     columns = list(data[0].keys())
                     with contextlib.suppress(ValueError):
                         columns.remove("job_path")
-                    rows = [[row[column] for column in columns] for row in data]
+                    rows = [
+                        [row[column] for column in columns] for row in data
+                    ]
                     self.generate_table(columns, rows)
                 except AttributeError:
                     columns = data[0]

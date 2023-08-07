@@ -16,7 +16,9 @@ class TestAPI(unittest.TestCase):
     def test_add_client(self):
         client_dict = {"name": "test_name", "email": "test_email"}
         self.api.add_clients(client_dict)
-        clients = self.api.conn.cursor().execute("SELECT * FROM clients").fetchall()
+        clients = (
+            self.api.conn.cursor().execute("SELECT * FROM clients").fetchall()
+        )
         self.assertEqual(len(clients), 1)
 
     def test_add_rates(self):
@@ -27,7 +29,9 @@ class TestAPI(unittest.TestCase):
             "client_id": 1,
         }
         self.api.add_rates(rates_dict)
-        rates = self.api.conn.cursor().execute("SELECT * FROM rates").fetchall()
+        rates = (
+            self.api.conn.cursor().execute("SELECT * FROM rates").fetchall()
+        )
         self.assertEqual(len(rates), 1)
 
     #
@@ -69,12 +73,16 @@ class TestAPI(unittest.TestCase):
 
     def test_update_client(self):
         self.api.update("Clients", ["name=tester"], ["id=1"])
-        clients = self.api.conn.cursor().execute("SELECT * FROM clients").fetchall()
+        clients = (
+            self.api.conn.cursor().execute("SELECT * FROM clients").fetchall()
+        )
         self.assertEqual(len(clients), 1)
         self.assertEqual(clients[0]["name"], "tester")
         self.assertEqual(clients[0]["email"], "test_email")
 
     def delete_client(self):
         self.api.delete("Clients", {"id": 1})
-        clients = self.api.conn.cursor().execute("SELECT * FROM clients").fetchall()
+        clients = (
+            self.api.conn.cursor().execute("SELECT * FROM clients").fetchall()
+        )
         self.assertEqual(len(clients), 0)

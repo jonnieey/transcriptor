@@ -65,7 +65,9 @@ class Transcriptor(BaseTranscriptor):
 
     def __init__(self, api=None, config: dict = None):
         self.config = (
-            ConfigModel(**config) if config is not None else self.load_config()
+            ConfigModel(**config)
+            if config is not None
+            else self.load_config()
         )
 
         if api is None:
@@ -123,7 +125,9 @@ class Transcriptor(BaseTranscriptor):
         if profile_dict is None:
             profile_dict = {}
         profile_file = self.base_dir.joinpath("profile.yml")
-        profile = ProfileModel(**profile_dict) if profile_dict else ProfileModel()
+        profile = (
+            ProfileModel(**profile_dict) if profile_dict else ProfileModel()
+        )
         with open(profile_file, "w") as fd:
             profile.save(fd)
         self.profile = profile
@@ -160,7 +164,9 @@ class Transcriptor(BaseTranscriptor):
         else:
             raise TypeError
 
-    def create_client(self, name: str, email: str, rates: dict = None) -> Optional[int]:
+    def create_client(
+        self, name: str, email: str, rates: dict = None
+    ) -> Optional[int]:
         """
         Create a client
 
@@ -190,12 +196,18 @@ class Transcriptor(BaseTranscriptor):
         mkdirp([client_dir])
         template_path = Path(__file__).parent.joinpath("templates")
         shutil.copytree(
-            template_path, client_dir.joinpath("templates"), dirs_exist_ok=True
+            template_path,
+            client_dir.joinpath("templates"),
+            dirs_exist_ok=True,
         )
         return client_id
 
     def create_job_dir(
-        self, client_name: str, job_num: str, date_rec: str | date, date_due: str | date
+        self,
+        client_name: str,
+        job_num: str,
+        date_rec: str | date,
+        date_due: str | date,
     ) -> Path:
         """
         Create a job directory
@@ -225,7 +237,9 @@ class Transcriptor(BaseTranscriptor):
         return job_dir
 
     @staticmethod
-    def mv_extract_job_file(job_file: str | Path, job_dir: str | Path) -> None:
+    def mv_extract_job_file(
+        job_file: str | Path, job_dir: str | Path
+    ) -> None:
         """
         Move/Extract job file to jobs directory
 
@@ -265,7 +279,9 @@ class Transcriptor(BaseTranscriptor):
             "me": "Compulsory Medical Exam Template.doc",
             "zdi": "Zoom Deposition Block File with Interpreter.doc",
         }
-        client_template_dir = self.base_dir.joinpath("clients", sc(client), "templates")
+        client_template_dir = self.base_dir.joinpath(
+            "clients", sc(client), "templates"
+        )
 
         if not client_template_dir.exists():
             jobs_templates_path = Path(__file__).parent.joinpath("templates")
@@ -274,7 +290,10 @@ class Transcriptor(BaseTranscriptor):
         return client_template_dir.joinpath(template_mapping[template])
 
     def create_job(
-        self, job_file: str | Path, job_callback: Callable, task_callback: Callable
+        self,
+        job_file: str | Path,
+        job_callback: Callable,
+        task_callback: Callable,
     ) -> None:
         """
         Create a job
@@ -292,7 +311,9 @@ class Transcriptor(BaseTranscriptor):
             JOIN rates AS r ON c.id = r.client_id
             WHERE c.id = ?
         """
-        client = self.api.cursor.execute(stmt, (job_info["client_id"],)).fetchone()
+        client = self.api.cursor.execute(
+            stmt, (job_info["client_id"],)
+        ).fetchone()
 
         if not client:
             print("No client found")
@@ -301,7 +322,10 @@ class Transcriptor(BaseTranscriptor):
         # create job directory
         client_name = client["name"]
         job_dir = self.create_job_dir(
-            client_name, job_info["job_num"], job_info["date_rec"], job_info["date_due"]
+            client_name,
+            job_info["job_num"],
+            job_info["date_rec"],
+            job_info["date_due"],
         )
 
         rates = {
@@ -433,7 +457,9 @@ class Transcriptor(BaseTranscriptor):
                 "invoice_number": f"{invoice_count + 1:05}",
                 "created": today.strftime(self.config.date_format),
                 "due": deposit_date
-                or (today + timedelta(days=7)).strftime(self.config.date_format),
+                or (today + timedelta(days=7)).strftime(
+                    self.config.date_format
+                ),
             },
         }
 
@@ -496,14 +522,18 @@ class Transcriptor(BaseTranscriptor):
         )
         invoice_count = self.invoice_counter(invoice_counter_file)
 
-        jobs_cond_as_tuple = quote_operands(jobs_conditions[0][0], as_tuple=True)
+        jobs_cond_as_tuple = quote_operands(
+            jobs_conditions[0][0], as_tuple=True
+        )
         date_submitted_conds = [
             x
             for x in jobs_cond_as_tuple
             if x.result != '"NULL"' and x.operand == "date_submitted"
         ]
         if date_submitted_conds:
-            cutoff_date = max(x.result.strip('"') for x in date_submitted_conds)
+            cutoff_date = max(
+                x.result.strip('"') for x in date_submitted_conds
+            )
             deposit_date = dict(self.load_cutoffs()).get(cutoff_date, "")
             if not deposit_date:
                 today = datetime.now().strftime(self.config.date_format)
@@ -516,9 +546,13 @@ class Transcriptor(BaseTranscriptor):
             deposit_date = ""
 
         client_name = client[0]["name"]
-        invoice_dir = self.base_dir.joinpath("clients", sc(client_name), "invoices")
+        invoice_dir = self.base_dir.joinpath(
+            "clients", sc(client_name), "invoices"
+        )
         mkdirp([invoice_dir])
-        invoice_file_name = f"{date.today().strftime('%Y-%m-%d')}_{client_name}_invoice"
+        invoice_file_name = (
+            f"{date.today().strftime('%Y-%m-%d')}_{client_name}_invoice"
+        )
         invoice_file = invoice_dir.joinpath(invoice_file_name)
 
         invoice_html = self.invoice_html(
@@ -529,7 +563,9 @@ class Transcriptor(BaseTranscriptor):
             self.increase_invoice_counter(invoice_counter_file)
 
         if save_pdf:
-            self.invoice_html_to_pdf(invoice_html, invoice_file.with_suffix(".pdf"))
+            self.invoice_html_to_pdf(
+                invoice_html, invoice_file.with_suffix(".pdf")
+            )
         if save_html:
             with open(invoice_file.with_suffix(".html"), "w") as fd:
                 fd.write(invoice_html)
@@ -576,7 +612,9 @@ class Transcriptor(BaseTranscriptor):
             ]
             clients = self.api.get_clients(client_cond)
             for client in clients:
-                client_dir = self.base_dir.joinpath("clients", sc(client["name"]))
+                client_dir = self.base_dir.joinpath(
+                    "clients", sc(client["name"])
+                )
                 jobs = self.api.get_jobs([where_cond])
                 for job in jobs:
                     # print(job)
@@ -584,9 +622,13 @@ class Transcriptor(BaseTranscriptor):
                     job_path_parts = job_path.parts
                     clients_dir_idx = job_path_parts.index("clients")
 
-                    job_dir = Path().joinpath(*job_path.parts[: clients_dir_idx + 5])
+                    job_dir = Path().joinpath(
+                        *job_path.parts[: clients_dir_idx + 5]
+                    )
                     new_job_dir = client_dir.joinpath(
-                        *job_path_parts[clients_dir_idx + 2 : clients_dir_idx + 5]
+                        *job_path_parts[
+                            clients_dir_idx + 2 : clients_dir_idx + 5
+                        ]
                     )
                     new_job_path = client_dir.joinpath(
                         *job_path_parts[clients_dir_idx + 2 :]
@@ -595,15 +637,21 @@ class Transcriptor(BaseTranscriptor):
                     with contextlib.suppress(Exception):
                         set_cond = f"job_path = {new_job_path}"
                         where_cond = f'id = {job["job_id"]}'
-                        cursor = self.api.update("Jobs", [set_cond], [where_cond])
+                        cursor = self.api.update(
+                            "Jobs", [set_cond], [where_cond]
+                        )
                 job_dir.rename(new_job_dir)
 
     def purge_files(self, jobs):
         for job in jobs:
             job_path = Path(job["job_path"])
             if job_path.exists():
-                purge_path = job_path if job_path.is_dir() else job_path.parent
-                unwanted_files = list(purge_path.glob("**/*[mwzM][p4aiP][3avp3]"))
+                purge_path = (
+                    job_path if job_path.is_dir() else job_path.parent
+                )
+                unwanted_files = list(
+                    purge_path.glob("**/*[mwzM][p4aiP][3avp3]")
+                )
                 [p.unlink(missing_ok=True) for p in unwanted_files]
 
 
