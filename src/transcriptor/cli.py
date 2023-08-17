@@ -297,8 +297,13 @@ class TranscriptorCMD(cmd2.Cmd):
     prompt = "(trans) "
 
     def __init__(self, app=None):
-        super().__init__()
         self.app = Transcriptor() if app is None else app
+        hist_file = self.app.base_dir.joinpath(".hist")
+        super().__init__(
+            persistent_history_file=hist_file,
+            persistent_history_length=500,
+            allow_cli_args=False,
+        )
         self.debug = True
         self.add_settable(cmd2.Settable("debug", bool, "debug", self))
 
