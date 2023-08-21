@@ -58,8 +58,8 @@ class BaseTranscriptor:
 
 
 class Transcriptor(BaseTranscriptor):
-    config_dir = user_config_dir(APP_NAME)
-    config_file = Path(config_dir).joinpath("configuration.yml")
+    config_dir = Path(user_config_dir(APP_NAME))
+    config_file = config_dir.joinpath("configuration.yml")
     mkdirp([config_dir])
     config_changed = False
 
