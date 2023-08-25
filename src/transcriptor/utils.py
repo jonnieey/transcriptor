@@ -494,7 +494,7 @@ def is_valid_yes_no(text: str) -> bool:
     return bool(re.match(r"(?i)^[YyNn](?:es|o)?$", text))
 
 
-def is_in_choices(text: str, choices: list = None):
+def is_in_choices(text: str, choices: list = []):
     """
     Check if a string is in a list of choices.
 
@@ -504,8 +504,6 @@ def is_in_choices(text: str, choices: list = None):
     Returs:
         True if the string is in the choices, otherwise False.
     """
-    if choices is None:
-        choices = []
     return text.strip() in choices
 
 
@@ -522,7 +520,21 @@ def is_work_choices(text: str) -> bool:
     return is_in_choices(text, WORK_CHOICES)
 
 
-def is_template_choices(text: str) -> bool:
+template_mapping = {
+    "zd": "Zoom Deposition Block Files.doc",
+    "zdO": "Zoom Deposition Overflow Block Files.docx",
+    "nh": "Hearing Block Files.doc",
+    "zeo": "Zoom Examination Under Oath Block Files.doc",
+    "zh": "Zoom Hearing Block Files.doc",
+    "zus": "Zoom Unsworn Statement Block Files.doc",
+    "zwc": "Zoom Workers Comp Deposition Block Files.doc",
+    "tt": "Tape Transcript.doc",
+    "me": "Compulsory Medical Exam Template.doc",
+    "zdi": "Zoom Deposition Block File with Interpreter.doc",
+}
+
+
+def is_template_choices(text: str, dic: dict = template_mapping) -> bool:
     """
     Check if a string is in a list of choices.
 
@@ -531,7 +543,7 @@ def is_template_choices(text: str) -> bool:
     Returs:
         True if the string is in the choices, otherwise False.
     """
-    TEMPLATE_CHOICES = ["nd", "nh", "ne", "zd", "zh", "ze", "zdi", "tt", "me"]
+    TEMPLATE_CHOICES = [k for k in dic]
     return is_in_choices(text, TEMPLATE_CHOICES)
 
 
@@ -602,7 +614,8 @@ work_validator = MyValidator(
     is_work_choices, "Valid choices [Normal, Interpreted, Expedite]"
 )
 template_type_validator = MyValidator(
-    is_template_choices, "Valid choices [nd, nh, ne, zd, zh, ze, zdi, tt, me]"
+    is_template_choices,
+    f"Valid choices {' '.join([k for k in template_mapping])}",
 )
 date_validator = MyValidator(is_valid_date, "Invalid date")
 gt0_validator = MyValidator(is_gt_0, "Is less than 0")

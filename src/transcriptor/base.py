@@ -25,7 +25,7 @@ from transcriptor.utils import (
     sc,
 )
 from transcriptor.utils import str_to_date as std
-from transcriptor.utils import touch, truncate
+from transcriptor.utils import template_mapping, touch, truncate
 
 APP_NAME = "transcriptor4"
 
@@ -268,17 +268,6 @@ class Transcriptor(BaseTranscriptor):
         Returns:
             Path to template file
         """
-        template_mapping = {
-            "zd": "Zoom Deposition Block Files.doc",
-            "nh": "Hearing Block Files.doc",
-            "zeo": "Zoom Examination Under Oath Block Files.doc",
-            "zh": "Zoom Hearing Block Files.doc",
-            "zus": "Zoom Unsworn Statement Block Files.doc",
-            "zwc": "Zoom Workers Comp Deposition Block Files.doc",
-            "tt": "Tape Transcript.doc",
-            "me": "Compulsory Medical Exam Template.doc",
-            "zdi": "Zoom Deposition Block File with Interpreter.doc",
-        }
         client_template_dir = self.base_dir.joinpath(
             "clients", sc(client), "templates"
         )

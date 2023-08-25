@@ -299,7 +299,7 @@ class TranscriptorCMD(cmd2.Cmd):
     def __init__(self, app=None):
         self.app = Transcriptor() if app is None else app
         hist_file = self.app.base_dir.joinpath(".hist")
-        alias_script = self.app.config_dir.joinpath('.cmd2rc')
+        alias_script = self.app.config_dir.joinpath(".cmd2rc")
         super().__init__(
             persistent_history_file=hist_file,
             persistent_history_length=500,
