@@ -510,29 +510,31 @@ class Transcriptor(BaseTranscriptor):
             "clients", sc(client[0]["name"]), "invoice_counter.txt"
         )
         invoice_count = self.invoice_counter(invoice_counter_file)
+        deposit_date = None
 
-        jobs_cond_as_tuple = quote_operands(
-            jobs_conditions[0][0], as_tuple=True
-        )
-        date_submitted_conds = [
-            x
-            for x in jobs_cond_as_tuple
-            if x.result != '"NULL"' and x.operand == "date_submitted"
-        ]
-        if date_submitted_conds:
-            cutoff_date = max(
-                x.result.strip('"') for x in date_submitted_conds
+        if jobs_conditions[0] is not None:
+            jobs_cond_as_tuple = quote_operands(
+                jobs_conditions[0][0], as_tuple=True
             )
-            deposit_date = dict(self.load_cutoffs()).get(cutoff_date, "")
-            if not deposit_date:
-                today = datetime.now().strftime(self.config.date_format)
-                cutoffs = self.load_cutoffs()[1:]
-                for idx, i in enumerate(cutoffs):
-                    if i[0] > today:
-                        deposit_date = cutoffs[idx - 1][1]
-                        break
-        else:
-            deposit_date = ""
+            date_submitted_conds = [
+                x
+                for x in jobs_cond_as_tuple
+                if x.result != '"NULL"' and x.operand == "date_submitted"
+            ]
+            if date_submitted_conds:
+                cutoff_date = max(
+                    x.result.strip('"') for x in date_submitted_conds
+                )
+                deposit_date = dict(self.load_cutoffs()).get(cutoff_date, "")
+                if not deposit_date:
+                    today = datetime.now().strftime(self.config.date_format)
+                    cutoffs = self.load_cutoffs()[1:]
+                    for idx, i in enumerate(cutoffs):
+                        if i[0] > today:
+                            deposit_date = cutoffs[idx - 1][1]
+                            break
+            else:
+                deposit_date = ""
 
         client_name = client[0]["name"]
         invoice_dir = self.base_dir.joinpath(
@@ -543,6 +545,11 @@ class Transcriptor(BaseTranscriptor):
             f"{date.today().strftime('%Y-%m-%d')}_{client_name}_invoice"
         )
         invoice_file = invoice_dir.joinpath(invoice_file_name)
+
+        if deposit_date is None:
+            deposit_date = today = (
+                datetime.now() + timedelta(days=5)
+            ).strftime(self.config.date_format)
 
         invoice_html = self.invoice_html(
             client, jobs, title, invoice_count, deposit_date
