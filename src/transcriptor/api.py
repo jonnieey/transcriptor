@@ -89,9 +89,8 @@ class API:
             """
         if raw_statement:
             stmt += raw_statement
-            return self.cursor.execute(stmt).fetchall()
 
-        if conditions:
+        elif conditions:
             searchstrs = " and ".join(qv(conditions[0]))
             stmt += f" WHERE {searchstrs}"
         return self.cursor.execute(stmt).fetchall()
@@ -114,9 +113,8 @@ class API:
         """
         if raw_statement:
             stmt += raw_statement
-            return self.cursor.execute(stmt).fetchall()
 
-        if conditions:
+        elif conditions:
             searchstrs = " and ".join(qv(conditions[0]))
             stmt += f" WHERE {searchstrs}"
 
@@ -145,14 +143,13 @@ class API:
         """
         if raw_statement:
             stmt += raw_statement
-            return self.cursor.execute(stmt).fetchall()
 
-        if conditions:
+        elif conditions:
             searchstrs = " and ".join(qv(conditions[0]))
             stmt += f" WHERE {searchstrs}"
 
-        if other_conditions:
-            stmt += f" {other_conditions[0]}"
+            if other_conditions:
+                stmt += f" {other_conditions[0]}"
         return self.cursor.execute(stmt).fetchall()
 
     def update(
