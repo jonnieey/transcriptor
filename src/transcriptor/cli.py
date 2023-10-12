@@ -91,6 +91,8 @@ show_clients_parser = show_subparsers.add_parser(
 show_clients_parser.add_argument(
     "-w", "--where", nargs="*", help="Filter condition"
 )
+show_clients_parser.add_argument("-r", "--raw", help="Raw sql query")
+
 show_jobs_parser = show_subparsers.add_parser("jobs", help="show jobs")
 show_jobs_parser.add_argument(
     "-w", "--where", nargs="*", help="Filter condition"
@@ -98,10 +100,13 @@ show_jobs_parser.add_argument(
 show_jobs_parser.add_argument(
     "-a", "--all", action="store_true", help="Show all jobs"
 )
+show_jobs_parser.add_argument("-r", "--raw", help="Raw sql query")
+
 show_cutoffs_parser = show_subparsers.add_parser(
     "cutoffs", help="show cutoffs"
 )
 show_rates_parser = show_subparsers.add_parser("rates", help="show rates")
+show_rates_parser.add_argument("-r", "--raw", help="Raw sql query")
 
 add_parser = base_subparsers.add_parser("add", help="add object")
 add_subparsers = add_parser.add_subparsers(
@@ -184,9 +189,7 @@ update_client_parser.add_argument(
 update_client_parser.add_argument(
     "-w", "--where", nargs="*", help="Filter condition"
 )
-update_client_parser.add_argument(
-    "-m", "--many", nargs="*", help="Allow multiple updates"
-)
+update_client_parser.add_argument("-r", "--raw", help="Raw sql query")
 
 update_jobs_parser = update_subparsers.add_parser("jobs", help="update job")
 update_jobs_parser.add_argument(
@@ -195,10 +198,8 @@ update_jobs_parser.add_argument(
 update_jobs_parser.add_argument(
     "-w", "--where", nargs="*", help="Filter condition"
 )
-update_jobs_parser.add_argument(
-    "-m", "--many", nargs="*", help="Allow multiple updates"
-)
-#
+update_jobs_parser.add_argument("-r", "--raw", help="Raw sql query")
+
 update_rates_parser = update_subparsers.add_parser(
     "rates", help="update rate"
 )
@@ -208,9 +209,8 @@ update_rates_parser.add_argument(
 update_rates_parser.add_argument(
     "-w", "--where", nargs="*", help="Filter condition"
 )
-update_rates_parser.add_argument(
-    "-m", "--many", nargs="*", help="Allow multiple updates"
-)
+update_rates_parser.add_argument("-r", "--raw", help="Raw sql query")
+
 delete_parser = base_subparsers.add_parser("delete", help="delete object")
 delete_subparsers = delete_parser.add_subparsers(
     title="subcommands", help="subcommand help"
@@ -227,6 +227,7 @@ delete_client_parser.add_argument(
 delete_client_parser.add_argument(
     "-p", "--purge", action="store_true", help="Remove clients all files"
 )
+delete_client_parser.add_argument("-r", "--raw", help="Raw sql query")
 
 delete_jobs_parser = delete_subparsers.add_parser("jobs", help="delete job")
 delete_jobs_parser.add_argument(
@@ -244,12 +245,14 @@ delete_jobs_parser.add_argument(
 delete_jobs_parser.add_argument(
     "-d", "--delete", action="store_true", help="Delete task file"
 )
+delete_jobs_parser.add_argument("-r", "--raw", help="Raw sql query")
 delete_rates_parser = delete_subparsers.add_parser(
     "rates", help="delete rate"
 )
 delete_rates_parser.add_argument(
     "-w", "--where", nargs="*", help="Filter condition"
 )
+delete_rates_parser.add_argument("-r", "--raw", help="Raw sql query")
 
 invoice_parser = base_subparsers.add_parser(
     "invoice", help="Invoice commands"
@@ -278,6 +281,7 @@ create_invoice_parser.add_argument(
 create_invoice_parser.add_argument(
     "-P", "--no-prompt", action="store_true", help="Do not prompt"
 )
+create_invoice_parser.add_argument("-r", "--raw", help="Raw sql query")
 
 purge_files_parser = base_subparsers.add_parser(
     "purge", help="Invoice commands"
@@ -291,6 +295,7 @@ purge_files_parser.add_argument(
 purge_files_parser.add_argument(
     "-P", "--no-prompt", action="store_true", help="Do not prompt"
 )
+purge_files_parser.add_argument("-r", "--raw", help="Raw sql query")
 
 
 class TranscriptorCMD(cmd2.Cmd):
@@ -371,11 +376,14 @@ class TranscriptorCMD(cmd2.Cmd):
         Ex.
            show clients
         """
-        clients = (
-            self.app.api.get_clients(args.where)
-            if args and args.where
-            else self.app.api.get_clients()
-        )
+        if args and args.raw:
+            clients = self.app.api.get_clients(raw_statement=args.raw)
+        else:
+            clients = (
+                self.app.api.get_clients(args.where)
+                if args and args.where
+                else self.app.api.get_clients()
+            )
         return (
             ConsoleView().print_table(clients, orientation="hor")
             if clients
@@ -390,14 +398,19 @@ class TranscriptorCMD(cmd2.Cmd):
         Ex.
            show jobs
         """
-        if args.all:
-            args.where = []
-        elif not args.where:
-            args.where = ["status=Pending"]
+        if args.raw:
+            if jobs := self.app.api.get_jobs(raw_statement=args.raw):
+                ConsoleView().print_table(jobs, orientation="hor")
+
         else:
-            args.where = [" ".join(args.where)]
-        if jobs := self.app.api.get_jobs(args.where):
-            ConsoleView().print_table(jobs, orientation="hor")
+            if args.all:
+                args.where = []
+            elif not args.where and not args.raw:
+                args.where = ["status=Pending"]
+            else:
+                args.where = [" ".join(args.where)]
+            if jobs := self.app.api.get_jobs(args.where):
+                ConsoleView().print_table(jobs, orientation="hor")
 
     show_jobs_parser.set_defaults(func=show_jobs)
 
@@ -417,7 +430,15 @@ class TranscriptorCMD(cmd2.Cmd):
         Ex.
            show rates
         """
-        ConsoleView().print_table(self.app.api.get_rates(), orientation="hor")
+        if args.raw:
+            ConsoleView().print_table(
+                self.app.api.get_rates(raw_statement=args.raw),
+                orientation="hor",
+            )
+        else:
+            ConsoleView().print_table(
+                self.app.api.get_rates(), orientation="hor"
+            )
 
     show_rates_parser.set_defaults(func=show_rates)
 
@@ -441,29 +462,32 @@ class TranscriptorCMD(cmd2.Cmd):
 
         # name, email, rates
         try:
-            get_rates = lambda: {
-                "normal": float(
-                    prompt(
-                        "    Normal: ",
-                        default="0.40",
-                        validator=float_validator,
-                    )
-                ),
-                "expedite": float(
-                    prompt(
-                        "    Expedite: ",
-                        default="0.60",
-                        validator=float_validator,
-                    )
-                ),
-                "interpreted": float(
-                    prompt(
-                        "    Interpreted: ",
-                        default="0.30",
-                        validator=float_validator,
-                    )
-                ),
-            }
+
+            def get_rates():
+                return {
+                    "normal": float(
+                        prompt(
+                            "    Normal: ",
+                            default="0.40",
+                            validator=float_validator,
+                        )
+                    ),
+                    "expedite": float(
+                        prompt(
+                            "    Expedite: ",
+                            default="0.60",
+                            validator=float_validator,
+                        )
+                    ),
+                    "interpreted": float(
+                        prompt(
+                            "    Interpreted: ",
+                            default="0.30",
+                            validator=float_validator,
+                        )
+                    ),
+                }
+
             # if not args.name:
             args.name = args.name or prompt(
                 "Enter Client's name: ",
@@ -612,15 +636,20 @@ class TranscriptorCMD(cmd2.Cmd):
         self.app.save_profile(updated_profile)
 
     def update_client(self, args):
-        if not args.set_cond or not args.where:
-            return
-        set_cond = " ".join(args.set_cond)
-        where = " ".join(args.where)
-        self.app.api.update("clients", [set_cond], [where])
+        if args.raw:
+            self.app.api.update("clients", raw_statement=args.raw)
+        else:
+            if not args.set_cond or not args.where:
+                return
+            set_cond = " ".join(args.set_cond)
+            where = " ".join(args.where)
+            self.app.api.update("clients", [set_cond], [where])
 
         # self.yaml_update(arg, obj)
 
     def update_jobs(self, args):
+        if args.raw:
+            self.app.api.update_jobs("clients", raw_statement=args.raw)
         if not args.set_cond or not args.where:
             return
         set_cond = " ".join(args.set_cond)
@@ -641,39 +670,61 @@ class TranscriptorCMD(cmd2.Cmd):
     update_rates_parser.set_defaults(func=update_rates)
 
     def delete_client(self, args):
-        if not args.where:
-            return
-        where = " ".join(args.where)
+        clients = None
+        where = None
+        if args.raw and not args.no_prompt:
+            clients = self.app.api.get_clients(raw_statement=args.raw)
+        elif not args.raw and args.where:
+            where = " ".join(args.where)
+            if not args.no_prompt:
+                clients = self.app.api.get_clients([where])
 
-        if not args.no_prompt:
-            clients = self.app.api.get_clients([where])
-            ConsoleView().print_table(
-                clients, orientation="hor"
-            ) if clients else ""
+        if clients:
+            ConsoleView().print_table(clients, orientation="hor")
+
             confirm = prompt(
                 "Are you sure you want to delete these clients? (y/n): ",
                 default="n",
             )
-            if confirm.lower() != "y":
-                return
-        # where = where.replace("client_id", "id")
-        # TODO Should cascade rates
-        self.app.delete_clients(where, args.purge)
+            if confirm.lower() == "y":
+                if args.raw is not None:
+                    self.app.delete_clients(
+                        raw_statement=args.raw, purge=args.purge
+                    )
+                elif args.where is not None:
+                    self.app.delete_clients(condition=where, purge=args.purge)
 
     delete_client_parser.set_defaults(func=delete_client)
 
     def delete_jobs(self, args):
-        if not args.where:
+        if not args.where or args.raw:
             return
-        if not args.no_prompt:
-            jobs = self.app.api.get_jobs(args.where)
-            ConsoleView().print_table(jobs, orientation="hor") if jobs else ""
-            confirm = prompt(
-                "Are you sure you want to delete these jobs? (y/n): ",
-                default="n",
-            )
-            if confirm.lower() != "y":
-                return
+
+        if args.raw:
+            if not args.no_prompt:
+                jobs = self.app.api.get_jobs(raw_statement=args.raw)
+                ConsoleView().print_table(
+                    jobs, orientation="hor"
+                ) if jobs else ""
+                confirm = prompt(
+                    "Are you sure you want to delete these jobs? (y/n): ",
+                    default="n",
+                )
+                if confirm.lower() != "y":
+                    return
+
+        else:
+            if not args.no_prompt:
+                jobs = self.app.api.get_jobs(args.where)
+                ConsoleView().print_table(
+                    jobs, orientation="hor"
+                ) if jobs else ""
+                confirm = prompt(
+                    "Are you sure you want to delete these jobs? (y/n): ",
+                    default="n",
+                )
+                if confirm.lower() != "y":
+                    return
         self.app.delete_jobs(args.where, args.delete, args.purge)
 
     delete_jobs_parser.set_defaults(func=delete_jobs)
@@ -707,7 +758,7 @@ class TranscriptorCMD(cmd2.Cmd):
                     prompt("Enter client id: ", validator=gt0_validator)
                 )
 
-            if not args.table:
+            if not args.table and not args.raw:
                 args.where = args.where or []
                 conditions = f"client_id={args.client_id}"
                 if args.where:
@@ -716,7 +767,12 @@ class TranscriptorCMD(cmd2.Cmd):
                 else:
                     args.where = [conditions]
 
-            elif not args.no_prompt and args.table and not args.where:
+            elif (
+                not args.no_prompt
+                and args.table
+                and not args.where
+                and not args.raw
+            ):
                 cutoff_list = self.app.load_cutoffs()
                 for idx, row in enumerate(cutoff_list):
                     if idx == 0:
@@ -740,7 +796,9 @@ class TranscriptorCMD(cmd2.Cmd):
                     f"client_id={args.client_id} {cutoff_condition}"
                 ]
             unpaid_jobs_cond = [
-                "AND date_submitted IS NOT NULL AND amount > amount_paid"
+                "{} AND date_submitted IS NOT NULL AND amount > amount_paid".format(
+                    args.raw if args.raw is not None else ""
+                )
             ]
 
             if inv := self.app.create_invoice(

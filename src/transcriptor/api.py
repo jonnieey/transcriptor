@@ -70,7 +70,9 @@ class API:
         self.cursor.executemany(stmt, jobs)
         self.conn.commit()
 
-    def get_clients(self, conditions: list[str] = None) -> list:
+    def get_clients(
+        self, conditions: list[str] = [], raw_statement: str = ""
+    ) -> list:
         """
         Get clients from database
 
@@ -80,19 +82,23 @@ class API:
         Returns:
             list of dicts
         """
-        if conditions is None:
-            conditions = []
         stmt = """
             SELECT c.id AS client_id, c.name, c.email, r.normal, r.expedite, r.interpreted
             FROM clients AS c
-            JOIN rates AS r ON c.id = r.client_id 
+            JOIN rates AS r ON c.id = r.client_id
             """
+        if raw_statement:
+            stmt += raw_statement
+            return self.cursor.execute(stmt).fetchall()
+
         if conditions:
             searchstrs = " and ".join(qv(conditions[0]))
             stmt += f" WHERE {searchstrs}"
         return self.cursor.execute(stmt).fetchall()
 
-    def get_rates(self, conditions: str = "") -> list:
+    def get_rates(
+        self, conditions: str = "", raw_statement: str = ""
+    ) -> list:
         """
         Get rates from database
 
@@ -106,6 +112,10 @@ class API:
         SELECT c.name, r.id, r.normal, r.expedite, r.interpreted 
         FROM rates AS r JOIN clients AS c ON c.id = r.client_id
         """
+        if raw_statement:
+            stmt += raw_statement
+            return self.cursor.execute(stmt).fetchall()
+
         if conditions:
             searchstrs = " and ".join(qv(conditions[0]))
             stmt += f" WHERE {searchstrs}"
@@ -113,7 +123,10 @@ class API:
         return self.cursor.execute(stmt).fetchall()
 
     def get_jobs(
-        self, conditions: str = None, other_conditions: str = ""
+        self,
+        conditions: list[str] = [],
+        other_conditions: str = "",
+        raw_statement: str = "",
     ) -> list:
         """
         Get jobs from database
@@ -124,14 +137,16 @@ class API:
         Returns:
             list of dicts
         """
-        if conditions is None:
-            conditions = []
         stmt = """
          SELECT  j.client_id,  j.date_received, j.id AS job_id, j.job_number, j.job_type,
          j.status, j.date_due, j.total_quantity, j.quantity, j.job_rate,
          j.date_submitted, j.amount, j.amount_paid, j.note, j.job_path
          FROM JOBS AS j
         """
+        if raw_statement:
+            stmt += raw_statement
+            return self.cursor.execute(stmt).fetchall()
+
         if conditions:
             searchstrs = " and ".join(qv(conditions[0]))
             stmt += f" WHERE {searchstrs}"
@@ -143,9 +158,10 @@ class API:
     def update(
         self,
         table_name: str,
-        set_conditions: list,
-        search_conditions: list,
+        set_conditions: list = [],
+        search_conditions: list = [],
         other_conditions: str = "",
+        raw_statement: str = "",
     ) -> Optional[int]:
         """
         Update table values
@@ -159,14 +175,17 @@ class API:
         Returns:
             id of changed row
         """
-        setstr = ", ".join(qv(set_conditions[0]))
-        stmt = f"UPDATE {table_name} SET {setstr} "
+        if raw_statement:
+            stmt = f"UPDATE {table_name} {raw_statement}"
+        else:
+            setstr = ", ".join(qv(set_conditions[0]))
+            stmt = f"UPDATE {table_name} SET {setstr} "
 
-        searchstrs = " and ".join(qv(search_conditions[0]))
-        stmt += f" WHERE {searchstrs}"
+            searchstrs = " and ".join(qv(search_conditions[0]))
+            stmt += f" WHERE {searchstrs}"
 
-        if other_conditions:
-            stmt += other_conditions[0]
+            if other_conditions:
+                stmt += other_conditions[0]
 
         self.cursor.execute(stmt)
         self.conn.commit()
@@ -175,7 +194,8 @@ class API:
     def delete(
         self,
         table_name: str,
-        search_conditions: list,
+        search_conditions: list = [],
+        raw_statement: str = "",
     ) -> Optional[int]:
         """
         Delete rows from table
@@ -187,10 +207,13 @@ class API:
         Returns:
             number of deleted rows
         """
-        stmt = f"DELETE FROM {table_name} "
+        if raw_statement:
+            stmt = f"DELETE FROM {table_name} {raw_statement} "
+        else:
+            stmt = f"DELETE FROM {table_name} "
 
-        searchstrs = " and ".join(qv(search_conditions[0]))
-        stmt += f" WHERE {searchstrs}"
+            searchstrs = " and ".join(qv(search_conditions[0]))
+            stmt += f" WHERE {searchstrs}"
 
         self.cursor.execute(stmt)
         self.conn.commit()

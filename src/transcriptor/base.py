@@ -568,10 +568,18 @@ class Transcriptor(BaseTranscriptor):
         if not save_pdf and not save_html:
             return self.invoice_html_to_md(invoice_html)
 
-    def delete_clients(self, condition: str, purge=False):
-        clients = self.api.get_clients([condition])
-        condition = condition.replace("client_id", "id")
-        self.api.delete("clients", [condition])
+    def delete_clients(
+        self, condition: str = "", raw_statement: str = "", purge=False
+    ):
+        if raw_statement:
+            clients = self.api.get_clients(raw_statement=raw_statement)
+            raw_statement = raw_statement.replace("client_id", "id")
+            self.api.delete("clients", raw_statement=raw_statement)
+        else:
+            clients = self.api.get_clients([condition])
+            condition = condition.replace("client_id", "id")
+            self.api.delete("clients", [condition])
+
         if purge and clients:
             on_errors = (
                 lambda func, path, exec_info: f"{exec_info[0]} -> {exec_info[1]}"
@@ -582,9 +590,19 @@ class Transcriptor(BaseTranscriptor):
                 if purge:
                     shutil.rmtree(client_dir, onerror=on_errors)
 
-    def delete_jobs(self, condition, delete_file=False, purge=False):
-        jobs = self.api.get_jobs(condition)
-        self.api.delete("jobs", condition)
+    def delete_jobs(
+        self,
+        condition: list[str] = [],
+        raw_statement: str = "",
+        delete_file=False,
+        purge=False,
+    ):
+        if raw_statement:
+            jobs = self.api.get_jobs(raw_statement=raw_statement)
+            self.api.delete("jobs", raw_statement=raw_statement)
+        elif condition:
+            jobs = self.api.get_jobs(condition)
+            self.api.delete("jobs", condition)
         if delete_file or purge:
             on_errors = (
                 lambda func, path, exec_info: f"{exec_info[0]} -> {exec_info[1]}"
@@ -597,9 +615,19 @@ class Transcriptor(BaseTranscriptor):
                 if delete_file:
                     job_path.unlink(missing_ok=True)
 
-    def update_jobs(self, set_cond, where_cond):
-        cursor = self.api.update("Jobs", [set_cond], [where_cond])
-        if cursor.rowcount > 0 and "client_id" in set_cond:
+    def update_jobs(
+        self,
+        set_cond: str = "",
+        where_cond: str = "",
+        raw_statement: str = "",
+    ):
+        if raw_statement:
+            cursor = self.api.update("Jobs", raw_statement=raw_statement)
+        else:
+            cursor = self.api.update("Jobs", [set_cond], [where_cond])
+        if cursor.rowcount > 0 and (
+            "client_id" in set_cond or "client_id" in raw_statement
+        ):
             set_cond_tuple = quote_operands(set_cond, as_tuple=True)
             client_cond = [
                 "".join([op[0], op[1], op[2].replace('"', "")])
