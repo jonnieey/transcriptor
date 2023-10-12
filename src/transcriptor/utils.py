@@ -522,7 +522,6 @@ def is_work_choices(text: str) -> bool:
 
 template_mapping = {
     "zd": "Zoom Deposition Block Files.doc",
-    "zdO": "Zoom Deposition Overflow Block Files.docx",
     "nh": "Hearing Block Files.doc",
     "zeo": "Zoom Examination Under Oath Block Files.doc",
     "zh": "Zoom Hearing Block Files.doc",
@@ -531,6 +530,8 @@ template_mapping = {
     "tt": "Tape Transcript.doc",
     "me": "Compulsory Medical Exam Template.doc",
     "zdi": "Zoom Deposition Block File with Interpreter.doc",
+    "od": "Overflow Deposition Block Files.docx",
+    "oh": "Overflow Hearing Block Files.docx",
 }
 
 
