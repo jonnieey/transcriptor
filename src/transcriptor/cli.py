@@ -649,12 +649,13 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def update_jobs(self, args):
         if args.raw:
-            self.app.api.update_jobs("clients", raw_statement=args.raw)
-        if not args.set_cond or not args.where:
-            return
-        set_cond = " ".join(args.set_cond)
-        where = " ".join(args.where)
-        self.app.update_jobs(set_cond, where)
+            self.app.update_jobs(raw_statement=args.raw)
+        else:
+            if not args.set_cond or not args.where:
+                return
+            set_cond = " ".join(args.set_cond)
+            where = " ".join(args.where)
+            self.app.update_jobs(set_cond, where)
 
     def update_rates(self, args):
         if not args.set_cond or not args.where:
@@ -817,10 +818,15 @@ class TranscriptorCMD(cmd2.Cmd):
     create_invoice_parser.set_defaults(func=create_invoice)
 
     def purge_files(self, args):
-        if not args.where:
+        if not args.where and not args.raw:
             return
-        args.where = " ".join(args.where)
-        jobs = self.app.api.get_jobs([args.where])
+        if args.raw:
+            jobs = self.app.api.get_jobs(raw_statement=args.raw)
+        elif args.where:
+            args.where = " ".join(args.where)
+            jobs = self.app.api.get_jobs([args.where])
+        print(args.raw)
+
         if not args.no_prompt:
             ConsoleView().print_table(jobs, orientation="hor") if jobs else ""
             confirm = prompt(
