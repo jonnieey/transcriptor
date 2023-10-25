@@ -215,3 +215,30 @@ class API:
         self.cursor.execute(stmt)
         self.conn.commit()
         return self.cursor.lastrowid
+
+    def get_invoice_summary(self, client_id):
+        stmt = """
+         SELECT ROW_NUMBER() OVER (ORDER BY strftime('%Y-%m', date_submitted)) AS '',
+               CASE strftime('%m', date_submitted)
+                   WHEN '01' THEN 'January'
+                   WHEN '02' THEN 'February'
+                   WHEN '03' THEN 'March'
+                   WHEN '04' THEN 'April'
+                   WHEN '05' THEN 'May'
+                   WHEN '06' THEN 'June'
+                   WHEN '07' THEN 'July'
+                   WHEN '08' THEN 'August'
+                   WHEN '09' THEN 'September'
+                   WHEN '10' THEN 'October'
+                   WHEN '11' THEN 'November'
+                   WHEN '12' THEN 'December'
+               END AS month,
+               COUNT(*) as 'count',
+               ROUND(SUM(amount),2) as total
+        FROM Jobs
+        WHERE client_id=:client_id and date_submitted!=0
+        GROUP BY month
+        """
+
+        # print(stmt)
+        return self.cursor.execute(stmt, {"client_id": client_id}).fetchall()

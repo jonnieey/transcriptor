@@ -282,9 +282,12 @@ create_invoice_parser.add_argument(
     "-P", "--no-prompt", action="store_true", help="Do not prompt"
 )
 create_invoice_parser.add_argument("-r", "--raw", help="Raw sql query")
+create_invoice_parser.add_argument(
+    "-s", "--summary", action="store_true", help="Create invoice summary"
+)
 
 purge_files_parser = base_subparsers.add_parser(
-    "purge", help="Invoice commands"
+    "purge", help="Purge commands"
 )
 purge_files_subparsers = purge_files_parser.add_subparsers(
     title="subcommands", help="subcommand help"
@@ -759,6 +762,22 @@ class TranscriptorCMD(cmd2.Cmd):
                     prompt("Enter client id: ", validator=gt0_validator)
                 )
 
+            if args.summary:
+                summary_jobs = self.app.api.get_invoice_summary(
+                    args.client_id
+                )
+                if inv := self.app.create_invoice(
+                    args.client_id,
+                    summary_jobs,
+                    args.to_pdf,
+                    args.to_html,
+                    args.title,
+                    summary=True,
+                ):
+                    ConsoleView().print_table(summary_jobs, orientation="hor")
+                return
+
+            deposit_date = ""
             if not args.table and not args.raw:
                 args.where = args.where or []
                 conditions = f"client_id={args.client_id}"
@@ -788,7 +807,7 @@ class TranscriptorCMD(cmd2.Cmd):
                     )
                 )
                 _, start, _ = cutoff_list[cutoff - 1]
-                _, end, _ = cutoff_list[cutoff]
+                _, end, deposit_date = cutoff_list[cutoff]
 
                 cutoff_condition = (
                     f"date_submitted>{start} date_submitted<={end}"
@@ -801,13 +820,16 @@ class TranscriptorCMD(cmd2.Cmd):
                     args.raw if args.raw is not None else ""
                 )
             ]
+            unpaid_jobs = self.app.api.get_jobs(args.where, unpaid_jobs_cond)
 
             if inv := self.app.create_invoice(
-                args.client_id,
-                [args.where, unpaid_jobs_cond],
-                args.to_pdf,
-                args.to_html,
-                args.title,
+                client_id=args.client_id,
+                jobs=unpaid_jobs,
+                save_pdf=args.to_pdf,
+                save_html=args.to_html,
+                deposit_date=deposit_date,
+                title=args.title,
+                summary=args.summary,
             ):
                 ConsoleView().console.print(inv)
 
@@ -825,7 +847,6 @@ class TranscriptorCMD(cmd2.Cmd):
         elif args.where:
             args.where = " ".join(args.where)
             jobs = self.app.api.get_jobs([args.where])
-        print(args.raw)
 
         if not args.no_prompt:
             ConsoleView().print_table(jobs, orientation="hor") if jobs else ""

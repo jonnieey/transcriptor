@@ -17,30 +17,44 @@ class ConsoleView:
         )
 
     def generate_table(self, columns, rows):
-        # TODO let user choose to show job path in table
-        try:
-            col_amount = columns.index("amount")
-            col_amount_paid = columns.index("amount_paid")
-            total_amount = 0
-            total_amount_paid = 0
+        col_amount = columns.index("amount") if "amount" in columns else None
+        col_amount_paid = (
+            columns.index("amount_paid") if "amount_paid" in columns else None
+        )
+        col_total = columns.index("total") if "total" in columns else None
+
+        total_amount = 0
+        total_amount_paid = 0
+        jobs_table = False
+        summary_table = False
+
+        if col_amount is not None and col_amount_paid is not None:
             jobs_table = True
-        except ValueError:
-            jobs_table = False
+        elif col_total is not None:
+            jobs_table = True
+            summary_table = True
 
         for column in columns:
             self.table.add_column(tc(column))
+
         for row in rows:
             if jobs_table:
-                total_amount += row[col_amount]
-                total_amount_paid += row[col_amount_paid]
+                if summary_table is False:
+                    total_amount += row[col_amount]
+                    total_amount_paid += row[col_amount_paid]
+                else:
+                    total_amount += row[col_total]
             row = list(map(str, row))
             self.table.add_row(*row)
 
         if jobs_table:
             self.table.add_section()
             summary_row = [""] * len(columns)
-            summary_row[col_amount] = str(round(total_amount, 2))
-            summary_row[col_amount_paid] = str(round(total_amount_paid, 2))
+            if not summary_table:
+                summary_row[col_amount] = str(round(total_amount, 2))
+                summary_row[col_amount_paid] = str(round(total_amount_paid, 2))
+            else:
+                summary_row[col_total] = str(round(total_amount, 2))
             self.table.add_row(*summary_row)
 
     def print_table(

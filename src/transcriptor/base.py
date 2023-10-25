@@ -430,6 +430,7 @@ class Transcriptor(BaseTranscriptor):
         title="",
         invoice_count=0,
         deposit_date="",
+        summary=False,
     ):
         if not jobs:
             return
@@ -441,6 +442,7 @@ class Transcriptor(BaseTranscriptor):
             "jobs": jobs,
             "amount": 0.0,
             "profile": profile,
+            "date": today,
             "data": {
                 "title": title,
                 "invoice_number": f"{invoice_count + 1:05}",
@@ -456,7 +458,10 @@ class Transcriptor(BaseTranscriptor):
             loader=PackageLoader("transcriptor", "invoice_templates"),
             autoescape=select_autoescape(["html", "xml", "css"]),
         )
-        template = env.get_template("invoice.html")
+        invoice_template = (
+            "invoice.html" if not summary else "summary_invoice.html"
+        )
+        template = env.get_template(invoice_template)
         return template.render(context)
 
     def invoice_html_to_md(self, html):
@@ -483,16 +488,20 @@ class Transcriptor(BaseTranscriptor):
             invoice_counter_file.write_text(f"{invoice_counter}")
         return invoice_counter
 
+    # TODO Refactor create invoice should take in a list of jobs
     def create_invoice(
         self,
         client_id,
-        jobs_conditions: list[list[str]] = [],
-        save_pdf=False,
-        save_html=False,
-        title="",
+        jobs: list = [],
+        save_pdf: bool = False,
+        save_html: bool = False,
+        deposit_date: str = "",
+        title: str = "",
+        summary: bool = False,
     ):
-        if not client_id:
+        if not client_id or not jobs:
             return
+
         condition = f"client_id={client_id}"
         client = self.api.get_clients(
             [
@@ -502,60 +511,60 @@ class Transcriptor(BaseTranscriptor):
         if not client:
             return
         # print(jobs_conditions)
-        jobs = self.api.get_jobs(*jobs_conditions)
-        if not jobs:
-            return
+        # jobs = self.api.get_jobs(*jobs_conditions)
+        client_name = client[0]["name"]
 
         invoice_counter_file = self.base_dir.joinpath(
-            "clients", sc(client[0]["name"]), "invoice_counter.txt"
+            "clients", sc(client_name), "invoice_counter.txt"
         )
         invoice_count = self.invoice_counter(invoice_counter_file)
-        deposit_date = None
+        # deposit_date = None
 
-        if jobs_conditions[0] is not None:
-            jobs_cond_as_tuple = quote_operands(
-                jobs_conditions[0][0], as_tuple=True
-            )
-            date_submitted_conds = [
-                x
-                for x in jobs_cond_as_tuple
-                if x.result != '"NULL"' and x.operand == "date_submitted"
-            ]
-            if date_submitted_conds:
-                cutoff_date = max(
-                    x.result.strip('"') for x in date_submitted_conds
-                )
-                deposit_date = dict(self.load_cutoffs()).get(cutoff_date, "")
-                if not deposit_date:
-                    today = datetime.now().strftime(self.config.date_format)
-                    cutoffs = self.load_cutoffs()[1:]
-                    for idx, i in enumerate(cutoffs):
-                        if i[0] > today:
-                            deposit_date = cutoffs[idx - 1][1]
-                            break
-            else:
-                deposit_date = ""
+        # if jobs_conditions[0] is not None:
+        #     jobs_cond_as_tuple = quote_operands(
+        #         jobs_conditions[0][0], as_tuple=True
+        #     )
+        #     date_submitted_conds = [
+        #         x
+        #         for x in jobs_cond_as_tuple
+        #         if x.result != '"NULL"' and x.operand == "date_submitted"
+        #     ]
+        #     if date_submitted_conds:
+        #         cutoff_date = max(
+        #             x.result.strip('"') for x in date_submitted_conds
+        #         )
+        #         deposit_date = dict(self.load_cutoffs()).get(cutoff_date, "")
+        #         if not deposit_date:
+        #             today = datetime.now().strftime(self.config.date_format)
+        #             cutoffs = self.load_cutoffs()[1:]
+        #             for idx, i in enumerate(cutoffs):
+        #                 if i[0] > today:
+        #                     deposit_date = cutoffs[idx - 1][1]
+        #                     break
+        #     else:
+        #         deposit_date = ""
 
-        client_name = client[0]["name"]
         invoice_dir = self.base_dir.joinpath(
             "clients", sc(client_name), "invoices"
         )
         mkdirp([invoice_dir])
         invoice_file_name = (
             f"{date.today().strftime('%Y-%m-%d')}_{client_name}_invoice"
+            if not summary
+            else f"{date.today().strftime('%Y-%m-%d')}_{client_name}_invoice_summary"
         )
         invoice_file = invoice_dir.joinpath(invoice_file_name)
 
         if deposit_date is None:
-            deposit_date = today = (
-                datetime.now() + timedelta(days=5)
-            ).strftime(self.config.date_format)
-
+            deposit_date = (datetime.now() + timedelta(days=5)).strftime(
+                self.config.date_format
+            )
+        #
         invoice_html = self.invoice_html(
-            client, jobs, title, invoice_count, deposit_date
+            client, jobs, title, invoice_count, deposit_date, summary=summary
         )
 
-        if save_pdf or save_html:
+        if (save_pdf or save_html) and not summary:
             self.increase_invoice_counter(invoice_counter_file)
 
         if save_pdf:
