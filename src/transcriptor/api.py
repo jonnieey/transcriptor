@@ -236,7 +236,7 @@ class API:
                COUNT(*) as 'count',
                ROUND(SUM(amount),2) as total
         FROM Jobs
-        WHERE client_id=:client_id and date_submitted!=0
+        WHERE client_id=:client_id and date_submitted!=0 and date_submitted is NOT NULL and amount_paid>=amount
         GROUP BY month
         """
 

@@ -338,10 +338,11 @@ class Transcriptor(BaseTranscriptor):
             template_path = self.get_job_template_path(
                 client_name, task_info["job_template"]
             )
+            template_path_suffix = template_path.suffix
 
             job_path = next_non_existant_file(
                 job_dir.joinpath(
-                    f'{job_info["job_num"]} Due {job_info["date_due"].strftime("%m.%d")}.doc'
+                    f'{job_info["job_num"]} Due {job_info["date_due"].strftime("%m.%d")}{template_path_suffix}'
                 )
             )
             shutil.copy(template_path, job_path)
@@ -451,6 +452,7 @@ class Transcriptor(BaseTranscriptor):
                 or (today + timedelta(days=7)).strftime(
                     self.config.date_format
                 ),
+                "summary_year": today - timedelta(days=365)
             },
         }
 
@@ -466,7 +468,7 @@ class Transcriptor(BaseTranscriptor):
 
     def invoice_html_to_md(self, html):
         markdown = md(html)
-        md_table = markdown[markdown.find("![]()") + 5 :]
+        md_table = markdown[markdown.find("![]()") + 5:]
         md_table = re.sub(r"\n{2,}", "\n\n", md_table)
         return md_table
 
@@ -648,7 +650,12 @@ class Transcriptor(BaseTranscriptor):
                 client_dir = self.base_dir.joinpath(
                     "clients", sc(client["name"])
                 )
-                jobs = self.api.get_jobs([where_cond])
+                if raw_statement:
+                    jobs_statement_start = re.search('where', raw_statement, re.IGNORECASE).span()[0]
+                    jobs = self.api.get_jobs(raw_statement=raw_statement[jobs_statement_start:])
+
+                elif where_cond:
+                    jobs = self.api.get_jobs([where_cond])
                 for job in jobs:
                     # print(job)
                     job_path = Path(job["job_path"])
@@ -660,11 +667,11 @@ class Transcriptor(BaseTranscriptor):
                     )
                     new_job_dir = client_dir.joinpath(
                         *job_path_parts[
-                            clients_dir_idx + 2 : clients_dir_idx + 5
+                            clients_dir_idx + 2: clients_dir_idx + 5
                         ]
                     )
                     new_job_path = client_dir.joinpath(
-                        *job_path_parts[clients_dir_idx + 2 :]
+                        *job_path_parts[clients_dir_idx + 2:]
                     )
 
                     with contextlib.suppress(Exception):
