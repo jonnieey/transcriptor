@@ -145,6 +145,15 @@ add_job_parser.add_argument("-N", "--note", help="job note")
 add_job_parser.add_argument(
     "-P", "--no-prompt", action="store_true", help="Do not prompt"
 )
+add_cutoff_parser = add_subparsers.add_parser(
+    "cutoff", help="Create cutoffs csv from docx"
+)
+add_cutoff_parser.add_argument(
+    "-f", "--cutoff-file", help="Docx file with cutoff table"
+)
+add_cutoff_parser.add_argument(
+    "-s", "--save", action="store_true", help="Save cutoffs to csv file"
+)
 
 update_parser = base_subparsers.add_parser("update", help="update object")
 update_subparsers = update_parser.add_subparsers(
@@ -619,6 +628,18 @@ class TranscriptorCMD(cmd2.Cmd):
     add_job_parser.set_defaults(func=add_job)
     # add_cutoffs_parser.set_defaults(func=add_cutoffs)
 
+    def add_cutoffs(self, args):
+        args.cutoff_file = args.cutoff_file or prompt(
+            "Enter cutoff docx file path: ", validator=job_file_validator
+        )
+        cutoffs_list = self.app.extract_cutoffs_from_docx(args.cutoff_file)
+        if args.save:
+            self.app.save_cutoffs(cutoffs_list)
+        else:
+            ConsoleView().print_table(cutoffs_list, orientation="hor")
+
+    add_cutoff_parser.set_defaults(func=add_cutoffs)
+
     def update_config(self, args):
         self.app.config.base_dir = args.base_dir or self.app.config.base_dir
         self.app.config.date_format = (
@@ -774,6 +795,7 @@ class TranscriptorCMD(cmd2.Cmd):
                     args.title,
                     summary=True,
                 ):
+
                     ConsoleView().print_table(summary_jobs, orientation="hor")
                 return
 
@@ -823,7 +845,8 @@ class TranscriptorCMD(cmd2.Cmd):
                 unpaid_jobs_cond = ""
 
             unpaid_jobs = self.app.api.get_jobs(
-                args.where, raw_statement=unpaid_jobs_cond)
+                args.where, raw_statement=unpaid_jobs_cond
+            )
 
             if inv := self.app.create_invoice(
                 client_id=args.client_id,

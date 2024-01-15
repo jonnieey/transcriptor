@@ -452,7 +452,7 @@ class Transcriptor(BaseTranscriptor):
                 or (today + timedelta(days=7)).strftime(
                     self.config.date_format
                 ),
-                "summary_year": today - timedelta(days=365)
+                "summary_year": today - timedelta(days=365),
             },
         }
 
@@ -468,7 +468,7 @@ class Transcriptor(BaseTranscriptor):
 
     def invoice_html_to_md(self, html):
         markdown = md(html)
-        md_table = markdown[markdown.find("![]()") + 5:]
+        md_table = markdown[markdown.find("![]()") + 5 :]
         md_table = re.sub(r"\n{2,}", "\n\n", md_table)
         return md_table
 
@@ -651,8 +651,12 @@ class Transcriptor(BaseTranscriptor):
                     "clients", sc(client["name"])
                 )
                 if raw_statement:
-                    jobs_statement_start = re.search('where', raw_statement, re.IGNORECASE).span()[0]
-                    jobs = self.api.get_jobs(raw_statement=raw_statement[jobs_statement_start:])
+                    jobs_statement_start = re.search(
+                        "where", raw_statement, re.IGNORECASE
+                    ).span()[0]
+                    jobs = self.api.get_jobs(
+                        raw_statement=raw_statement[jobs_statement_start:]
+                    )
 
                 elif where_cond:
                     jobs = self.api.get_jobs([where_cond])
@@ -667,11 +671,11 @@ class Transcriptor(BaseTranscriptor):
                     )
                     new_job_dir = client_dir.joinpath(
                         *job_path_parts[
-                            clients_dir_idx + 2: clients_dir_idx + 5
+                            clients_dir_idx + 2 : clients_dir_idx + 5
                         ]
                     )
                     new_job_path = client_dir.joinpath(
-                        *job_path_parts[clients_dir_idx + 2:]
+                        *job_path_parts[clients_dir_idx + 2 :]
                     )
 
                     with contextlib.suppress(Exception):

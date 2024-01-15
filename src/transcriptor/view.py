@@ -52,7 +52,9 @@ class ConsoleView:
             summary_row = [""] * len(columns)
             if not summary_table:
                 summary_row[col_amount] = str(round(total_amount, 2))
-                summary_row[col_amount_paid] = str(round(total_amount_paid, 2))
+                summary_row[col_amount_paid] = str(
+                    round(total_amount_paid, 2)
+                )
             else:
                 summary_row[col_total] = str(round(total_amount, 2))
             self.table.add_row(*summary_row)
