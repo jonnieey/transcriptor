@@ -635,6 +635,7 @@ class Transcriptor(BaseTranscriptor):
         if raw_statement:
             cursor = self.api.update("Jobs", raw_statement=raw_statement)
         else:
+            raw_statement = ""
             cursor = self.api.update("Jobs", [set_cond], [where_cond])
         if cursor.rowcount > 0 and (
             "client_id" in set_cond or "client_id" in raw_statement

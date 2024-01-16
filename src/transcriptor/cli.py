@@ -294,6 +294,24 @@ create_invoice_parser.add_argument("-r", "--raw", help="Raw sql query")
 create_invoice_parser.add_argument(
     "-s", "--summary", action="store_true", help="Create invoice summary"
 )
+update_paid_invoice_parser = update_subparsers.add_parser(
+    "invoice", help="Update paid invoice/jobs"
+)
+update_paid_invoice_parser.add_argument("-c", "--client-id", help="client id")
+update_paid_invoice_parser.add_argument(
+    "-s", "--period-start", help="Previous cutoff/start date"
+)
+update_paid_invoice_parser.add_argument(
+    "-e", "--period-end", help="Current cutoff/end date"
+)
+update_paid_invoice_parser.add_argument(
+    "-T", "--table", action="store_true", help="show cutoff table"
+)
+
+update_paid_invoice_parser.add_argument(
+    "-w", "--where", nargs="*", help="Filter criteria"
+)
+update_paid_invoice_parser.add_argument("-r", "--raw", help="Raw sql query")
 
 purge_files_parser = base_subparsers.add_parser(
     "purge", help="Purge commands"
@@ -828,12 +846,17 @@ class TranscriptorCMD(cmd2.Cmd):
                         validator=gt0_validator,
                     )
                 )
-                _, start, _ = cutoff_list[cutoff - 1]
+                if cutoff == 1:
+                    start = prompt(
+                        "Enter period start date: ",
+                        validator=date_validator,
+                        validate_while_typing=True,
+                    )
+                else:
+                    _, start, _ = cutoff_list[cutoff - 1]
                 _, end, deposit_date = cutoff_list[cutoff]
 
-                cutoff_condition = (
-                    f"date_submitted>{start} date_submitted<={end}"
-                )
+                cutoff_condition = f"date_submitted>{start} date_submitted<={end} amount>amount_paid"
                 args.where = [
                     f"client_id={args.client_id} {cutoff_condition}"
                 ]
@@ -864,6 +887,82 @@ class TranscriptorCMD(cmd2.Cmd):
             return
 
     create_invoice_parser.set_defaults(func=create_invoice)
+
+    def update_paid_invoice(self, args):
+        if not args.client_id:
+            if self.show_clients({}) == 1:
+                return
+            args.client_id = int(
+                prompt("Enter client id: ", validator=gt0_validator)
+            )
+        if (not args.period_start or not args.period_end) and not args.table:
+            args.period_start = args.period_start or prompt(
+                "Enter period start date: ",
+                validator=date_validator,
+                validate_while_typing=True,
+            )
+            args.period_end = args.period_end or prompt(
+                "Enter period end date: ",
+                validator=date_validator,
+                validate_while_typing=True,
+            )
+        else:
+            cutoff_list = self.app.load_cutoffs()
+            for idx, row in enumerate(cutoff_list):
+                if idx == 0:
+                    row.insert(0, "")
+                else:
+                    row.insert(0, idx)
+            print(cutoff_list)
+            ConsoleView().print_table(cutoff_list, orientation="hor")
+            cutoff = int(
+                prompt(
+                    "Enter DEPOSIT date number (on second column): ",
+                    validator=gt0_validator,
+                )
+            )
+            if cutoff == 1:
+                args.period_start = prompt(
+                    "Enter period start date: ",
+                    validator=date_validator,
+                    validate_while_typing=True,
+                )
+            else:
+                _, args.period_start, _ = cutoff_list[cutoff - 1]
+            _, args.period_end, deposit_date = cutoff_list[cutoff]
+
+        cutoff_condition = f"date_submitted>{args.period_start} date_submitted<={args.period_end} amount>amount_paid"
+        args.where = [f"client_id={args.client_id} {cutoff_condition}"]
+        if args.raw:
+            args.raw = "{} AND date_submitted IS NOT NULL AND amount > amount_paid".format(
+                args.raw if args.raw is not None else ""
+            )
+        unpaid_jobs = self.app.api.get_jobs(
+            args.where, raw_statement=args.raw
+        )
+
+        if inv := self.app.create_invoice(
+            client_id=args.client_id,
+            jobs=unpaid_jobs,
+            save_pdf=False,
+            save_html=False,
+        ):
+            ConsoleView().console.print(inv)
+        confirm = prompt(
+            "Are you sure you want to update above jobs? (y/n): ",
+            default="n",
+        )
+        if confirm.lower() != "y":
+            return
+
+        args.where = " ".join(args.where)
+        self.app.update_jobs(
+            set_cond="amount_paid=2000",
+            where_cond=args.where,
+            raw_statement=args.raw,
+        )
+
+    update_paid_invoice_parser.set_defaults(func=update_paid_invoice)
 
     def purge_files(self, args):
         if not args.where and not args.raw:
