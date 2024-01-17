@@ -685,7 +685,12 @@ class Transcriptor(BaseTranscriptor):
                         cursor = self.api.update(
                             "Jobs", [set_cond], [where_cond]
                         )
-                job_dir.rename(new_job_dir)
+                new_job_dir.mkdir(exist_ok=True, parents=True)
+                try:
+                    job_dir.rename(new_job_dir)
+                except FileNotFoundError:
+                    # log error
+                    pass
 
     def purge_files(self, jobs):
         for job in jobs:
