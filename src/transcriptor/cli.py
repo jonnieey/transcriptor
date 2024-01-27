@@ -860,15 +860,13 @@ class TranscriptorCMD(cmd2.Cmd):
                 args.where = [
                     f"client_id={args.client_id} {cutoff_condition}"
                 ]
-            if args.raw:
-                unpaid_jobs_cond = "{} AND date_submitted IS NOT NULL AND amount > amount_paid".format(
+            elif args.raw:
+                args.raw = "{} AND date_submitted IS NOT NULL AND amount > amount_paid".format(
                     args.raw if args.raw is not None else ""
-                )
-            else:
-                unpaid_jobs_cond = ""
+                ) or ""
 
             unpaid_jobs = self.app.api.get_jobs(
-                args.where, raw_statement=unpaid_jobs_cond
+                args.where, raw_statement=args.raw
             )
 
             if inv := self.app.create_invoice(
