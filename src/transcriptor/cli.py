@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from copy import copy
+from pathlib import Path
 from datetime import datetime
 
 import cmd2
@@ -546,6 +547,11 @@ class TranscriptorCMD(cmd2.Cmd):
         Ex.
            add job -f file ...
         """
+        if args.job_file:
+            if not Path(args.job_file).exists():
+                self.poutput("File does not exist")
+                return True
+
         args.job_file = args.job_file or prompt(
             "Enter job file path: ", validator=job_file_validator
         )
