@@ -1,0 +1,73 @@
+[tool.poetry]
+name = "transcriptor"
+version = "1.2.0"
+description = ""  # Add your project description here
+authors = ["Jonnieey <johnjahi55@gmail.com>"]
+readme = "README.md"
+license = "MIT"  # Or your actual license
+# homepage = ""  # Optional project website URL
+# repository = ""  # Optional project repository URL
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+appdirs = "~=1.4.4"
+audioread = "~=3.0.0"
+cmd2 = "~=2.4.3"
+Jinja2 = "~=3.1.2"
+markdownify = "~=0.11.6"
+prompt-toolkit = "~=3.0.36"
+python-docx = "~=0.8.11"
+PyYAML = "~=6.0"
+rich = "~=13.3.1"
+textual = "~=0.33.0"
+weasyprint = ">=62.0"
+
+[tool.poetry.dev-dependencies]
+black = "~=22.10.0"
+mypy = "~=0.982"
+pytest = "~=7.2.0"
+isort = "~=5.10.1"
+viztracer = "~=0.15.4"
+autoflake = "~=2.0.0"
+cmd2-ext-test = "~=2.0.0"
+
+[tool.poetry.scripts]
+trans4 = "transcriptor.main:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# [tool.poetry.build]
+# includes = ["src.transcriptor"]  
+# Note: You might need to add more files/directories to `includes`
+# if your project has additional data or resource files
+
+[tool.pytest.ini_options]  # Same as before
+testpaths = "tests"
+pythonpath = [".", "src"]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+]
+addopts = "-p no:unraisableexception"
+
+
+[tool.mypy]  # Same as before
+files = ["transcriptor"]
+warn_unused_configs = true
+ignore_missing_imports = true
+python_version = "3.10"
+
+[tool.black]  # Same as before
+line-length = 78
+
+[tool.isort]   # Same as before
+line-length = 78
+multi_line_output = 3
+force_single_line = false
+balanced_wrapping = true
+include_trailing_comma = true
+
+[tool.mypy-importlib_metadata]
+ignore_missing_imports = true
