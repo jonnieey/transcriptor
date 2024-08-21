@@ -3,8 +3,8 @@ import json
 import os
 import sys
 from copy import copy
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 import cmd2
 from prompt_toolkit import prompt
@@ -752,9 +752,11 @@ class TranscriptorCMD(cmd2.Cmd):
         if args.raw:
             if not args.no_prompt:
                 jobs = self.app.api.get_jobs(raw_statement=args.raw)
-                ConsoleView().print_table(
-                    jobs, orientation="hor"
-                ) if jobs else ""
+                (
+                    ConsoleView().print_table(jobs, orientation="hor")
+                    if jobs
+                    else ""
+                )
                 confirm = prompt(
                     "Are you sure you want to delete these jobs? (y/n): ",
                     default="n",
@@ -765,9 +767,11 @@ class TranscriptorCMD(cmd2.Cmd):
         else:
             if not args.no_prompt:
                 jobs = self.app.api.get_jobs(args.where)
-                ConsoleView().print_table(
-                    jobs, orientation="hor"
-                ) if jobs else ""
+                (
+                    ConsoleView().print_table(jobs, orientation="hor")
+                    if jobs
+                    else ""
+                )
                 confirm = prompt(
                     "Are you sure you want to delete these jobs? (y/n): ",
                     default="n",
@@ -867,9 +871,12 @@ class TranscriptorCMD(cmd2.Cmd):
                     f"client_id={args.client_id} {cutoff_condition}"
                 ]
             elif args.raw:
-                args.raw = "{} AND date_submitted IS NOT NULL AND amount > amount_paid".format(
-                    args.raw if args.raw is not None else ""
-                ) or ""
+                args.raw = (
+                    "{} AND date_submitted IS NOT NULL AND amount > amount_paid".format(
+                        args.raw if args.raw is not None else ""
+                    )
+                    or ""
+                )
 
             unpaid_jobs = self.app.api.get_jobs(
                 args.where, raw_statement=args.raw

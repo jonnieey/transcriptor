@@ -521,15 +521,15 @@ def is_work_choices(text: str) -> bool:
 
 
 template_mapping = {
-    "zd": "Zoom Deposition Block Files.doc",
-    "nh": "Hearing Block Files.doc",
-    "zeo": "Zoom Examination Under Oath Block Files.doc",
-    "zh": "Zoom Hearing Block Files.doc",
-    "zus": "Zoom Unsworn Statement Block Files.doc",
-    "zwc": "Zoom Workers Comp Deposition Block Files.doc",
-    "tt": "Tape Transcript.doc",
-    "me": "Compulsory Medical Exam Template.doc",
-    "zdi": "Zoom Deposition Block File with Interpreter.doc",
+    "zd": "Zoom Deposition Block Files.docx",
+    "nh": "Hearing Block Files.docx",
+    "zeo": "Zoom Examination Under Oath Block Files.docx",
+    "zh": "Zoom Hearing Block Files.docx",
+    "zus": "Zoom Unsworn Statement Block Files.docx",
+    "zwc": "Zoom Workers Comp Deposition Block Files.docx",
+    "tt": "Tape Transcript.docx",
+    "me": "Compulsory Medical Exam Template.docx",
+    "zdi": "Zoom Deposition Block File with Interpreter.docx",
     "od": "Overflow Deposition Block Files.docx",
     "oh": "Overflow Hearing Block Files.docx",
 }

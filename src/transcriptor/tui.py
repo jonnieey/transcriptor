@@ -2,7 +2,6 @@
 This module defines the TUI of the transcriptor application
 """
 
-
 import contextlib
 from itertools import cycle
 
