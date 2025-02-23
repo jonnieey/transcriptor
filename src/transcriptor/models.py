@@ -1,85 +1,62 @@
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from enum import Enum
-from pathlib import Path
-
-import yaml
-
-from transcriptor.utils import touch
+from sqlalchemy import String
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
-class Model(ABC):
-    @abstractmethod
-    def get(self, item):
-        pass
-
-    @property
-    @abstractmethod
-    def item_type(self):
-        pass
-
-    def cols(self):
-        return list(self.__dict__.keys())
-
-    def rows(self):
-        return list(self.__dict__.values())
+class Base(DeclarativeBase):
+    pass
 
 
-class Environment(Enum):
-    DEV = "dev"
-    DEVEL = "devel"
+class Client(Base):
+    __tablename__ = "clients"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
-@dataclass
-class ConfigModel(Model):
-    date_format: str = ""
-    base_dir: str = ""
-
-    def __iter__(self):
-        yield from self.__dict__.items()
-
-    def get(self, attr):
-        return getattr(self, attr)
-
-    def set(self, attr, value):
-        setattr(self, attr, value)
-
-    def save(self, file_object):
-        yaml.safe_dump(dict(self), file_object, sort_keys=True)
-
-    item_type = "config"
+class Rate(Base):
+    __tablename__ = "rates"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    normal: Mapped[float] = mapped_column(nullable=False)
+    expedite: Mapped[float] = mapped_column(nullable=False)
+    interpreted: Mapped[float] = mapped_column(nullable=False)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    client: Mapped[Client] = relationship(cascade="all")
 
 
-@dataclass
-class ProfileModel(Model):
-    first_name: str = ""
-    last_name: str = ""
-    area: str = ""
-    country: str = ""
+class Job(Base):
+    __tablename__ = "jobs"
 
-    def __iter__(self):
-        yield from self.__dict__.items()
+    id: Mapped[int] = mapped_column(primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    date_received: Mapped[str] = mapped_column(nullable=False)
+    job_number: Mapped[str] = mapped_column(nullable=False)
+    job_type: Mapped[str] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(nullable=False, default="Pending")
+    date_due: Mapped[str] = mapped_column(nullable=False)
+    total_quantity: Mapped[float] = mapped_column(nullable=False)
+    quantity: Mapped[float] = mapped_column(nullable=False)
+    job_rate: Mapped[float] = mapped_column(nullable=False)
+    date_submitted: Mapped[str] = mapped_column(nullable=True)
+    amount: Mapped[float] = mapped_column(nullable=False)
+    amount_paid: Mapped[float] = mapped_column(nullable=False, default=0.0)
+    job_path: Mapped[str] = mapped_column(nullable=False)
+    note: Mapped[str] = mapped_column(nullable=False, default="")
 
-    def get(self, attr):
-        return getattr(self, attr)
 
-    def set(self, attr, value):
-        setattr(self, attr, value)
+class Profile(Base):
+    __tablename__ = "profiles"
 
-    def save(self, file_object):
-        yaml.safe_dump(dict(self), file_object, sort_keys=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    first_name: Mapped[str] = mapped_column(nullable=False)
+    last_name: Mapped[str] = mapped_column(nullable=False)
+    area: Mapped[str] = mapped_column(nullable=False)
+    country: Mapped[str] = mapped_column(nullable=False)
 
-    def from_file(self, file_path: str | Path):
-        try:
-            with open(file_path, "r") as fd:
-                obj_dict = yaml.safe_load(fd)
-                for attr, value in obj_dict.items():
-                    setattr(self, attr, value)
-                return self
-        except FileNotFoundError:
-            touch([file_path])
-            with open(file_path, "w") as fd:
-                self.save(fd)
-                return self
 
-    item_type = "profile"
+class Config(Base):
+    __tablename__ = "configs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(nullable=False)
+    value: Mapped[str] = mapped_column(nullable=False)
