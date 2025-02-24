@@ -17,36 +17,33 @@ def mock_session():
         yield mock_session
 
 
-def test_add_clients(api_instance, mock_session):
+def test_add_client(api_instance, mock_session):
     api_instance.session = mock_session
 
-    clients = [{"name": "Client1"}, {"name": "Client2"}]
-    api_instance.add_clients(clients)
+    client = {"name": "Client1"}
+    api_instance.add_client(client)
 
-    assert len(mock_session.add_all.call_args[0][0]) == 2
+    assert len(mock_session.add.call_args[0]) == 1
     mock_session.commit.assert_called_once()
 
 
 def test_add_rates(api_instance, mock_session):
     api_instance.session = mock_session
 
-    rates = [
-        {"normal": 0.4, "expedite": 0.6, "interpreted": 0.3},
-        {"normal": 0.3, "expedite": 0.4, "interpreted": 0.15},
-    ]
+    rates = {"normal": 0.4, "expedite": 0.6, "interpreted": 0.3}
     api_instance.add_rates(rates)
 
-    assert len(mock_session.add_all.call_args[0][0]) == 2
+    assert len(mock_session.add.call_args[0]) == 1
     mock_session.commit.assert_called_once()
 
 
-def test_add_jobs(api_instance, mock_session):
+def test_add_job(api_instance, mock_session):
     api_instance.session = mock_session
 
-    jobs = [{"id": 1}, {"id": 2}]
-    api_instance.add_jobs(jobs)
+    jobs = {"id": 1}
+    api_instance.add_job(jobs)
 
-    assert len(mock_session.add_all.call_args[0][0]) == 2
+    assert len(mock_session.add.call_args[0]) == 1
     mock_session.commit.assert_called_once()
 
 

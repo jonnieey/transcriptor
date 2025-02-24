@@ -11,6 +11,7 @@ DB_FILE_NAME = "transcriptor_sqlalchemy.db"
 
 class API:
     def __init__(self, base_dir: Path):
+        base_dir = Path(base_dir)
         if not base_dir.exists():
             base_dir.mkdir(parents=True)
 
@@ -20,18 +21,19 @@ class API:
         self.session = Session(self.db.engine)
 
     def add(self, table, data):
-        objs = [table(**datum) for datum in data]
-        self.session.add_all(objs)
+        obj = table(**data)
+        self.session.add(obj)
         self.session.commit()
+        return obj.id
 
-    def add_clients(self, clients: list[dict]) -> None:
-        self.add(Client, clients)
+    def add_client(self, client) -> None:
+        return self.add(Client, client)
 
-    def add_rates(self, rates: list[dict]) -> None:
-        self.add(Rate, rates)
+    def add_rates(self, rates) -> None:
+        return self.add(Rate, rates)
 
-    def add_jobs(self, jobs: tuple) -> None:
-        self.add(Job, jobs)
+    def add_job(self, job) -> None:
+        return self.add(Job, job)
 
     def get(self, table, conditions=None):
         stmt = select(table)
