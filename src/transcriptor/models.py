@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+import yaml
+from abc import ABC, abstractmethod
 from sqlalchemy import String
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -45,18 +48,49 @@ class Job(Base):
     note: Mapped[str] = mapped_column(nullable=False, default="")
 
 
-class Profile(Base):
-    __tablename__ = "profiles"
+class Model(ABC):
+    def get(self, item):
+        return getattr(self, item)
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    first_name: Mapped[str] = mapped_column(nullable=False)
-    last_name: Mapped[str] = mapped_column(nullable=False)
-    area: Mapped[str] = mapped_column(nullable=False)
-    country: Mapped[str] = mapped_column(nullable=False)
+    @classmethod
+    def from_yaml(cls, yaml_file):
+        try:
+            with open(yaml_file, "r") as file:
+                data = yaml.safe_load(file)
+            return cls(**data)
+        except FileNotFoundError:
+            print(f"Error: YAML file '{yaml_file}' not found.")
+            return None
+        except yaml.YAMLError as e:
+            print(f"Error parsing YAML file: {e}")
+            return None
+        except TypeError as e:
+            print(
+                f"Error creating {cls.__name__} model: {e}. Check your yaml file structure."
+            )
+            return None
+
+    def write(self, yaml_file):
+        try:
+            with open(yaml_file, "w") as file:
+                yaml.dump(self.__dict__, file, Dumper=yaml.SafeDumper)
+        except FileNotFoundError:
+            print(f"Error: Cannot open or create YAML file '{yaml_file}'.")
+        except yaml.YAMLError as e:
+            print(f"Error writing YAML file: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
 
 
-class Config(Base):
-    __tablename__ = "configs"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    key: Mapped[str] = mapped_column(nullable=False)
-    value: Mapped[str] = mapped_column(nullable=False)
+@dataclass
+class ConfigModel(Model):
+    base_dir: str
+    date_format: str
+
+
+@dataclass
+class ProfileModel(Model):
+    first_name: str
+    last_name: str
+    area: str
+    country: str
