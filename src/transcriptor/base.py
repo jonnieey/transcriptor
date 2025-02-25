@@ -4,8 +4,8 @@ import zipfile
 from pathlib import Path
 from transcriptor.models import ConfigModel
 from transcriptor.api import API
-from transcriptor.utils import sc, TEMPLATE_MAPPING
-from transcriptor.utils import str_to_date as std
+from transcriptor.utils import sc, TEMPLATE_MAPPING, get_media_files, round_up
+from transcriptor.utils import str_to_date as std, next_non_existent_file
 
 APP_NAME = "transcriptor5"
 CONFIG_FILE_NAME = "config5.yaml"
@@ -134,6 +134,81 @@ class Transcriptor:
             )
 
         return client_template_dir / TEMPLATE_MAPPING[template]
+
+    def create_job(self, job_file, job_callback, task_callback):
+        """
+        job callback should return a dict
+        {
+            "client_id": client_id,
+            "job_number": job_num,
+            "date_received": date_received,
+            "date_due": date_due,
+        }
+
+        task callback should return a dict
+        {
+            "job_type": job_type,
+            "quantity": quantity,
+            "job_template": job_template,
+            "note": note,
+            "total_quantity": total_quantity
+        }
+        """
+        job_info = job_callback(job_file)
+        client = self.api.get_clients({"id", job_info["client_id"]})
+        if not client:
+            print("No client found")
+            return
+        job_dir = self.create_job_dir(
+            client.name,
+            job_info["job_number"],
+            job_info["date_received"],
+            job_info["date_due"],
+        )
+        self.mv_extract_job_file(job_file, job_dir)
+        task_files = get_media_files(job_dir)
+
+        tasks = []
+        for task_file in task_files:
+            task_info = task_callback(task_file)
+            if not task_info:
+                continue
+            task_info.update(job_info)
+
+            task_template_path = self.select_job_template(
+                client.name, task_info["job_template"]
+            )
+            task_template_suffix = task_template_path.suffix
+
+            task_file_path = next_non_existent_file(
+                job_dir
+                / f'{job_info["job_number"]} Due {job_info["date_due"].strftime("%m.%d")}{task_template_suffix}'
+            )
+            shutil.copy(task_template_path, task_file_path)
+
+            task_rate_obj = self.api.get_rates(conditions={"client_id": client.id})
+            task_info["job_rate"] = getattr(task_rate_obj, task_info["job_type"])
+            task_info["amount"] = round_up(
+                float(task_info["job_rate"]) * float(task_info["quantity"])
+            )
+
+            task_dict = {
+                "client_id": client.id,
+                "date_received": job_info["date_received"],
+                "job_number": job_info["job_number"],
+                "status": "Pending",
+                "amount": task_info["amount"],
+                "job_type": task_info["job_type"],
+                "date_due": job_info["date_due"],
+                "total_quantity": task_info["total_quantity"],
+                "quantity": task_info["quantity"],
+                "job_rate": task_info["job_rate"],
+                "job_path": f"{task_file}",
+                "note": task_info["note"],
+            }
+            tasks.append(task_dict)
+        if tasks:
+            self.api.add_jobs(tasks)
 
 
 if __name__ == "__main__":

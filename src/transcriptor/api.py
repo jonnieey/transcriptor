@@ -1,6 +1,6 @@
 from pathlib import Path
 from sqlalchemy.orm import Session
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, and_
 
 from transcriptor.database import Database
 from transcriptor.models import Client, Rate, Job
@@ -26,8 +26,8 @@ class API:
         self.session.commit()
         return obj.id
 
-    def add_client(self, client) -> None:
-        return self.add(Client, client)
+    def add_client(self, client_dict) -> None:
+        return self.add(Client, client_dict)
 
     def add_rates(self, rates) -> None:
         return self.add(Rate, rates)
@@ -35,18 +35,44 @@ class API:
     def add_job(self, job) -> None:
         return self.add(Job, job)
 
+    def add_jobs(self, jobs):
+        job_objects = [Job(**job_dict) for job_dict in jobs]
+        self.session.add_all(job_objects)
+        self.session.commit()
+
     def get(self, table, conditions=None):
         stmt = select(table)
+        if conditions is None:
+            return self.session.scalars(stmt).all()
+
+        for column, conditions_list in conditions.items():
+            column_attribute = getattr(Client, column)
+            op_map = {
+                ">": column_attribute.__gt__,
+                "<": column_attribute.__lt__,
+                ">=": column_attribute.__ge__,
+                "<=": column_attribute.__le__,
+                "=": column_attribute.__eq__,
+                "~": column_attribute.like,
+            }
+            filters = []
+            for comparison_op, comp_value in conditions_list:
+                try:
+                    filters.append(op_map[comparison_op](comp_value))
+                except KeyError:
+                    raise ValueError(f"Invalid comparison operator: {comparison_op}")
+            stmt = stmt.filter(and_(*filters))
+
         return self.session.scalars(stmt).all()
 
-    def get_clients(self) -> list:
-        return self.get(Client)
+    def get_clients(self, conditions=None) -> list:
+        return self.get(Client, conditions)
 
-    def get_rates(self):
-        return self.get(Rate)
+    def get_rates(self, conditions=None):
+        return self.get(Rate, conditions)
 
-    def get_jobs(self):
-        return self.get(Job)
+    def get_jobs(self, conditions):
+        return self.get(Job, conditions)
 
     def update(self, table, conditions, values):
         try:
