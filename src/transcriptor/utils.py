@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import mimetypes
 from datetime import datetime, date
 
 
@@ -88,3 +89,69 @@ def str_to_date(date_string: str, date_fmt: str) -> datetime:
     if isinstance(date_string, (datetime, date)):
         return date_string
     return datetime.strptime(date_string, date_fmt)
+
+
+def date_to_str(date_obj: datetime, date_fmt: str) -> str:
+    """
+    Convert a datetime object to a date string.
+
+    Arguments:
+        date_obj: A datetime object.
+        date_fmt: Date format string.
+
+    Retuns:
+        A string representing the date in the given format,
+    """
+    return date_obj.strftime(date_fmt)
+
+
+def get_media_files(directory: Path) -> list[Path]:
+    """
+    Get all media files in a directory.
+
+    Arguments:
+        directory: Directory to get media files from.
+    """
+    for file in directory.glob("**/*"):
+        if file.is_file():
+            mime_type, _ = mimetypes.guess_type(str(file))
+            if (
+                mime_type
+                and mime_type is not None
+                and (
+                    mime_type.startswith("audio/")
+                    or mime_type.startswith("video/")
+                    or mime_type == "application/octet-stream"
+                )
+            ):
+                yield file
+
+
+def next_non_existent_file(filename):
+    """
+    Generate name for next non-existant file
+    Example:
+         if "test.txt" exists then next file will be
+        "test_1.txt"
+
+    Arguments:
+        filename: Name of file
+
+    Returns:
+        Name of next non-existant file
+    """
+    base_dir = str(Path(filename).parent.absolute())
+    nf = filename
+    root, ext = Path(nf).stem, Path(nf).suffix
+    i = 0
+    while Path(nf).exists():
+        i += 1
+        nf = f"{base_dir}/{root}_{i}{ext}"
+    return Path(nf)
+
+
+def round_up(number):
+    if number % 0.5 == 0:
+        return number
+    else:
+        return number + 0.5 - (number % 0.5)
