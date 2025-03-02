@@ -2,7 +2,7 @@ from platformdirs import user_config_dir, user_data_dir
 import shutil
 import zipfile
 from pathlib import Path
-from transcriptor.models import ConfigModel
+from transcriptor.models import ConfigModel, ProfileModel
 from transcriptor.api import API
 from transcriptor.utils import sc, TEMPLATE_MAPPING, get_media_files, round_up
 from transcriptor.utils import str_to_date as std, next_non_existent_file
@@ -34,6 +34,14 @@ class Transcriptor:
 
         self.base_dir = Path(self.config.base_dir)
         self.date_format = self.config.date_format
+
+        self.PROFILE_FILE = self.base_dir / "profile.yaml"
+        if not self.PROFILE_FILE.exists() or self.PROFILE_FILE.stat().st_size == 0:
+            self.profile = ProfileModel()
+            self.profile.write(self.PROFILE_FILE)
+        else:
+            self.profile = ProfileModel.from_yaml(self.PROFILE_FILE)
+
         self.api = api if api is not None else API(base_dir=self.base_dir)
 
     def create_client(self, name, email, rates_dict: dict = None):

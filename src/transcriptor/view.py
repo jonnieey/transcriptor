@@ -1,12 +1,10 @@
-import contextlib
-
+from collections import OrderedDict
 from rich.console import Console
 from rich.table import Table
-
 from transcriptor.utils import tc
 
 
-class ConsoleView:
+class TranscriptorView:
     def __init__(self):
         self.console = Console()
         self.table = Table(
@@ -16,91 +14,70 @@ class ConsoleView:
             padding=(0, 0),
         )
 
-    def generate_table(self, columns, rows):
-        col_amount = columns.index("amount") if "amount" in columns else None
-        col_amount_paid = (
-            columns.index("amount_paid") if "amount_paid" in columns else None
-        )
-        col_total = columns.index("total") if "total" in columns else None
+    def generate_table(self, objects, orientation="vertical", ordination=None):
+        if not objects:
+            return
 
-        total_amount = 0
-        total_amount_paid = 0
-        jobs_table = False
-        summary_table = False
+        if isinstance(objects, dict):
+            object_dict = objects
+        elif isinstance(objects, (list, tuple)):
+            object_dict = objects[0].__dict__
 
-        if col_amount is not None and col_amount_paid is not None:
-            jobs_table = True
-        elif col_total is not None:
-            jobs_table = True
-            summary_table = True
+        if ordination:
+            try:
+                object_dict = OrderedDict(
+                    [(key, object_dict[key]) for key in ordination]
+                )
+            except KeyError:
+                object_dict = OrderedDict(object_dict)
+        else:
+            object_dict = OrderedDict(object_dict)
 
+        columns = [
+            column
+            for column in object_dict.keys()
+            if column not in ("_sa_instance_state", "job_path")
+        ]
         for column in columns:
             self.table.add_column(tc(column))
 
-        for row in rows:
-            if jobs_table:
-                if summary_table is False:
-                    total_amount += row[col_amount]
-                    total_amount_paid += row[col_amount_paid]
-                else:
-                    total_amount += row[col_total]
-            row = list(map(str, row))
+        if isinstance(objects, dict):
+            row = [str(object_dict.get(column)) for column in columns]
             self.table.add_row(*row)
 
-        if jobs_table:
-            self.table.add_section()
-            summary_row = [""] * len(columns)
-            if not summary_table:
-                summary_row[col_amount] = str(round(total_amount, 2))
-                summary_row[col_amount_paid] = str(
-                    round(total_amount_paid, 2)
-                )
-            else:
-                summary_row[col_total] = str(round(total_amount, 2))
-            self.table.add_row(*summary_row)
+        if orientation == "vertical":
+            if isinstance(objects, (list, tuple)):
+                for obj in objects:
+                    row = [str(object_dict.get(column)) for column in columns]
 
-    def print_table(
-        self, data: dict | list, orientation: str = "vert"
-    ) -> None:
-        """
-        Print a table
+                self.table.add_row(*row)
 
-        Arguments:
-            data: Data to print
-            orientation: Orientation of the table (vert or hor)
-        """
-
-        if not data:
-            return
-        if orientation == "vert":
-            for column in ["Option", "Value"]:
-                self.table.add_column(tc(column))
-            if isinstance(data, dict):
-                for option, value in data.items():
-                    self.table.add_row(tc(option), value)
-            elif isinstance(data, (list, tuple)):
-                for row in data:
-                    for option, value in row.items():
-                        self.table.add_row(tc(option), value)
-
-        elif orientation == "hor":
-            if isinstance(data, dict):
-                columns = list(data.keys())
-                with contextlib.suppress(ValueError):
-                    columns.remove("job_path")
-                rows = [data[column] for column in columns]
-            elif isinstance(data, (list, tuple)):
-                try:
-                    columns = list(data[0].keys())
-                    with contextlib.suppress(ValueError):
-                        columns.remove("job_path")
+        elif orientation == "horizontal":
+            if isinstance(objects, (list, tuple)):
+                for obj in objects:
                     rows = [
-                        [row[column] for column in columns] for row in data
+                        [obj.__dict__[column] for column in columns] for obj in objects
                     ]
-                    self.generate_table(columns, rows)
-                except AttributeError:
-                    columns = data[0]
-                    rows = data[1:]
-                    self.generate_table(columns, rows)
+                for row in rows:
+                    row = list(map(str, row))
+                    self.table.add_row(*row)
 
+                self.table.add_section()
+                try:
+                    total_amount = sum([obj.amount for obj in objects])
+                    total_amount_paid = sum([obj.amount_paid for obj in objects])
+
+                    amount_column = columns.index("amount")
+                    amount_paid_column = columns.index("amount_paid")
+
+                    summary_row = [""] * len(columns)
+                    summary_row[amount_column] = str(total_amount)
+                    summary_row[amount_paid_column] = str(total_amount_paid)
+
+                    self.table.add_row(*summary_row)
+                except AttributeError:
+                    pass
+
+    def print_table(self, objects, orientation="vertical", ordination=None):
+        self.generate_table(objects, orientation=orientation, ordination=ordination)
         self.console.print(self.table)

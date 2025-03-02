@@ -71,7 +71,7 @@ class API:
     def get_rates(self, conditions=None):
         return self.get(Rate, conditions)
 
-    def get_jobs(self, conditions):
+    def get_jobs(self, conditions=None):
         return self.get(Job, conditions)
 
     def update(self, table, conditions, values):

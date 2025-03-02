@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import yaml
-from abc import ABC, abstractmethod
+from abc import ABC
 from sqlalchemy import String
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -87,10 +87,13 @@ class ConfigModel(Model):
     base_dir: str
     date_format: str
 
+    def __repr__(self):
+        return str(self.__dict__)
+
 
 @dataclass
 class ProfileModel(Model):
-    first_name: str
-    last_name: str
-    area: str
-    country: str
+    first_name: str = ""
+    last_name: str = ""
+    area: str = ""
+    country: str = ""
