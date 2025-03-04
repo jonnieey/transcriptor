@@ -46,14 +46,16 @@ class API:
             return self.session.scalars(stmt).all()
 
         for column, conditions_list in conditions.items():
-            column_attribute = getattr(Client, column)
+            column_attribute = getattr(table, column)
             op_map = {
-                ">": column_attribute.__gt__,
-                "<": column_attribute.__lt__,
-                ">=": column_attribute.__ge__,
                 "<=": column_attribute.__le__,
+                ">=": column_attribute.__ge__,
+                "!=": column_attribute.__ne__,
+                "<": column_attribute.__lt__,
+                ">": column_attribute.__gt__,
                 "=": column_attribute.__eq__,
-                "~": column_attribute.like,
+                "==": column_attribute.__eq__,
+                "~": column_attribute.ilike,
             }
             filters = []
             for comparison_op, comp_value in conditions_list:
@@ -116,3 +118,14 @@ class API:
             self.session.rollback()
             print(f"Error during delete: {e}")
             return False
+
+
+if __name__ == "__main__":
+    api = API(base_dir=Path(__file__).parent)
+    print(
+        len(
+            api.get_clients(
+                conditions={"name": [("~", "%vic%")], "id": [(">", 1), ("<", 5)]}
+            )
+        )
+    )

@@ -2,6 +2,7 @@ from pathlib import Path
 import re
 import mimetypes
 from datetime import datetime, date
+from audioread import audio_open  # type: ignore
 
 
 def touch(file_paths: list[Path | str]) -> None:
@@ -155,3 +156,105 @@ def round_up(number):
         return number
     else:
         return number + 0.5 - (number % 0.5)
+
+
+def parse_conditions(condition_strings):
+    """
+    Parses a list of condition strings and returns a dictionary.
+
+    Args:
+        condition_strings: A list of strings representing conditions like "id<=1", "amount>0".
+
+    Returns:
+        A dictionary where keys are field names (e.g., "id", "amount") and values are
+        lists of tuples, each tuple containing an operator and a value.
+        For example: {"id": [("<=", 1)], "amount": [(">", 0), ("<", 10)]}
+    """
+    conditions_dict = {}
+    operators = {
+        "<=": "<=",
+        ">=": ">=",
+        "!=": "!=",
+        "<": "<",
+        ">": ">",
+        "==": "=",
+        "=": "==",
+        "~": "~",
+    }
+
+    for condition_str in condition_strings:
+        parsed = False
+        for op_symbol, op_name in operators.items():
+            if op_symbol in condition_str:
+                parts = condition_str.split(op_symbol, 1)  # Split only once
+                if len(parts) == 2:
+                    field = parts[0].strip()
+                    value_str = parts[1].strip()
+                    try:
+                        value = type_convert(
+                            value_str
+                        )  # Try to convert value to int or float, otherwise keep as string
+                        if field:  # Ensure field name is not empty
+                            if field not in conditions_dict:
+                                conditions_dict[field] = []
+                            conditions_dict[field].append((op_name, value))
+                            parsed = True
+                            break  # Stop checking operators after finding one
+                    except ValueError:
+                        print(
+                            f"Warning: Could not convert value '{value_str}' to a number for condition '{condition_str}'. Treating as string."
+                        )
+                        if field:
+                            if field not in conditions_dict:
+                                conditions_dict[field] = []
+                            conditions_dict[field].append((op_name, value_str))
+                            parsed = True
+                            break
+        if not parsed:
+            print(
+                f"Warning: Could not parse condition string: '{condition_str}'. Ensure it is in the format 'field[operator]value'."
+            )
+
+    return conditions_dict
+
+
+def type_convert(value_str):
+    """
+    Attempts to convert a string to an int or float. If it fails, returns the string as is.
+    """
+    try:
+        return int(value_str)
+    except ValueError:
+        try:
+            return float(value_str)
+        except ValueError:
+            return value_str  # Return as string if not int or float
+
+
+job_number_pattern = re.compile(r"\b(\d{6,8})\b")
+
+
+def extract_job_number(file):
+    """
+    Get job number from path-like string.
+
+    Arguments:
+        file: Path-like string
+
+    Returns:
+        String (6-8 digit number string) ex. 534223.
+    """
+    job_number_matches = job_number_pattern.search(file)
+
+    return job_number_matches.group(1) if job_number_matches else ""
+
+
+def seconds_to_minutes(seconds):
+    minutes = (seconds // 60) + ((seconds % 60) / 60)
+    return round_up(minutes)
+
+
+def get_media_duration(media_file):
+    with audio_open(media_file) as mf:
+        duration = mf.duration
+    return seconds_to_minutes(duration)

@@ -72,7 +72,7 @@ class Transcriptor:
     def create_job_dir(
         self,
         client_name: str,
-        job_num: str,
+        job_number: str,
         date_received: str,
         date_due: str,
     ) -> Path:
@@ -97,7 +97,7 @@ class Transcriptor:
             / sc(client_name)
             / f"{date_received.year}"
             / f"{date_received.strftime('%B')}"
-            / f"{date_received.strftime('%d_%a')}_{job_num}_DUE_{date_due.strftime('%d_%a')}"
+            / f"{date_received.strftime('%d_%a')}_{job_number}_DUE_{date_due.strftime('%d_%a')}"
         )
         job_dir.mkdir(parents=True, exist_ok=True)
         return job_dir
@@ -120,7 +120,8 @@ class Transcriptor:
                 print("Could not extract zip file ->", e)
 
         else:
-            shutil.move(job_file, job_dir)
+            # shutil.move(job_file, job_dir)
+            shutil.copy(job_file, job_dir)
 
     def select_job_template(self, client: str, template: str) -> Path:
         """
@@ -163,10 +164,13 @@ class Transcriptor:
         }
         """
         job_info = job_callback(job_file)
-        client = self.api.get_clients({"id", job_info["client_id"]})
-        if not client:
+        client_query = self.api.get_clients(
+            conditions={"id": [("=", job_info["client_id"])]}
+        )
+        if not client_query:
             print("No client found")
             return
+        client = client_query[0]
         job_dir = self.create_job_dir(
             client.name,
             job_info["job_number"],
@@ -188,14 +192,18 @@ class Transcriptor:
             )
             task_template_suffix = task_template_path.suffix
 
+            date_due = std(task_info["date_due"], self.date_format)
+            job_number = job_info["job_number"]
             task_file_path = next_non_existent_file(
                 job_dir
-                / f'{job_info["job_number"]} Due {job_info["date_due"].strftime("%m.%d")}{task_template_suffix}'
+                / f'{job_number} Due {date_due.strftime("%m.%d")}{task_template_suffix}'
             )
             shutil.copy(task_template_path, task_file_path)
 
-            task_rate_obj = self.api.get_rates(conditions={"client_id": client.id})
-            task_info["job_rate"] = getattr(task_rate_obj, task_info["job_type"])
+            task_rate_obj = self.api.get_rates(
+                conditions={"client_id": [("=", client.id)]}
+            )
+            task_info["job_rate"] = getattr(task_rate_obj[0], task_info["job_type"])
             task_info["amount"] = round_up(
                 float(task_info["job_rate"]) * float(task_info["quantity"])
             )
