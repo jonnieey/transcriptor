@@ -21,7 +21,10 @@ class TranscriptorView:
         if isinstance(objects, dict):
             object_dict = objects
         elif isinstance(objects, (list, tuple)):
-            object_dict = objects[0].__dict__
+            try:
+                object_dict = objects[0].__dict__
+            except AttributeError:
+                object_dict = objects[0]
 
         if ordination:
             try:
@@ -33,19 +36,14 @@ class TranscriptorView:
         else:
             object_dict = OrderedDict(object_dict)
 
-        columns = [
-            column
-            for column in object_dict.keys()
-            if column not in ("_sa_instance_state", "job_path")
-        ]
-        for column in columns:
-            self.table.add_column(tc(column))
-
-        if isinstance(objects, dict):
-            row = [str(object_dict.get(column)) for column in columns]
-            self.table.add_row(*row)
-
         if orientation == "vertical":
+            if isinstance(objects, dict):
+                columns = ["Option", "Value"]
+                for column in columns:
+                    self.table.add_column(tc(column))
+                for option, value in object_dict.items():
+                    self.table.add_row(tc(option), value)
+
             if isinstance(objects, (list, tuple)):
                 for obj in objects:
                     row = [str(object_dict.get(column)) for column in columns]
@@ -53,11 +51,27 @@ class TranscriptorView:
                 self.table.add_row(*row)
 
         elif orientation == "horizontal":
+            columns = [
+                column
+                for column in object_dict.keys()
+                if column not in ("_sa_instance_state", "job_path")
+            ]
+            for column in columns:
+                self.table.add_column(tc(column))
+
+            if isinstance(objects, dict):
+                row = [str(object_dict.get(column)) for column in columns]
+                self.table.add_row(*row)
+
             if isinstance(objects, (list, tuple)):
                 for obj in objects:
-                    rows = [
-                        [obj.__dict__[column] for column in columns] for obj in objects
-                    ]
+                    try:
+                        rows = [
+                            [obj.__dict__[column] for column in columns]
+                            for obj in objects
+                        ]
+                    except AttributeError:
+                        rows = [[obj[column] for column in columns] for obj in objects]
                 for row in rows:
                     row = list(map(str, row))
                     self.table.add_row(*row)

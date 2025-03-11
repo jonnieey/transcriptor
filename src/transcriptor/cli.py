@@ -345,13 +345,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
 
 def main():
-    from api import API
-    from pathlib import Path
-
-    api = API(base_dir=Path(__file__).parent)
-    app = Transcriptor(api)
-    c = TranscriptorCMD(app)
-    # c = TranscriptorCMD()
+    c = TranscriptorCMD()
     try:
         sys.exit(c.cmdloop())
     except (KeyboardInterrupt, EOFError):
