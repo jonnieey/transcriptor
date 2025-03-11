@@ -163,6 +163,8 @@ class Transcriptor:
             "total_quantity": total_quantity
         }
         """
+        if isinstance(job_file, str):
+            job_file = job_file.strip("'\"")
         job_info = job_callback(job_file)
         client_query = self.api.get_clients(
             conditions={"id": [("=", job_info["client_id"])]}
