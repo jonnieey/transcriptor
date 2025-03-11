@@ -3,6 +3,8 @@ import re
 import mimetypes
 from datetime import datetime, date
 from audioread import audio_open  # type: ignore
+from prompt_toolkit.validation import Validator
+from decimal import Decimal, InvalidOperation
 
 
 def touch(file_paths: list[Path | str]) -> None:
@@ -258,3 +260,73 @@ def get_media_duration(media_file):
     with audio_open(media_file) as mf:
         duration = mf.duration
     return seconds_to_minutes(duration)
+
+
+def is_file(text: str) -> bool:
+    path = Path(text.strip("'").strip('"'))
+    return path.is_file()
+
+
+def is_positive_number(text):
+    try:
+        return Decimal(text) > 0
+    except (InvalidOperation, TypeError):
+        return False
+
+
+def is_valid_date(text: str) -> bool:
+    return bool(re.match(r"([0-9]{2,4}[./-]){2}[0-9]{2,4}", text))
+
+
+def is_valid_yes_no(text: str) -> bool:
+    return bool(re.match(r"(?i)^[YyNn](?:es|o)?$", text))
+
+
+def is_valid_job_type(text):
+    return bool(re.match(r"(?i)^(?:Normal|Interpreted|Expedite)$", text))
+
+
+template_mapping = {
+    "zd": "Zoom Deposition Block Files.docx",
+    "nh": "Hearing Block Files.docx",
+    "zeo": "Zoom Examination Under Oath Block Files.docx",
+    "zh": "Zoom Hearing Block Files.docx",
+    "zus": "Zoom Unsworn Statement Block Files.docx",
+    "zwc": "Zoom Workers Comp Deposition Block Files.docx",
+    "tt": "Tape Transcript.docx",
+    "me": "Compulsory Medical Exam Template.docx",
+    "zdi": "Zoom Deposition Block File with Interpreter.docx",
+    "od": "Overflow Deposition Block Files.docx",
+    "oh": "Overflow Hearing Block Files.docx",
+}
+
+
+def is_valid_template(text):
+    if text.lower() in template_mapping:
+        return True
+    else:
+        return False
+
+
+def ValidatorWrapper(func, error_message, mve=True):
+    return Validator.from_callable(func, error_message, move_cursor_to_end=mve)
+
+
+file_validator = ValidatorWrapper(is_file, "File does not exist")
+positive_number_validator = ValidatorWrapper(
+    is_positive_number, "Must be greater than zero"
+)
+date_validator = ValidatorWrapper(is_valid_date, "Invalid date")
+yes_no_validator = ValidatorWrapper(
+    is_valid_yes_no, "Invalid input, expects [Y, Yes, N, No]"
+)
+job_type_validator = ValidatorWrapper(
+    is_valid_job_type, "Invalid job type, expects [Normal Interpreted Expedite]"
+)
+template_validator = ValidatorWrapper(
+    is_valid_template,
+    f"Invalid template name, expects {",".join(list(template_mapping.keys()))}",
+)
+
+if __name__ == "__main__":
+    print(is_valid_template("zdio"))

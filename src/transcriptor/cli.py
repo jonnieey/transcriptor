@@ -4,8 +4,19 @@ import sys
 import cmd2
 from copy import copy
 from pathlib import Path
+from datetime import datetime
 from transcriptor.view import TranscriptorView
-from transcriptor.utils import parse_conditions, extract_job_number, get_media_duration
+from transcriptor.utils import (
+    parse_conditions,
+    extract_job_number,
+    get_media_duration,
+    file_validator,
+    positive_number_validator,
+    date_validator,
+    yes_no_validator,
+    job_type_validator,
+    template_validator,
+)
 from prompt_toolkit import prompt
 
 base_parser = cmd2.Cmd2ArgumentParser(description="Transcriptor CLI")
@@ -239,7 +250,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 self.poutput(f"File not found: {args.file}")
                 return
         else:
-            args.file = prompt("Enter job file path: ")
+            args.file = prompt("Enter job file path: ", validator=file_validator)
 
         def job_callback(job_file):
             tmp_args = copy(args)
@@ -251,7 +262,9 @@ class TranscriptorCMD(cmd2.Cmd):
 
             if not client_id:
                 self.show_clients(args=None)
-                client_id = int(prompt("Enter client id: "))
+                client_id = int(
+                    prompt("Enter client id: ", validator=positive_number_validator)
+                )
                 tmp_args.client_id = client_id  # Update the original args
 
             if not job_number:
@@ -262,12 +275,15 @@ class TranscriptorCMD(cmd2.Cmd):
 
             if not date_received:
                 date_received = prompt(
-                    "Enter date received: ",
+                    f"Enter date received [{self.app.config.date_format}]: ",
+                    default=str(datetime.now().strftime(self.app.config.date_format)),
+                    validator=date_validator,
                 )
                 tmp_args.date_received = date_received  # Update the original args
             if not date_due:
                 date_due = prompt(
-                    "Enter date due: ",
+                    f"Enter date due [{self.app.config.date_format}]: ",
+                    validator=date_validator,
                 )
                 tmp_args.date_due = date_due  # Update the original args
 
@@ -290,16 +306,15 @@ class TranscriptorCMD(cmd2.Cmd):
 
             if not work_on_file:
                 work_on_file = prompt(
-                    "Enter work on file: ",
+                    f"Enter work on file: ...{'/'.join(task_file.parts[-2:])}: ",
+                    validator=yes_no_validator,
                 )
                 tmp_args.work_on_file = work_on_file
             if not tmp_args.work_on_file.strip().lower().startswith("y"):
                 return
 
             if not job_type:
-                job_type = prompt(
-                    "Enter job type: ",
-                )
+                job_type = prompt("Enter job type: ", validator=job_type_validator)
                 tmp_args.job_type = job_type
             total_quantity = get_media_duration(task_file)
             if not quantity:
@@ -308,7 +323,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
             if not job_template:
                 job_template = prompt(
-                    "Enter job template: ",
+                    "Enter job template: ", validator=template_validator
                 )
                 tmp_args.job_template = job_template
             if not note:
