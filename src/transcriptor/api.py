@@ -1,6 +1,6 @@
 from pathlib import Path
 from sqlalchemy.orm import Session
-from sqlalchemy import select, update, delete, and_
+from sqlalchemy import select, update, delete, and_, text
 
 from transcriptor.database import Database
 from transcriptor.models import Client, Rate, Job
@@ -40,7 +40,11 @@ class API:
         self.session.add_all(job_objects)
         self.session.commit()
 
-    def get(self, table, conditions=None):
+    def get(self, table, conditions=None, raw_sql_stmt=None):
+        if raw_sql_stmt is not None:
+            raw_sql_stmt = text(raw_sql_stmt)
+            return self.session.execute(raw_sql_stmt).mappings().all()
+
         stmt = select(table)
         if conditions is None:
             return self.session.scalars(stmt).all()
@@ -67,13 +71,41 @@ class API:
 
         return self.session.scalars(stmt).all()
 
-    def get_clients(self, conditions=None) -> list:
-        return self.get(Client, conditions)
+    def get_clients(self, conditions=None, raw_sql_stmt=None) -> list:
+        if raw_sql_stmt is not None:
+            raw_sql_stmt = f"""
+                SELECT c.id AS client_id, c.name, c.email, r.normal, r.expedite, r.interpreted
+                FROM clients AS c
+                JOIN rates AS r ON c.id = r.client_id {raw_sql_stmt}"""
+            return self.session.execute(text(raw_sql_stmt)).mappings().all()
+
+        elif conditions is None:
+            stmt = select(
+                Client.id.label("client_id"),
+                Client.name,
+                Client.email,
+                Rate.normal,
+                Rate.expedite,
+                Rate.interpreted,
+            ).join(Rate, Client.id == Rate.client_id)
+
+            return self.session.execute(stmt).mappings().all()
+
+        return self.get(Client, conditions, raw_sql_stmt)
 
     def get_rates(self, conditions=None):
         return self.get(Rate, conditions)
 
-    def get_jobs(self, conditions=None):
+    def get_jobs(self, conditions=None, raw_sql_stmt=None):
+        if raw_sql_stmt is not None:
+            raw_sql_stmt = f"""
+             SELECT  j.client_id,  j.date_received, j.id AS job_id, j.job_number, j.job_type,
+             j.status, j.date_due, j.total_quantity, j.quantity, j.job_rate,
+             j.date_submitted, j.amount, j.amount_paid, j.note, j.job_path
+             FROM JOBS AS j {raw_sql_stmt}
+            """
+            return self.session.execute(text(raw_sql_stmt)).mappings().all()
+
         return self.get(Job, conditions)
 
     def update(self, table, conditions, values):

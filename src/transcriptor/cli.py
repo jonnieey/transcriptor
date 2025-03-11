@@ -30,6 +30,11 @@ show_clients_parser.add_argument(
     action="append",
     help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
 )
+show_clients_parser.add_argument(
+    "-r",
+    "--raw",
+    help="Raw sql query",
+)
 
 show_jobs_parser.add_argument(
     "-w",
@@ -42,6 +47,11 @@ show_jobs_parser.add_argument(
     "--all",
     action="store_true",
     help="Show all jobs",
+)
+show_jobs_parser.add_argument(
+    "-r",
+    "--raw",
+    help="Raw sql query",
 )
 
 
@@ -149,9 +159,14 @@ class TranscriptorCMD(cmd2.Cmd):
         Ex.
            show clients
         """
-        if args and args.where:
-            conditions = parse_conditions(args.where)
-            clients = self.app.api.get_clients(conditions=conditions)
+        if args:
+            if args.raw:
+                clients = self.app.api.get_clients(raw_sql_stmt=args.raw)
+            elif args.where:
+                conditions = parse_conditions(args.where)
+                clients = self.app.api.get_clients(conditions=conditions)
+            else:
+                clients = self.app.api.get_clients()
         else:
             clients = self.app.api.get_clients()
         TranscriptorView().print_table(clients, orientation="horizontal")
@@ -182,13 +197,17 @@ class TranscriptorCMD(cmd2.Cmd):
             "note",
         ]
 
-        if args.all:
-            jobs = self.app.api.get_jobs()
-        elif args.where:
-            conditions = parse_conditions(args.where)
-            jobs = self.app.api.get_jobs(conditions=conditions)
-        else:
-            jobs = self.app.api.get_jobs(conditions={"status": [("=", "Pending")]})
+        if args:
+            if args.raw:
+                jobs = self.app.api.get_jobs(raw_sql_stmt=args.raw)
+            elif args.where:
+                conditions = parse_conditions(args.where)
+                jobs = self.app.api.get_jobs(conditions=conditions)
+            elif args.all:
+                jobs = self.app.api.get_jobs()
+            else:
+                jobs = self.app.api.get_jobs(conditions={"status": [("=", "Pending")]})
+
         TranscriptorView().print_table(
             jobs, orientation="horizontal", ordination=ordination
         )
@@ -326,7 +345,13 @@ class TranscriptorCMD(cmd2.Cmd):
 
 
 def main():
-    c = TranscriptorCMD()
+    from api import API
+    from pathlib import Path
+
+    api = API(base_dir=Path(__file__).parent)
+    app = Transcriptor(api)
+    c = TranscriptorCMD(app)
+    # c = TranscriptorCMD()
     try:
         sys.exit(c.cmdloop())
     except (KeyboardInterrupt, EOFError):
