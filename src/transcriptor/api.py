@@ -1,6 +1,7 @@
 from pathlib import Path
 from sqlalchemy.orm import Session
-from sqlalchemy import select, update, delete, and_, text
+from sqlalchemy import select, delete, and_, text
+from sqlalchemy import update as sql_update
 
 from transcriptor.database import Database
 from transcriptor.models import Client, Rate, Job
@@ -108,16 +109,40 @@ class API:
 
         return self.get(Job, conditions)
 
-    def update(self, table, conditions, values):
+    def update(self, table, conditions=None, values=None, raw_sql_stmt=None):
+        if raw_sql_stmt is not None:
+            raw_sql_stmt = text(raw_sql_stmt)
+            self.session.execute(raw_sql_stmt)
+            self.session.commit()
+            return True
+
+        if not all([conditions, values]):
+            return False
+
+        stmt = sql_update(table)
         try:
-            table_obj = table.__table__
-            where_clauses = []
-
-            for key, value in conditions.items():
-                column = getattr(table, key)
-                where_clauses.append(column == value)
-
-            stmt = update(table_obj).where(*where_clauses).values(values)
+            for column, conditions_list in conditions.items():
+                column_attribute = getattr(table, column)
+                op_map = {
+                    "<=": column_attribute.__le__,
+                    ">=": column_attribute.__ge__,
+                    "!=": column_attribute.__ne__,
+                    "<": column_attribute.__lt__,
+                    ">": column_attribute.__gt__,
+                    "=": column_attribute.__eq__,
+                    "==": column_attribute.__eq__,
+                    "~": column_attribute.ilike,
+                }
+                filters = []
+                for comparison_op, comp_value in conditions_list:
+                    try:
+                        filters.append(op_map[comparison_op](comp_value))
+                    except KeyError:
+                        raise ValueError(
+                            f"Invalid comparison operator: {comparison_op}"
+                        )
+                stmt = stmt.where(and_(*filters))
+            stmt = stmt.values(**values)
             self.session.execute(stmt)
             self.session.commit()
             return True
@@ -126,6 +151,21 @@ class API:
             self.session.rollback()
             print(f"Error during update: {e}")
             return False
+
+    def update_clients(self, conditions=None, values=None, raw_sql_stmt=None):
+        return self.update(
+            Client, conditions=conditions, values=values, raw_sql_stmt=raw_sql_stmt
+        )
+
+    def update_rates(self, conditions=None, values=None, raw_sql_stmt=None):
+        return self.update(
+            Rate, conditions=conditions, values=values, raw_sql_stmt=raw_sql_stmt
+        )
+
+    def update_jobs(self, conditions=None, values=None, raw_sql_stmt=None):
+        return self.update(
+            Job, conditions=conditions, values=values, raw_sql_stmt=raw_sql_stmt
+        )
 
     def delete(self, table, conditions):
         try:

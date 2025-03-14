@@ -8,6 +8,7 @@ from datetime import datetime
 from transcriptor.view import TranscriptorView
 from transcriptor.utils import (
     parse_conditions,
+    parse_conditions_as_dict,
     extract_job_number,
     get_media_duration,
     file_validator,
@@ -100,6 +101,69 @@ add_job_parser.add_argument("-w", "--work_on_file", help="Work On File")
 add_job_parser.add_argument("-t", "--job_type", help="Job Type")
 add_job_parser.add_argument("-T", "--job_template", help="Job Template")
 add_job_parser.add_argument("-N", "--note", help="Job Note")
+
+
+update_parser = base_subparsers.add_parser("update", help="update object")
+update_subparsers = update_parser.add_subparsers(
+    title="subcommands", help="subcommand help"
+)
+update_config_parser = update_subparsers.add_parser("config", help="update config")
+
+update_config_parser.add_argument("-b", "--base-dir", help="base directory")
+update_config_parser.add_argument("-d", "--date-format", help="date format")
+
+update_profile_parser = update_subparsers.add_parser("profile", help="update profile")
+update_profile_parser.add_argument("-f", "--first_name", help="first name")
+update_profile_parser.add_argument("-l", "--last_name", help="last name")
+update_profile_parser.add_argument("-a", "--area", help="area")
+
+update_profile_parser.add_argument("-c", "--country", help="country")
+
+
+update_client_parser = update_subparsers.add_parser("client", help="update client")
+update_client_parser.add_argument("-r", "--raw", help="Raw sql query")
+update_client_parser.add_argument(
+    "-w",
+    "--where",
+    action="append",
+    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
+)
+update_client_parser.add_argument(
+    "-v",
+    "--values",
+    action="append",
+    help='Specify values in the format "field=value", e.g., -v id=1 -v amount=100',
+)
+
+update_rates_parser = update_subparsers.add_parser("rates", help="update rates")
+update_rates_parser.add_argument("-r", "--raw", help="Raw sql query")
+update_rates_parser.add_argument(
+    "-w",
+    "--where",
+    action="append",
+    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
+)
+update_rates_parser.add_argument(
+    "-v",
+    "--values",
+    action="append",
+    help='Specify values in the format "field=value", e.g., -v id=1 -v amount=100',
+)
+
+update_jobs_parser = update_subparsers.add_parser("jobs", help="update job")
+update_jobs_parser.add_argument("-r", "--raw", help="Raw sql query")
+update_jobs_parser.add_argument(
+    "-w",
+    "--where",
+    action="append",
+    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
+)
+update_jobs_parser.add_argument(
+    "-v",
+    "--values",
+    action="append",
+    help='Specify values in the format "field=value", e.g., -v id=1 -v amount=100',
+)
 
 
 class TranscriptorCMD(cmd2.Cmd):
@@ -351,6 +415,78 @@ class TranscriptorCMD(cmd2.Cmd):
     def do_add(self, args):
         """
         Add command help
+        """
+        func = getattr(args, "func", None)
+        if func is not None:
+            func(self, args)
+        else:
+            self.do_help("base")
+
+    def update_config(self, args):
+        if args.base_dir:
+            self.app.config.base_dir = args.base_dir
+        if args.date_format:
+            self.app.config.date_format = args.date_format
+        self.app.save_config()
+
+    update_config_parser.set_defaults(func=update_config)
+
+    def update_profile(self, args):
+        if args.first_name:
+            self.app.profile.first_name = args.first_name
+        if args.last_name:
+            self.app.profile.last_name = args.last_name
+        if args.area:
+            self.app.profile.area = args.area
+        if args.country:
+            self.app.profile.contry = args.country
+        self.app.save_profile()
+
+    update_profile_parser.set_defaults(func=update_profile)
+
+    def update_clients(self, args):
+        if args.raw:
+            self.app.api.update("clients", raw_statement=args.raw)
+        if args.where and args.values:
+            where = parse_conditions(args.where)
+            values = parse_conditions_as_dict(args.values)
+            self.app.api.update_clients(conditions=where, values=values)
+        else:
+            self.poutput("Please provide conditions and values")
+            return
+
+    update_client_parser.set_defaults(func=update_clients)
+
+    def update_rates(self, args):
+        if args.raw:
+            self.app.api.update_rates(raw_statement=args.raw)
+        if args.where and args.values:
+            where = parse_conditions(args.where)
+            values = parse_conditions_as_dict(args.values)
+            self.app.api.update_rates(conditions=where, values=values)
+        else:
+            self.poutput("Please provide conditions and values")
+            return
+
+    update_rates_parser.set_defaults(func=update_rates)
+
+    def update_job(self, args):
+        if args.raw:
+            self.app.api.update_jobs(raw_statement=args.raw)
+        if args.where and args.values:
+            where = parse_conditions(args.where)
+            values = parse_conditions_as_dict(args.values)
+            self.app.api.update_jobs(conditions=where, values=values)
+        else:
+            self.poutput("Please provide conditions and values")
+            return
+
+    update_jobs_parser.set_defaults(func=update_job)
+
+    @cmd2.with_argparser(update_parser)
+    def do_update(self, args):
+        """
+        Update command help
         """
         func = getattr(args, "func", None)
         if func is not None:

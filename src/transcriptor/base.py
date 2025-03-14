@@ -44,6 +44,12 @@ class Transcriptor:
 
         self.api = api if api is not None else API(base_dir=self.base_dir)
 
+    def save_config(self):
+        self.config.write(self.CONFIG_FILE)
+
+    def save_profile(self):
+        self.profile.write(self.PROFILE_FILE)
+
     def create_client(self, name, email, rates_dict: dict = None):
         client_dict = {"name": name, "email": email}
         client_id = self.api.add_client(client_dict)

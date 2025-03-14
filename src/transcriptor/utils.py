@@ -160,6 +160,18 @@ def round_up(number):
         return number + 0.5 - (number % 0.5)
 
 
+def parse_conditions_as_dict(condition_strings):
+    """
+    input = ['name=anderson', 'id<=1', 'amount>0']
+    output = {'name': 'anderson', 'id': 1, 'amount': '0' }
+    """
+    conditions_dict = {}
+    for condition_string in condition_strings:
+        field, value = condition_string.split("=")
+        conditions_dict[field] = value
+    return conditions_dict
+
+
 def parse_conditions(condition_strings):
     """
     Parses a list of condition strings and returns a dictionary.
@@ -329,4 +341,4 @@ template_validator = ValidatorWrapper(
 )
 
 if __name__ == "__main__":
-    print(is_valid_template("zdio"))
+    print(parse_conditions_as_dict(["name=anderson"]))
