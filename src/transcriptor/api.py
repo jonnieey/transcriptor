@@ -1,7 +1,8 @@
 from pathlib import Path
 from sqlalchemy.orm import Session
-from sqlalchemy import select, delete, and_, text
+from sqlalchemy import select, and_, text
 from sqlalchemy import update as sql_update
+from sqlalchemy import delete as sql_delete
 
 from transcriptor.database import Database
 from transcriptor.models import Client, Rate, Job
@@ -167,29 +168,53 @@ class API:
             Job, conditions=conditions, values=values, raw_sql_stmt=raw_sql_stmt
         )
 
-    def delete(self, table, conditions):
+    def delete(self, table, conditions, raw_sql_stmt=None):
+        if raw_sql_stmt is not None:
+            raw_sql_stmt = text(raw_sql_stmt)
+            self.session.execute(raw_sql_stmt)
+            self.session.commit()
+            return True
+
+        if not conditions:
+            return False
+
+        stmt = sql_delete(table)
         try:
-            table_obj = table.__table__
-            where_clauses = []
-
-            for key, value in conditions.items():
-                column = getattr(table, key)
-                where_clauses.append(column == value)
-
-            stmt = delete(table_obj).where(*where_clauses)
-            result = self.session.execute(stmt)
-
-            if result.rowcount > 0:
-                self.session.commit()
-                return True
-            else:
-                print("Warning: No records matched the delete conditions.")
-                return False
+            for column, conditions_list in conditions.items():
+                column_attribute = getattr(table, column)
+                op_map = {
+                    "<=": column_attribute.__le__,
+                    ">=": column_attribute.__ge__,
+                    "!=": column_attribute.__ne__,
+                    "<": column_attribute.__lt__,
+                    ">": column_attribute.__gt__,
+                    "=": column_attribute.__eq__,
+                    "==": column_attribute.__eq__,
+                    "~": column_attribute.ilike,
+                }
+                filters = []
+                for comparison_op, comp_value in conditions_list:
+                    try:
+                        filters.append(op_map[comparison_op](comp_value))
+                    except KeyError:
+                        raise ValueError(
+                            f"Invalid comparison operator: {comparison_op}"
+                        )
+                stmt = stmt.where(and_(*filters))
+            self.session.execute(stmt)
+            self.session.commit()
+            return True
 
         except Exception as e:
             self.session.rollback()
             print(f"Error during delete: {e}")
             return False
+
+    def delete_clients(self, conditions=None, raw_sql_stmt=None):
+        return self.delete(Client, conditions=conditions, raw_sql_stmt=raw_sql_stmt)
+
+    def delete_jobs(self, conditions=None, raw_sql_stmt=None):
+        return self.delete(Job, conditions=conditions, raw_sql_stmt=raw_sql_stmt)
 
 
 if __name__ == "__main__":

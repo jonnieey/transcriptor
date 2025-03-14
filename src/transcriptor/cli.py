@@ -165,6 +165,39 @@ update_jobs_parser.add_argument(
     help='Specify values in the format "field=value", e.g., -v id=1 -v amount=100',
 )
 
+delete_parser = base_subparsers.add_parser("delete", help="delete object")
+delete_subparsers = delete_parser.add_subparsers(
+    title="subcommands", help="subcommand help"
+)
+delete_client_parser = delete_subparsers.add_parser("clients", help="delete client")
+
+delete_client_parser.add_argument(
+    "-r",
+    "--raw",
+    help="Raw sql query",
+)
+
+delete_client_parser.add_argument(
+    "-w",
+    "--where",
+    action="append",
+    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1',
+)
+
+delete_jobs_parser = delete_subparsers.add_parser("jobs", help="delete job")
+delete_jobs_parser.add_argument(
+    "-r",
+    "--raw",
+    help="Raw sql query",
+)
+
+delete_jobs_parser.add_argument(
+    "-w",
+    "--where",
+    action="append",
+    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1',
+)
+
 
 class TranscriptorCMD(cmd2.Cmd):
     prompt = "(trans5) "
@@ -487,6 +520,41 @@ class TranscriptorCMD(cmd2.Cmd):
     def do_update(self, args):
         """
         Update command help
+        """
+        func = getattr(args, "func", None)
+        if func is not None:
+            func(self, args)
+        else:
+            self.do_help("base")
+
+    def delete_clients(self, args):
+        if args.raw:
+            self.app.api.delete_clients(raw_statement=args.raw)
+        else:
+            if not args.where:
+                self.poutput("Please provide conditions to delete")
+                return
+            where = parse_conditions(args.where)
+            self.app.api.delete_clients(conditions=where)
+
+    delete_client_parser.set_defaults(func=delete_clients)
+
+    def delete_jobs(self, args):
+        if args.raw:
+            self.app.api.delete_jobs(raw_statement=args.raw)
+        else:
+            if not args.where:
+                self.poutput("Please provide conditions to delete")
+                return
+            where = parse_conditions(args.where)
+            self.app.api.delete_jobs(conditions=where)
+
+    delete_jobs_parser.set_defaults(func=delete_jobs)
+
+    @cmd2.with_argparser(delete_parser)
+    def do_delete(self, args):
+        """
+        Delete command help
         """
         func = getattr(args, "func", None)
         if func is not None:
