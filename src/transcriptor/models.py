@@ -4,6 +4,8 @@ from abc import ABC
 from sqlalchemy import String
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import event
+from sqlalchemy import DDL
 
 
 class Base(DeclarativeBase):
@@ -46,6 +48,109 @@ class Job(Base):
     amount_paid: Mapped[float] = mapped_column(nullable=False, default=0.0)
     job_path: Mapped[str] = mapped_column(nullable=False)
     note: Mapped[str] = mapped_column(nullable=False, default="")
+
+
+update_amount_trigger = DDL(
+    """
+    CREATE TRIGGER IF NOT EXISTS update_amount
+    AFTER UPDATE OF job_rate, quantity ON Jobs
+    BEGIN
+        UPDATE Jobs
+        SET amount = ROUND(NEW.quantity * NEW.job_rate, 2)
+        WHERE id = NEW.id;
+    END;
+    """
+)
+
+event.listen(
+    Job.__table__, "after_create", update_amount_trigger.execute_if(dialect="sqlite")
+)
+
+update_date_trigger = DDL(
+    """
+    CREATE TRIGGER IF NOT EXISTS update_date
+        AFTER UPDATE OF status ON Jobs
+    BEGIN
+        UPDATE Jobs
+        SET 
+            date_submitted = CASE
+                WHEN NEW.status = 'Pending' THEN NULL
+                WHEN NEW.status = 'Done' AND NEW.date_submitted IS NULL THEN DATE("NOW", 'localtime')
+                ELSE date_submitted
+            END
+            WHERE id = NEW.id;
+    END;
+    """
+)
+
+event.listen(
+    Job.__table__, "after_create", update_date_trigger.execute_if(dialect="sqlite")
+)
+
+update_status_trigger = DDL(
+    """
+    CREATE TRIGGER IF NOT EXISTS update_status
+        AFTER UPDATE OF date_submitted ON Jobs
+    BEGIN
+        UPDATE Jobs
+        SET 
+            status = CASE
+                WHEN NEW.date_submitted IS NULL THEN 'Pending'
+                WHEN NEW.date_submitted IS '' THEN 'Pending'
+                WHEN DATE(NEW.date_submitted) IS NOT NULL THEN 'Done'
+                ELSE status
+            END
+            WHERE id = NEW.id;
+    END;
+    """
+)
+event.listen(
+    Job.__table__, "after_create", update_status_trigger.execute_if(dialect="sqlite")
+)
+limit_amount_paid_trigger = DDL(
+    """
+    CREATE TRIGGER IF NOT EXISTS limit_amounts_paid
+        AFTER UPDATE OF amount_paid ON Jobs
+    BEGIN
+        UPDATE Jobs
+        SET
+            amount_paid = (
+                CASE 
+                    WHEN NEW.amount_paid > Jobs.amount THEN Jobs.amount
+                    ELSE NEW.amount_paid
+                END
+            )
+            WHERE Jobs.id = New.id;
+    END;
+    """
+)
+event.listen(
+    Job.__table__,
+    "after_create",
+    limit_amount_paid_trigger.execute_if(dialect="sqlite"),
+)
+
+update_job_rates_trigger = DDL(
+    """ 
+    CREATE TRIGGER IF NOT EXISTS update_job_rates
+        AFTER UPDATE OF client_id ON Jobs
+    BEGIN
+        UPDATE Jobs
+            SET job_rate = CASE
+                WHEN LOWER(job_type) = 'normal' THEN (SELECT normal FROM Rates WHERE Rates.id = New.client_id)
+                WHEN LOWER(job_type) = 'expedite' THEN (SELECT expedite FROM Rates WHERE Rates.id = New.client_id)
+                WHEN LOWER(job_type) = 'interpreted' THEN (SELECT interpreted FROM Rates WHERE Rates.id = New.client_id)
+                ELSE job_rate
+            END
+        WHERE id = NEW.id;
+    END;
+    """
+)
+event.listen(
+    Job.__table__,
+    "after_create",
+    update_job_rates_trigger.execute_if(dialect="sqlite"),
+)
 
 
 class Model(ABC):
