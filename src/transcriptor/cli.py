@@ -183,6 +183,9 @@ delete_client_parser.add_argument(
     action="append",
     help='Specify conditions in the format "field[operator]value", e.g., -w id<=1',
 )
+delete_client_parser.add_argument(
+    "-P", "--purge", action="store_true", help="Purge client data"
+)
 
 delete_jobs_parser = delete_subparsers.add_parser("jobs", help="delete job")
 delete_jobs_parser.add_argument(
@@ -196,6 +199,9 @@ delete_jobs_parser.add_argument(
     "--where",
     action="append",
     help='Specify conditions in the format "field[operator]value", e.g., -w id<=1',
+)
+delete_jobs_parser.add_argument(
+    "-P", "--purge", action="store_true", help="Purge job data"
 )
 
 
@@ -530,13 +536,14 @@ class TranscriptorCMD(cmd2.Cmd):
     def delete_clients(self, args):
         clients = None
 
+        if not args.where and not args.raw:
+            self.poutput("Please provide conditions to delete")
+            return
+
         if args.raw:
             clients = self.app.api.get_clients(raw_sql_stmt=args.raw)
 
-        if not args.where:
-            self.poutput("Please provide conditions to delete")
-            return
-        else:
+        elif args.where:
             conditions = parse_conditions(args.where)
             clients = self.app.api.get_clients(conditions=conditions)
 
@@ -552,13 +559,15 @@ class TranscriptorCMD(cmd2.Cmd):
 
             if to_delete.startswith("y") or to_delete.startswith("Y"):
                 self.poutput(
-                    "\n** DELETING CLIENT WILL DELETE ALL JOBS/RATES ASSOCIATED WITH IT **\n"
+                    "\n** DELETING CLIENT WILL DELETE CLIENT'S JOBS AND RATES **\n"
                 )
+                if args.purge:
+                    self.poutput("\n** DELETING CLIENT WILL DELETE ALL CLIENT DATA**\n")
                 confirm_delete = prompt(f"TYPE {client['name']} to confirm: ")
 
                 if confirm_delete == client["name"]:
-                    self.app.api.delete_clients(
-                        conditions={"name": [("=", client["name"])]}
+                    self.app.delete_clients(
+                        conditions={"name": [("=", client["name"])]}, purge=args.purge
                     )
                 else:
                     self.poutput("Operation aborted")
@@ -588,7 +597,7 @@ class TranscriptorCMD(cmd2.Cmd):
             )
 
             if confirm_delete.startswith("y") or confirm_delete.startswith("Y"):
-                self.app.api.delete_jobs(conditions={"name": [("=", job["name"])]})
+                self.app.delete_jobs(conditions=conditions, purge=args.purge)
             else:
                 self.poutput("Operation aborted")
                 return

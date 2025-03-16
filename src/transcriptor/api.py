@@ -270,6 +270,7 @@ class API:
 
     def delete_jobs(self, conditions=None, raw_sql_stmt=None):
         stmt = self.delete(Job, conditions=conditions, raw_sql_stmt=raw_sql_stmt)
+        stmt = stmt.returning(Job.job_path)
         with self.session() as session:
             jobs = session.execute(stmt).mappings().all()
             session.commit()

@@ -180,7 +180,7 @@ class Transcriptor:
             return
         client = client_query[0]
         job_dir = self.create_job_dir(
-            client.name,
+            client["name"],
             job_info["job_number"],
             job_info["date_received"],
             job_info["date_due"],
@@ -196,7 +196,7 @@ class Transcriptor:
             task_info.update(job_info)
 
             task_template_path = self.select_job_template(
-                client.name, task_info["job_template"]
+                client["name"], task_info["job_template"]
             )
             task_template_suffix = task_template_path.suffix
 
@@ -209,15 +209,15 @@ class Transcriptor:
             shutil.copy(task_template_path, task_file_path)
 
             task_rate_obj = self.api.get_rates(
-                conditions={"client_id": [("=", client.id)]}
+                conditions={"client_id": [("=", client["id"])]}
             )
-            task_info["job_rate"] = getattr(task_rate_obj[0], task_info["job_type"])
+            task_info["job_rate"] = task_rate_obj[0].get(task_info["job_type"].lower())
             task_info["amount"] = round_up(
                 float(task_info["job_rate"]) * float(task_info["quantity"])
             )
 
             task_dict = {
-                "client_id": client.id,
+                "client_id": client["id"],
                 "date_received": job_info["date_received"],
                 "job_number": job_info["job_number"],
                 "status": "Pending",
@@ -233,6 +233,25 @@ class Transcriptor:
             tasks.append(task_dict)
         if tasks:
             self.api.add_jobs(tasks)
+
+    def delete_clients(self, conditions=None, raw_sql_stmt=None, purge=False):
+        clients = self.api.delete_clients(
+            conditions=conditions, raw_sql_stmt=raw_sql_stmt
+        )
+        if purge:
+            for client in clients:
+                client_dir = self.base_dir / "clients" / sc(client["name"])
+                if client_dir.exists():
+                    shutil.rmtree(client_dir)
+        return clients
+
+    def delete_jobs(self, conditions=None, raw_sql_stmt=None, purge=False):
+        jobs = self.api.delete_jobs(conditions=conditions, raw_sql_stmt=raw_sql_stmt)
+        if purge:
+            for job in jobs:
+                job_path = Path(job["job_path"])
+                shutil.rmtree(job_path.parent)
+        return jobs
 
 
 if __name__ == "__main__":
