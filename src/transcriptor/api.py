@@ -1,11 +1,11 @@
 from pathlib import Path
-from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, text
 from sqlalchemy import update as sql_update
 from sqlalchemy import delete as sql_delete
 
 from transcriptor.database import Database
 from transcriptor.models import Client, Rate, Job
+from sqlalchemy.orm import sessionmaker
 
 
 DB_FILE_NAME = "transcriptor_sqlalchemy.db"
@@ -19,13 +19,14 @@ class API:
 
         self.base_dir = base_dir
         self.db = Database(db_file=f"{base_dir}/{DB_FILE_NAME}")
+        self.session = sessionmaker(self.db.engine, expire_on_commit=False)
         self.db.init_db()
-        self.session = Session(self.db.engine)
 
     def add(self, table, data):
         obj = table(**data)
-        self.session.add(obj)
-        self.session.commit()
+        with self.session() as session:
+            session.add(obj)
+            session.commit()
         return obj.id
 
     def add_client(self, client_dict) -> None:
@@ -39,17 +40,18 @@ class API:
 
     def add_jobs(self, jobs):
         job_objects = [Job(**job_dict) for job_dict in jobs]
-        self.session.add_all(job_objects)
-        self.session.commit()
+        with self.session() as session:
+            session.add_all(job_objects)
+            session.commit()
 
     def get(self, table, conditions=None, raw_sql_stmt=None):
         if raw_sql_stmt is not None:
             raw_sql_stmt = text(raw_sql_stmt)
-            return self.session.execute(raw_sql_stmt).mappings().all()
+            return raw_sql_stmt
 
         stmt = select(table)
         if conditions is None:
-            return self.session.scalars(stmt).all()
+            return stmt
 
         for column, conditions_list in conditions.items():
             column_attribute = getattr(table, column)
@@ -71,51 +73,87 @@ class API:
                     raise ValueError(f"Invalid comparison operator: {comparison_op}")
             stmt = stmt.filter(and_(*filters))
 
-        return self.session.scalars(stmt).all()
+        return stmt
 
     def get_clients(self, conditions=None, raw_sql_stmt=None) -> list:
         if raw_sql_stmt is not None:
             raw_sql_stmt = f"""
-                SELECT c.id AS client_id, c.name, c.email, r.normal, r.expedite, r.interpreted
-                FROM clients AS c
-                JOIN rates AS r ON c.id = r.client_id {raw_sql_stmt}"""
-            return self.session.execute(text(raw_sql_stmt)).mappings().all()
+                SELECT id, name, email
+                FROM clients {raw_sql_stmt}"""
+            stmt = self.get(table=Client, raw_sql_stmt=raw_sql_stmt)
+            with self.session() as session:
+                return session.execute(stmt).mappings().all()
 
-        elif conditions is None:
+        if conditions is None:
             stmt = select(
-                Client.id.label("client_id"),
+                Client.id,
                 Client.name,
                 Client.email,
-                Rate.normal,
-                Rate.expedite,
-                Rate.interpreted,
-            ).join(Rate, Client.id == Rate.client_id)
+            )
+            with self.session() as session:
+                return session.execute(stmt).mappings().all()
 
-            return self.session.execute(stmt).mappings().all()
+        stmt = self.get(Client, conditions, raw_sql_stmt)
+        with self.session() as session:
+            scalars = session.scalars(stmt).all()
+            ordination = {"id", "name", "email"}
+            client_mappings = [
+                {col: getattr(client, col) for col in ordination} for client in scalars
+            ]
 
-        return self.get(Client, conditions, raw_sql_stmt)
+            return client_mappings
 
     def get_rates(self, conditions=None):
-        return self.get(Rate, conditions)
+        ordination = ["id", "client_id", "normal", "expedite", "interpreted"]
+        stmt = self.get(Rate, conditions)
+        with self.session() as session:
+            scalars = session.scalars(stmt).all()
+            rate_mappings = [
+                {col: getattr(rate, col) for col in ordination if hasattr(rate, col)}
+                for rate in scalars
+            ]
+            return rate_mappings
 
     def get_jobs(self, conditions=None, raw_sql_stmt=None):
+        ordination = [
+            "id",
+            "date_received",
+            "client",
+            "client_id",
+            "job_number",
+            "job_type",
+            "status",
+            "date_due",
+            "total_quantity",
+            "quantity",
+            "job_rate",
+            "date_submitted",
+            "amount",
+            "amount_paid",
+            "note",
+            "job_path",
+        ]
         if raw_sql_stmt is not None:
             raw_sql_stmt = f"""
-             SELECT  j.client_id,  j.date_received, j.id AS job_id, j.job_number, j.job_type,
-             j.status, j.date_due, j.total_quantity, j.quantity, j.job_rate,
-             j.date_submitted, j.amount, j.amount_paid, j.note, j.job_path
-             FROM JOBS AS j {raw_sql_stmt}
+             SELECT {', '.join(ordination)} FROM JOBS {raw_sql_stmt}
             """
-            return self.session.execute(text(raw_sql_stmt)).mappings().all()
+            stmt = self.get(table=Job, raw_sql_stmt=raw_sql_stmt)
+            with self.session() as session:
+                return session.execute(stmt).mappings().all()
 
-        return self.get(Job, conditions)
+        stmt = self.get(Job, conditions)
+        with self.session() as session:
+            scalars = session.scalars(stmt).all()
+            job_mappings = [
+                {col: getattr(job, col) for col in ordination if hasattr(job, col)}
+                for job in scalars
+            ]
+            return job_mappings
 
     def update(self, table, conditions=None, values=None, raw_sql_stmt=None):
         if raw_sql_stmt is not None:
             raw_sql_stmt = text(raw_sql_stmt)
-            self.session.execute(raw_sql_stmt)
-            self.session.commit()
-            return True
+            return raw_sql_stmt
 
         if not all([conditions, values]):
             return False
@@ -144,9 +182,7 @@ class API:
                         )
                 stmt = stmt.where(and_(*filters))
             stmt = stmt.values(**values)
-            self.session.execute(stmt)
-            self.session.commit()
-            return True
+            return stmt
 
         except Exception as e:
             self.session.rollback()
@@ -154,26 +190,36 @@ class API:
             return False
 
     def update_clients(self, conditions=None, values=None, raw_sql_stmt=None):
-        return self.update(
+        stmt = self.update(
             Client, conditions=conditions, values=values, raw_sql_stmt=raw_sql_stmt
         )
+        with self.session() as session:
+            session.execute(stmt)
+            session.commit()
+            return True
 
     def update_rates(self, conditions=None, values=None, raw_sql_stmt=None):
-        return self.update(
+        stmt = self.update(
             Rate, conditions=conditions, values=values, raw_sql_stmt=raw_sql_stmt
         )
+        with self.session() as session:
+            session.execute(stmt)
+            session.commit()
+            return True
 
     def update_jobs(self, conditions=None, values=None, raw_sql_stmt=None):
-        return self.update(
+        stmt = self.update(
             Job, conditions=conditions, values=values, raw_sql_stmt=raw_sql_stmt
         )
+        with self.session() as session:
+            session.execute(stmt)
+            session.commit()
+            return True
 
     def delete(self, table, conditions, raw_sql_stmt=None):
         if raw_sql_stmt is not None:
             raw_sql_stmt = text(raw_sql_stmt)
-            self.session.execute(raw_sql_stmt)
-            self.session.commit()
-            return True
+            return raw_sql_stmt
 
         if not conditions:
             return False
@@ -201,9 +247,7 @@ class API:
                             f"Invalid comparison operator: {comparison_op}"
                         )
                 stmt = stmt.where(and_(*filters))
-            self.session.execute(stmt)
-            self.session.commit()
-            return True
+            return stmt
 
         except Exception as e:
             self.session.rollback()
@@ -211,10 +255,19 @@ class API:
             return False
 
     def delete_clients(self, conditions=None, raw_sql_stmt=None):
-        return self.delete(Client, conditions=conditions, raw_sql_stmt=raw_sql_stmt)
+        stmt = self.delete(Client, conditions=conditions, raw_sql_stmt=raw_sql_stmt)
+        stmt = stmt.returning(Client.id, Client.name)
+        with self.session() as session:
+            clients = session.execute(stmt).mappings().all()
+            session.commit()
+            return clients
 
     def delete_jobs(self, conditions=None, raw_sql_stmt=None):
-        return self.delete(Job, conditions=conditions, raw_sql_stmt=raw_sql_stmt)
+        stmt = self.delete(Job, conditions=conditions, raw_sql_stmt=raw_sql_stmt)
+        with self.session() as session:
+            jobs = session.execute(stmt).mappings().all()
+            session.commit()
+            return jobs
 
 
 if __name__ == "__main__":
