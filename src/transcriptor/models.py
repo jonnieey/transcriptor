@@ -18,6 +18,15 @@ class Client(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
+    rate: Mapped["Rate"] = relationship(
+        "Rate",
+        uselist=False,
+        cascade="all, delete-orphan",
+        back_populates="client",
+    )
+    jobs: Mapped[list["Job"]] = relationship(
+        "Job", back_populates="client", cascade="all, delete-orphan"
+    )
 
 
 class Rate(Base):
@@ -26,15 +35,17 @@ class Rate(Base):
     normal: Mapped[float] = mapped_column(nullable=False)
     expedite: Mapped[float] = mapped_column(nullable=False)
     interpreted: Mapped[float] = mapped_column(nullable=False)
-    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
-    client: Mapped[Client] = relationship(cascade="all")
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
+    client: Mapped[Client] = relationship(
+        "Client", back_populates="rate", passive_deletes=True
+    )
 
 
 class Job(Base):
     __tablename__ = "jobs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
     date_received: Mapped[str] = mapped_column(nullable=False)
     job_number: Mapped[str] = mapped_column(nullable=False)
     job_type: Mapped[str] = mapped_column(nullable=False)
@@ -48,6 +59,7 @@ class Job(Base):
     amount_paid: Mapped[float] = mapped_column(nullable=False, default=0.0)
     job_path: Mapped[str] = mapped_column(nullable=False)
     note: Mapped[str] = mapped_column(nullable=False, default="")
+    client: Mapped[Client] = relationship("Client", back_populates="jobs")
 
 
 update_amount_trigger = DDL(
