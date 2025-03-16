@@ -12,7 +12,7 @@ DB_FILE_NAME = "transcriptor_sqlalchemy.db"
 
 
 class API:
-    def __init__(self, base_dir: Path):
+    def __init__(self, base_dir):
         base_dir = Path(base_dir)
         if not base_dir.exists():
             base_dir.mkdir(parents=True)
@@ -29,13 +29,13 @@ class API:
             session.commit()
         return obj.id
 
-    def add_client(self, client_dict) -> None:
+    def add_client(self, client_dict):
         return self.add(Client, client_dict)
 
-    def add_rates(self, rates) -> None:
+    def add_rates(self, rates):
         return self.add(Rate, rates)
 
-    def add_job(self, job) -> None:
+    def add_job(self, job):
         return self.add(Job, job)
 
     def add_jobs(self, jobs):
@@ -44,36 +44,61 @@ class API:
             session.add_all(job_objects)
             session.commit()
 
+    def _build_statement_with_conditions(self, table, conditions, stmt_type="select"):
+        """Builds a SQL statement with conditions."""
+        if not conditions:
+            return False
+
+        if stmt_type == "select":
+            stmt = select(table)
+        elif stmt_type == "update":
+            stmt = sql_update(table)
+        elif stmt_type == "delete":
+            stmt = sql_delete(table)
+        else:
+            raise ValueError("Invalid stmt_type.  Must be select, update, or delete")
+
+        try:
+            for column, conditions_list in conditions.items():
+                column_attribute = getattr(table, column)
+                op_map = {
+                    "<=": column_attribute.__le__,
+                    ">=": column_attribute.__ge__,
+                    "!=": column_attribute.__ne__,
+                    "<": column_attribute.__lt__,
+                    ">": column_attribute.__gt__,
+                    "=": column_attribute.__eq__,
+                    "==": column_attribute.__eq__,
+                    "~": column_attribute.ilike,
+                }
+                filters = []
+                for comparison_op, comp_value in conditions_list:
+                    try:
+                        filters.append(op_map[comparison_op](comp_value))
+                    except KeyError:
+                        raise ValueError(
+                            f"Invalid comparison operator: {comparison_op}"
+                        )
+                if stmt_type == "select":
+                    stmt = stmt.filter(and_(*filters))
+                else:
+                    stmt = stmt.where(and_(*filters))
+            return stmt
+        except Exception as e:
+            self.session.rollback()
+            print(f"Error during {stmt_type}: {e}")
+            return False
+
     def get(self, table, conditions=None, raw_sql_stmt=None):
         if raw_sql_stmt is not None:
             raw_sql_stmt = text(raw_sql_stmt)
             return raw_sql_stmt
 
-        stmt = select(table)
         if conditions is None:
+            stmt = select(table)
             return stmt
 
-        for column, conditions_list in conditions.items():
-            column_attribute = getattr(table, column)
-            op_map = {
-                "<=": column_attribute.__le__,
-                ">=": column_attribute.__ge__,
-                "!=": column_attribute.__ne__,
-                "<": column_attribute.__lt__,
-                ">": column_attribute.__gt__,
-                "=": column_attribute.__eq__,
-                "==": column_attribute.__eq__,
-                "~": column_attribute.ilike,
-            }
-            filters = []
-            for comparison_op, comp_value in conditions_list:
-                try:
-                    filters.append(op_map[comparison_op](comp_value))
-                except KeyError:
-                    raise ValueError(f"Invalid comparison operator: {comparison_op}")
-            stmt = stmt.filter(and_(*filters))
-
-        return stmt
+        return self._build_statement_with_conditions(table, conditions, "select")
 
     def get_clients(self, conditions=None, raw_sql_stmt=None) -> list:
         if raw_sql_stmt is not None:
@@ -152,35 +177,16 @@ class API:
 
     def update(self, table, conditions=None, values=None, raw_sql_stmt=None):
         if raw_sql_stmt is not None:
-            raw_sql_stmt = text(raw_sql_stmt)
+            raw_sql_stmt = text(f"UPDATE {table.__tablename__} {raw_sql_stmt}")
             return raw_sql_stmt
 
         if not all([conditions, values]):
             return False
 
-        stmt = sql_update(table)
+        stmt = self._build_statement_with_conditions(table, conditions, "update")
+        if stmt is None:
+            return False
         try:
-            for column, conditions_list in conditions.items():
-                column_attribute = getattr(table, column)
-                op_map = {
-                    "<=": column_attribute.__le__,
-                    ">=": column_attribute.__ge__,
-                    "!=": column_attribute.__ne__,
-                    "<": column_attribute.__lt__,
-                    ">": column_attribute.__gt__,
-                    "=": column_attribute.__eq__,
-                    "==": column_attribute.__eq__,
-                    "~": column_attribute.ilike,
-                }
-                filters = []
-                for comparison_op, comp_value in conditions_list:
-                    try:
-                        filters.append(op_map[comparison_op](comp_value))
-                    except KeyError:
-                        raise ValueError(
-                            f"Invalid comparison operator: {comparison_op}"
-                        )
-                stmt = stmt.where(and_(*filters))
             stmt = stmt.values(**values)
             return stmt
 
@@ -218,7 +224,7 @@ class API:
 
     def delete(self, table, conditions, raw_sql_stmt=None):
         if raw_sql_stmt is not None:
-            raw_sql_stmt = text(raw_sql_stmt)
+            raw_sql_stmt = text(f"DELETE FROM {table.__tablename__} {raw_sql_stmt}")
             return raw_sql_stmt
 
         if not conditions:

@@ -491,10 +491,12 @@ class TranscriptorCMD(cmd2.Cmd):
     def update_rates(self, args):
         if args.raw:
             self.app.api.update_rates(raw_sql_stmt=args.raw)
+            return
         if args.where and args.values:
             where = parse_conditions(args.where)
             values = parse_conditions_as_dict(args.values)
             self.app.api.update_rates(conditions=where, values=values)
+            return
         else:
             self.poutput("Please provide conditions and values")
             return
