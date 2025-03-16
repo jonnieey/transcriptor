@@ -2,6 +2,7 @@ from collections import OrderedDict
 from rich.console import Console
 from rich.table import Table
 from transcriptor.utils import tc
+from transcriptor.models import Base
 
 
 class TranscriptorView:
@@ -54,7 +55,8 @@ class TranscriptorView:
             columns = [
                 column
                 for column in object_dict.keys()
-                if column not in ("_sa_instance_state", "job_path")
+                if column
+                not in ("_sa_instance_state", "job_path", "client", "job", "rate")
             ]
             for column in columns:
                 self.table.add_column(tc(column))
@@ -78,17 +80,31 @@ class TranscriptorView:
 
                 self.table.add_section()
                 try:
-                    total_amount = sum([obj.amount for obj in objects])
-                    total_amount_paid = sum([obj.amount_paid for obj in objects])
+                    try:
+                        total_amount = sum([obj.get("amount") for obj in objects])
+                        total_amount_paid = sum(
+                            [obj.get("amount_paid") for obj in objects]
+                        )
 
-                    amount_column = columns.index("amount")
-                    amount_paid_column = columns.index("amount_paid")
+                        amount_column = columns.index("amount")
+                        amount_paid_column = columns.index("amount_paid")
 
-                    summary_row = [""] * len(columns)
-                    summary_row[amount_column] = str(total_amount)
-                    summary_row[amount_paid_column] = str(total_amount_paid)
+                        summary_row = [""] * len(columns)
+                        summary_row[amount_column] = str(total_amount)
+                        summary_row[amount_paid_column] = str(total_amount_paid)
 
-                    self.table.add_row(*summary_row)
+                        self.table.add_row(*summary_row)
+                    except (TypeError, KeyError, AttributeError):
+                        total_amount = sum([obj.amount for obj in objects])
+                        total_amount_paid = sum([obj.amount_paid for obj in objects])
+                        amount_column = columns.index("amount")
+                        amount_paid_column = columns.index("amount_paid")
+
+                        summary_row = [""] * len(columns)
+                        summary_row[amount_column] = str(total_amount)
+                        summary_row[amount_paid_column] = str(total_amount_paid)
+                        self.table.add_row(*summary_row)
+
                 except AttributeError:
                     pass
 
