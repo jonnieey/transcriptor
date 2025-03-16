@@ -288,23 +288,23 @@ class TranscriptorCMD(cmd2.Cmd):
     show_rates_parser.set_defaults(func=show_rates)
 
     def show_jobs(self, args):
-        ordination = [
-            "client_id",
-            "date_received",
-            "id",
-            "job_number",
-            "job_type",
-            "status",
-            "date_due",
-            "date_submitted",
-            "total_quantity",
-            "quantity",
-            "job_rate",
-            "amount",
-            "amount_paid",
-            "note",
-        ]
-
+        # ordination = [
+        #     "client_id",
+        #     "date_received",
+        #     "id",
+        #     "job_number",
+        #     "job_type",
+        #     "status",
+        #     "date_due",
+        #     "date_submitted",
+        #     "total_quantity",
+        #     "quantity",
+        #     "job_rate",
+        #     "amount",
+        #     "amount_paid",
+        #     "note",
+        # ]
+        #
         if args:
             if args.raw:
                 jobs = self.app.api.get_jobs(raw_sql_stmt=args.raw)
@@ -316,9 +316,7 @@ class TranscriptorCMD(cmd2.Cmd):
             else:
                 jobs = self.app.api.get_jobs(conditions={"status": [("=", "Pending")]})
 
-        TranscriptorView().print_table(
-            jobs, orientation="horizontal", ordination=ordination
-        )
+        TranscriptorView().print_table(jobs, orientation="horizontal")
 
     show_jobs_parser.set_defaults(func=show_jobs)
 
@@ -479,7 +477,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def update_clients(self, args):
         if args.raw:
-            self.app.api.update("clients", raw_statement=args.raw)
+            self.app.api.update("clients", raw_sql_stmt=args.raw)
         if args.where and args.values:
             where = parse_conditions(args.where)
             values = parse_conditions_as_dict(args.values)
@@ -492,7 +490,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def update_rates(self, args):
         if args.raw:
-            self.app.api.update_rates(raw_statement=args.raw)
+            self.app.api.update_rates(raw_sql_stmt=args.raw)
         if args.where and args.values:
             where = parse_conditions(args.where)
             values = parse_conditions_as_dict(args.values)
@@ -505,7 +503,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def update_job(self, args):
         if args.raw:
-            self.app.api.update_jobs(raw_statement=args.raw)
+            self.app.api.update_jobs(raw_sql_stmt=args.raw)
         if args.where and args.values:
             where = parse_conditions(args.where)
             values = parse_conditions_as_dict(args.values)
@@ -528,26 +526,70 @@ class TranscriptorCMD(cmd2.Cmd):
             self.do_help("base")
 
     def delete_clients(self, args):
+        clients = None
+
         if args.raw:
-            self.app.api.delete_clients(raw_statement=args.raw)
+            clients = self.app.api.get_clients(raw_sql_stmt=args.raw)
+
+        if not args.where:
+            self.poutput("Please provide conditions to delete")
+            return
         else:
-            if not args.where:
-                self.poutput("Please provide conditions to delete")
-                return
-            where = parse_conditions(args.where)
-            self.app.api.delete_clients(conditions=where)
+            conditions = parse_conditions(args.where)
+            clients = self.app.api.get_clients(conditions=conditions)
+
+        if not clients:
+            self.poutput("No clients found")
+            return
+
+        for client in clients:
+            to_delete = prompt(
+                f"Are you sure you want to delete {client['name']}? (y/n): ",
+                validator=yes_no_validator,
+            )
+
+            if to_delete.startswith("y") or to_delete.startswith("Y"):
+                self.poutput(
+                    "\n** DELETING CLIENT WILL DELETE ALL JOBS/RATES ASSOCIATED WITH IT **\n"
+                )
+                confirm_delete = prompt(f"TYPE {client['name']} to confirm: ")
+
+                if confirm_delete == client["name"]:
+                    self.app.api.delete_clients(
+                        conditions={"name": [("=", client["name"])]}
+                    )
+                else:
+                    self.poutput("Operation aborted")
+                    return
 
     delete_client_parser.set_defaults(func=delete_clients)
 
     def delete_jobs(self, args):
+        jobs = None
         if args.raw:
-            self.app.api.delete_jobs(raw_statement=args.raw)
+            jobs = self.app.api.get_jobs(raw_sql_stmt=args.raw)
+        if not args.where:
+            self.poutput("Please provide conditions to delete")
+            return
         else:
-            if not args.where:
-                self.poutput("Please provide conditions to delete")
+            conditions = parse_conditions(args.where)
+            jobs = self.app.api.get_jobs(conditions=conditions)
+
+        if not jobs:
+            self.poutput("No jobs found")
+            return
+
+        for job in jobs:
+            confirm_delete = prompt(
+                f"Are you sure you want to delete {job['job_number']}? (y/n): ",
+                validator=yes_no_validator,
+            )
+
+            if confirm_delete.startswith("y") or confirm_delete.startswith("Y"):
+                self.app.api.delete_jobs(conditions={"name": [("=", job["name"])]})
+            else:
+                self.poutput("Operation aborted")
                 return
-            where = parse_conditions(args.where)
-            self.app.api.delete_jobs(conditions=where)
 
     delete_jobs_parser.set_defaults(func=delete_jobs)
 
