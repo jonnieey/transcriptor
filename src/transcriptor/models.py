@@ -1,11 +1,12 @@
-from dataclasses import dataclass
 import yaml
-from abc import ABC
 from sqlalchemy import String
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import event
 from sqlalchemy import DDL
+from pydantic import BaseModel, Field, root_validator
+from typing import List, Optional
+from datetime import date, timedelta
 
 
 class Base(DeclarativeBase):
@@ -165,52 +166,70 @@ event.listen(
 )
 
 
-class Model(ABC):
-    def get(self, item):
-        return getattr(self, item)
-
-    @classmethod
-    def from_yaml(cls, yaml_file):
-        try:
-            with open(yaml_file, "r") as file:
-                data = yaml.safe_load(file)
-            return cls(**data)
-        except FileNotFoundError:
-            print(f"Error: YAML file '{yaml_file}' not found.")
-            return None
-        except yaml.YAMLError as e:
-            print(f"Error parsing YAML file: {e}")
-            return None
-        except TypeError as e:
-            print(
-                f"Error creating {cls.__name__} model: {e}. Check your yaml file structure."
-            )
-            return None
-
-    def write(self, yaml_file):
-        try:
-            with open(yaml_file, "w") as file:
-                yaml.dump(self.__dict__, file, Dumper=yaml.SafeDumper)
-        except FileNotFoundError:
-            print(f"Error: Cannot open or create YAML file '{yaml_file}'.")
-        except yaml.YAMLError as e:
-            print(f"Error writing YAML file: {e}")
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-
-
-@dataclass
-class ConfigModel(Model):
+class Config(BaseModel):
     base_dir: str
     date_format: str
 
-    def __repr__(self):
-        return str(self.__dict__)
 
-
-@dataclass
-class ProfileModel(Model):
-    first_name: str = ""
-    last_name: str = ""
+class Profile(BaseModel):
+    name: str = ""
     area: str = ""
     country: str = ""
+
+
+def from_yaml(cls, yaml_file):
+    try:
+        with open(yaml_file, "r") as file:
+            data = yaml.safe_load(file)
+        return cls(**data)
+    except FileNotFoundError:
+        print(f"Error: YAML file '{yaml_file}' not found.")
+        return None
+    except yaml.YAMLError as e:
+        print(f"Error parsing YAML file: {e}")
+        return None
+
+
+def write(cls, yaml_file):
+    try:
+        with open(yaml_file, "w") as file:
+            yaml.dump(cls.__dict__, file, Dumper=yaml.SafeDumper)
+    except FileNotFoundError:
+        print(f"Error: Cannot open or create YAML file '{yaml_file}'.")
+    except yaml.YAMLError as e:
+        print(f"Error writing YAML file: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+
+Config.from_yaml = classmethod(from_yaml)
+Profile.from_yaml = classmethod(from_yaml)
+Config.write = classmethod(write)
+Profile.write = classmethod(write)
+
+
+class InvoiceLine(BaseModel):
+    job_number: str
+    job_type: str
+    job_rate: float
+    quantity: float
+
+    @property
+    def amount(self):
+        return self.quantity * self.job_rate
+
+
+class Invoice(BaseModel):
+    profile: Profile
+    client_name: str
+    invoice_number: str
+    create_date: date = Field(default_factory=date.today)
+    due_date: Optional[date] = None
+    jobs: List[InvoiceLine]
+
+    @root_validator(skip_on_failure=True)
+    def calculate_due_date(cls, values):
+        if values["due_date"]:
+            return values
+        values["due_date"] = values["create_date"] + timedelta(days=7)
+        return values

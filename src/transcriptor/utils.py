@@ -5,6 +5,18 @@ from datetime import datetime, date
 from audioread import audio_open  # type: ignore
 from prompt_toolkit.validation import Validator
 from decimal import Decimal, InvalidOperation
+from typing import Optional
+from markdownify import MarkdownConverter
+
+from jinja2 import (
+    ChoiceLoader,
+    Environment,
+    FileSystemLoader,
+    PackageLoader,
+    StrictUndefined,
+    select_autoescape,
+)
+from weasyprint import HTML
 
 
 def touch(file_paths: list[Path | str]) -> None:
@@ -339,6 +351,70 @@ template_validator = ValidatorWrapper(
     is_valid_template,
     f"Invalid template name, expects {",".join(list(template_mapping.keys()))}",
 )
+
+
+def _init_jinja_env(custom_templates_dir: Optional[Path]) -> Environment:
+    loaders = []
+    if custom_templates_dir is not None:
+        loaders.append(FileSystemLoader(custom_templates_dir))
+    loaders.append(PackageLoader("transcriptor", "invoice_templates"))
+    loader = ChoiceLoader(loaders)
+    return Environment(
+        loader=loader,
+        autoescape=select_autoescape(),
+        undefined=StrictUndefined,
+    )
+
+
+def htmlstr_to_pdf(htmlstr: str, output_path: Path) -> Optional[bytes]:
+    return HTML(string=htmlstr).write_pdf(output_path)
+
+
+def render_invoice(
+    invoice,
+    custom_templates_dir: Optional[Path] = None,
+    template_name: Optional[str] = None,
+) -> str:
+    if template_name is None:
+        template_name = "invoice.html"
+    template = _init_jinja_env(custom_templates_dir).get_template(template_name)
+    return template.render(invoice=invoice)
+
+
+def write_pdf(
+    invoice,
+    output_path: Path,
+    custom_templates_dir: Optional[Path],
+    template_name=Optional[str],
+) -> Optional[bytes]:
+    return htmlstr_to_pdf(
+        render_invoice(invoice, custom_templates_dir, template_name),
+        output_path,
+    )
+
+
+class MDConverter(MarkdownConverter):
+    """
+    Converter for Markdown to HTML
+    """
+
+    def convert_tr(self, el, text, convert_as_inline):
+        return super().convert_tr(el, text, convert_as_inline) + "\n"
+
+
+def md(html, **options):
+    """
+    Convert Markdown to HTML
+    """
+    return MDConverter(**options).convert(html)
+
+
+def html_to_md(html):
+    markdown = md(html)
+    md_table = markdown[markdown.find("![]()") + 5 :]
+    md_table = re.sub(r"\n{2,}", "\n\n", md_table)
+    return md_table
+
 
 if __name__ == "__main__":
     print(parse_conditions_as_dict(["name=anderson"]))

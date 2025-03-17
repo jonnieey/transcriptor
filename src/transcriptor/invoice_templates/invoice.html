@@ -91,10 +91,7 @@
 <body>
 	<div class="header">
 		<img alt="">
-		{% if data.title %}
-			<h1> {{data.title}} </h1>
-		{% endif %}
-		<h1>Invoice  #{{ data.invoice_number }}</h1>
+		<h1>Invoice  #{{ invoice.invoice_number }}</h1>
 					
 	</div>
 	<div class="invoice-details">
@@ -102,13 +99,13 @@
 			<thead>
 				<tr>
 					<th>Name:</th>
-					<td>{{ profile.first_name }} {{ profile.last_name }}</td>
+					<td>{{ invoice.profile.name }}</td>
 				</tr>
 				<tr>
 					<th>Area:</th>
-					<td>{{ profile.area }}</td>
+					<td>{{ invoice.profile.area }}</td>
 					<th>Country:</th>
-					<td>{{ profile.country }}</td>
+					<td>{{ invoice.profile.country }}</td>
 				</tr>
 			</thead>
 
@@ -116,15 +113,15 @@
 			<thead>
 				<tr>
 					<th>Invoice Number:</th>
-					<td>{{ data.invoice_number }}</td>
+					<td>{{ invoice.invoice_number }}</td>
 					<th>Invoice Date:</th>
-					<td>{{ data.created }}</td>
+					<td>{{ invoice.create_date }}</td>
 				</tr>
 				<tr>
 					<th>Client Name:</th>
-					<td>{{ client.name }}</td>
+					<td>{{ invoice.client_name }}</td>
 					<th>Due Date:</th>
-					<td>{{ data.due }}</td>
+					<td>{{ invoice.due_date }}</td>
 				</tr>
 			</thead>
 		</table>
@@ -143,7 +140,7 @@
 				</tr>
 			</thead>
 			<tbody>
-			  {% for job in jobs %}
+			  {% for job in invoice.jobs %}
 					<tr>
 						<td>{{ loop.index }}</td>
 						<td>{{ job.job_number }}</td>
@@ -156,7 +153,7 @@
 				  <tfoot>
 					<tr>
 						<td colspan="5">TOTAL</td>
-						<td>&#36;{{ jobs|sum(attribute='amount')|float|round(2) }}</td>
+						<td>&#36;{{ invoice.jobs|sum(attribute='amount')|float|round(2) }}</td>
 					</tr>
 				  </tfoot>
 			</tbody>

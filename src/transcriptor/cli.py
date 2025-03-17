@@ -17,6 +17,7 @@ from transcriptor.utils import (
     yes_no_validator,
     job_type_validator,
     template_validator,
+    htmlstr_to_pdf,
 )
 from prompt_toolkit import prompt
 
@@ -203,6 +204,17 @@ delete_jobs_parser.add_argument(
 delete_jobs_parser.add_argument(
     "-P", "--purge", action="store_true", help="Purge job data"
 )
+
+invoice_parser = base_subparsers.add_parser("invoice", help="generate invoice")
+invoice_parser.add_argument("-c", "--client_id", required=True, help="Client ID")
+invoice_parser.add_argument(
+    "-w",
+    "--where",
+    action="append",
+    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
+)
+invoice_parser.add_argument("-r", "--raw", help="Raw sql query")
+invoice_parser.add_argument("-p", "--print", action="store_true", help="Print invoice")
 
 
 class TranscriptorCMD(cmd2.Cmd):
@@ -606,6 +618,37 @@ class TranscriptorCMD(cmd2.Cmd):
 
     @cmd2.with_argparser(delete_parser)
     def do_delete(self, args):
+        """
+        Delete command help
+        """
+        func = getattr(args, "func", None)
+        if func is not None:
+            func(self, args)
+        else:
+            self.do_help("base")
+
+    def invoice(self, args):
+        if not args.client_id:
+            return
+        if args.raw:
+            html, client = self.app.generate_invoice(
+                client_id=args.client_id, raw_sql_stmt=args.raw
+            )
+        elif args.where:
+            conditions = parse_conditions(args.where)
+            html, client = self.app.generate_invoice(
+                client_id=args.client_id, conditions=conditions
+            )
+        if args.print:
+            self.app.html_to_pdf(html, client)
+        else:
+            md = self.app.to_md(html)
+            TranscriptorView().console.print(md)
+
+    invoice_parser.set_defaults(func=invoice)
+
+    @cmd2.with_argparser(invoice_parser)
+    def do_invoice(self, args):
         """
         Delete command help
         """
