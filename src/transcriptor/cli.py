@@ -648,16 +648,50 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def invoice(self, args):
         if not args.client_id:
-            return
+            self.show_clients(args=None)
+            client_id = int(
+                prompt("Enter client id: ", validator=positive_number_validator)
+            )
+            args.client_id = client_id  # Update the original args
+        if args.table:
+            cutoffs = self.app.load_cutoffs(as_str=True)
+            cutoffs = [
+                ["index" if row == 0 else str(idx)] + row
+                for idx, row in enumerate(cutoffs)
+            ]
+            TranscriptorView().print_table(cutoffs)
+            cutoff_idx = prompt(
+                "select deposit date. Use index number: ",
+                validator=positive_number_validator,
+            )
+            previous_cutoff, cutoff = self.app.select_cutoff_period(int(cutoff_idx))
+            raw_cutoff_condition = (
+                f"date_submitted > '{previous_cutoff}' AND date_submitted <= '{cutoff}'"
+            )
+            cutoff_condition = [
+                f"date_submitted>{previous_cutoff}",
+                f"date_submitted<={cutoff}",
+            ]
+
         if args.raw:
+            if args.table:
+                args.raw = args.raw + f" AND {raw_cutoff_condition}"
             html, client = self.app.generate_invoice(
                 client_id=args.client_id, raw_sql_stmt=args.raw
             )
         elif args.where:
+            if args.table:
+                args.where = args.where + cutoff_condition
             conditions = parse_conditions(args.where)
             html, client = self.app.generate_invoice(
                 client_id=args.client_id, conditions=conditions
             )
+        else:
+            if args.table:
+                conditions = parse_conditions(cutoff_condition)
+                html, client = self.app.generate_invoice(
+                    client_id=args.client_id, conditions=conditions
+                )
         if args.print:
             self.app.html_to_pdf(html, client)
         else:

@@ -264,7 +264,7 @@ class Transcriptor:
                 shutil.rmtree(job_path.parent)
         return jobs
 
-    def read_invoice_counter(self, client, invoice_num_counter_file):
+    def read_invoice_counter(self, invoice_num_counter_file):
         try:
             with open(invoice_num_counter_file, "r") as file:
                 invoice_number = int(file.read())
@@ -289,12 +289,23 @@ class Transcriptor:
                 file.write(f"{invoice_number:05}")
 
     def generate_invoice(self, client_id, conditions=None, raw_sql_stmt=None):
+        if client_id is None:
+            print("CLIENT ID CANNOT BE NONE")
+            return ("", "")
+
         if conditions:
-            conditions.update(
-                {"client_id": [("=", client_id)], "amount_paid": [("=", 0)]}
-            )
+            # Use a direct assignment or setdefault to avoid multiple dictionary updates
+            conditions.setdefault("client_id", [("=", client_id)])
+            conditions["amount_paid"] = [("=", 0)]
         elif raw_sql_stmt:
-            raw_sql_stmt += f" AND client_id = {client_id} AND amount_paid = 0"
+            # Use format strings cautiously against SQL injection; ensure client_id is validated
+            if "client_id" not in raw_sql_stmt:
+                raw_sql_stmt = (
+                    f"{raw_sql_stmt} AND client_id = {client_id} AND amount_paid = 0"
+                )
+            else:
+                raw_sql_stmt = f"{raw_sql_stmt} AND amount_paid = 0"
+
         jobs = self.api.get_jobs(conditions=conditions, raw_sql_stmt=raw_sql_stmt)
         if not jobs:
             print("No jobs found")
@@ -302,36 +313,37 @@ class Transcriptor:
 
         invoice_lines = [InvoiceLine.parse_obj(job) for job in jobs]
         client = jobs[0].get("client")
+        client_name = client.name if hasattr(client, "name") else client
 
-        INVOICE_DIR = self.base_dir / "clients" / sc(client.name) / "invoices"
+        INVOICE_DIR = self.base_dir / "clients" / sc(client_name) / "invoices"
         INVOICE_NUM_COUNTER_FILE = INVOICE_DIR / "invoice_number_counter"
 
-        invoice_number = self.read_invoice_counter(client, INVOICE_NUM_COUNTER_FILE)
+        invoice_number = self.read_invoice_counter(INVOICE_NUM_COUNTER_FILE)
 
         invoice = Invoice(
             profile=self.profile,
             invoice_number=f"{invoice_number + 1:05}",
-            client_name=client.name,
+            client_name=client_name,
             jobs=invoice_lines,
         )
         html = render_invoice(invoice=invoice)
 
         return html, client
 
-    def html_to_pdf(self, html, client, output_file=None):
-        INVOICE_DIR = self.base_dir / "clients" / sc(client.name) / "invoices"
+    def html_to_pdf(self, html, client_name, output_file=None):
+        INVOICE_DIR = self.base_dir / "clients" / sc(client_name) / "invoices"
 
         if not INVOICE_DIR.exists():
             INVOICE_DIR.mkdir(parents=True, exist_ok=True)
 
         INVOICE_FILE = (
             INVOICE_DIR
-            / f"{date.today().strftime('%Y-%m-%d')}_{sc(client.name)}_invoice.pdf"
+            / f"{date.today().strftime('%Y-%m-%d')}_{sc(client_name)}_invoice.pdf"
         )
         htmlstr_to_pdf(html, output_path=INVOICE_FILE)
 
         INVOICE_NUM_COUNTER_FILE = INVOICE_DIR / "invoice_number_counter"
-        self.increase_invoice_counter(client, INVOICE_NUM_COUNTER_FILE)
+        self.increase_invoice_counter(INVOICE_NUM_COUNTER_FILE)
 
     def to_md(self, html):
         return html_to_md(html)

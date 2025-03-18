@@ -142,17 +142,17 @@ class API:
     def get_jobs(self, conditions=None, raw_sql_stmt=None):
         ordination = [
             "id",
-            "date_received",
+            "job_number",
             "client",
             "client_id",
-            "job_number",
+            "date_received",
+            "date_due",
             "job_type",
             "status",
-            "date_due",
+            "date_submitted",
             "total_quantity",
             "quantity",
             "job_rate",
-            "date_submitted",
             "amount",
             "amount_paid",
             "note",
@@ -160,7 +160,10 @@ class API:
         ]
         if raw_sql_stmt is not None:
             raw_sql_stmt = f"""
-             SELECT {', '.join(ordination)} FROM JOBS {raw_sql_stmt}
+            SELECT CLIENTS.name as client, {', '.join(['JOBS.' + col for col in ordination if col != 'client'])}
+            FROM JOBS
+            JOIN CLIENTS ON JOBS.client_id = CLIENTS.id
+            {raw_sql_stmt}
             """
             stmt = self.get(table=Job, raw_sql_stmt=raw_sql_stmt)
             with self.session() as session:
