@@ -17,7 +17,6 @@ from transcriptor.utils import (
     yes_no_validator,
     job_type_validator,
     template_validator,
-    htmlstr_to_pdf,
 )
 from prompt_toolkit import prompt
 
@@ -35,6 +34,7 @@ show_profile_parser = show_subparsers.add_parser("profile", help="show profile")
 show_clients_parser = show_subparsers.add_parser("clients", help="show client")
 show_rates_parser = show_subparsers.add_parser("rates", help="show rates")
 show_jobs_parser = show_subparsers.add_parser("jobs", help="show jobs")
+show_cutoffs_parser = show_subparsers.add_parser("cutoffs", help="show cutoffs")
 
 
 show_clients_parser.add_argument(
@@ -102,6 +102,17 @@ add_job_parser.add_argument("-w", "--work_on_file", help="Work On File")
 add_job_parser.add_argument("-t", "--job_type", help="Job Type")
 add_job_parser.add_argument("-T", "--job_template", help="Job Template")
 add_job_parser.add_argument("-N", "--note", help="Job Note")
+
+add_cutoffs_parser = add_subparsers.add_parser(
+    "cutoffs", help="generate cutoffs file from docx"
+)
+add_cutoffs_parser.add_argument(
+    "-f",
+    "--file",
+    type=str,
+    help="Cutoffs docx File Path",
+)
+add_cutoffs_parser.add_argument("-d", "--date_fmt", help="Date Format")
 
 
 update_parser = base_subparsers.add_parser("update", help="update object")
@@ -206,7 +217,7 @@ delete_jobs_parser.add_argument(
 )
 
 invoice_parser = base_subparsers.add_parser("invoice", help="generate invoice")
-invoice_parser.add_argument("-c", "--client_id", required=True, help="Client ID")
+invoice_parser.add_argument("-c", "--client_id", help="Client ID")
 invoice_parser.add_argument(
     "-w",
     "--where",
@@ -215,6 +226,9 @@ invoice_parser.add_argument(
 )
 invoice_parser.add_argument("-r", "--raw", help="Raw sql query")
 invoice_parser.add_argument("-p", "--print", action="store_true", help="Print invoice")
+invoice_parser.add_argument(
+    "-T", "--table", action="store_true", help="Print cutoffs table"
+)
 
 
 class TranscriptorCMD(cmd2.Cmd):
@@ -306,23 +320,6 @@ class TranscriptorCMD(cmd2.Cmd):
     show_rates_parser.set_defaults(func=show_rates)
 
     def show_jobs(self, args):
-        # ordination = [
-        #     "client_id",
-        #     "date_received",
-        #     "id",
-        #     "job_number",
-        #     "job_type",
-        #     "status",
-        #     "date_due",
-        #     "date_submitted",
-        #     "total_quantity",
-        #     "quantity",
-        #     "job_rate",
-        #     "amount",
-        #     "amount_paid",
-        #     "note",
-        # ]
-        #
         if args:
             if args.raw:
                 jobs = self.app.api.get_jobs(raw_sql_stmt=args.raw)
@@ -337,6 +334,12 @@ class TranscriptorCMD(cmd2.Cmd):
         TranscriptorView().print_table(jobs, orientation="horizontal")
 
     show_jobs_parser.set_defaults(func=show_jobs)
+
+    def show_cutoffs(self, args):
+        cutoffs = self.app.load_cutoffs(as_str=True)
+        TranscriptorView().print_table(cutoffs, orientation="vertical")
+
+    show_cutoffs_parser.set_defaults(func=show_cutoffs)
 
     @cmd2.with_argparser(show_parser)
     def do_show(self, args):
@@ -459,6 +462,22 @@ class TranscriptorCMD(cmd2.Cmd):
         )
 
     add_job_parser.set_defaults(func=add_job)
+
+    def add_cutoffs(self, args):
+        if args.file:
+            if not Path(args.file).exists():
+                self.poutput(f"File not found: {args.file}")
+                return
+        else:
+            args.file = prompt("Enter cutoff file path: ", validator=file_validator)
+
+        if not args.date_fmt:
+            cutoffs = self.app.generate_cutoff_list_from_docx(args.file, args.date_fmt)
+        else:
+            cutoffs = self.app.generate_cutoff_list_from_docx(args.file)
+        self.app.save_cutoffs(cutoffs)
+
+    add_cutoffs_parser.set_defaults(func=add_cutoffs)
 
     @cmd2.with_argparser(add_parser)
     def do_add(self, args):

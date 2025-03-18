@@ -1,12 +1,21 @@
 from platformdirs import user_config_dir, user_data_dir
+import csv
 import shutil
 import zipfile
 from datetime import date
 from pathlib import Path
 from transcriptor.models import Config, Profile, InvoiceLine, Invoice
 from transcriptor.api import API
-from transcriptor.utils import sc, TEMPLATE_MAPPING, get_media_files, round_up
-from transcriptor.utils import str_to_date as std, next_non_existent_file
+from transcriptor.utils import (
+    sc,
+    TEMPLATE_MAPPING,
+    get_media_files,
+    round_up,
+    to_date_object,
+    extract_table_data_from_docx,
+    next_non_existent_file,
+)
+from transcriptor.utils import str_to_date as std
 from transcriptor.invoice_generator import render_invoice, html_to_md, htmlstr_to_pdf
 
 APP_NAME = "transcriptor5"
@@ -326,6 +335,48 @@ class Transcriptor:
 
     def to_md(self, html):
         return html_to_md(html)
+
+    def generate_cutoff_list_from_docx(self, docx_path, date_fmt=None):
+        date_fmt = date_fmt or "%m/%d/%Y"
+        cutoff_list = extract_table_data_from_docx(docx_path)
+
+        header, *rows = cutoff_list
+        cutoffs = [header] + [to_date_object(row, date_fmt) for row in rows]
+        return cutoffs
+
+    def save_cutoffs(self, cutoffs, file_path=None):
+        file_path = file_path or self.base_dir.joinpath("cutoffs.csv")
+        with open(file_path, "w", newline="") as fd:
+            writer = csv.writer(fd)
+            writer.writerows(cutoffs)
+
+    def load_cutoffs(self, file_path=None, date_fmt="%Y-%m-%d", as_str=False):
+        file_path = file_path or self.base_dir.joinpath("cutoffs.csv")
+        with open(file_path, "r", newline="") as fd:
+            cutoff_list = list(csv.reader(fd))
+
+        if as_str:
+            return cutoff_list
+
+        header, *rows = cutoff_list
+        cutoffs = [header] + [to_date_object(row, date_fmt) for row in rows]
+        return cutoffs
+
+    def select_cutoff_period(self, deposit_date_idx):
+        cutoff_deposit_pairs = self.load_cutoffs()
+
+        cutoff_deposit_pairs = self.load_cutoffs()[1:]
+
+        deposit_date_idx = max(deposit_date_idx - 1, 0)
+
+        if deposit_date_idx == 0:
+            cutoff_date = cutoff_deposit_pairs[0][0]
+            previous_cutoff_date = None
+        else:
+            cutoff_date = cutoff_deposit_pairs[deposit_date_idx][0]
+            previous_cutoff_date = cutoff_deposit_pairs[deposit_date_idx - 1][0]
+
+        return previous_cutoff_date, cutoff_date
 
 
 if __name__ == "__main__":

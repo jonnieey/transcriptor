@@ -2,7 +2,6 @@ from collections import OrderedDict
 from rich.console import Console
 from rich.table import Table
 from transcriptor.utils import tc
-from transcriptor.models import Base
 
 
 class TranscriptorView:
@@ -35,7 +34,10 @@ class TranscriptorView:
             except KeyError:
                 object_dict = OrderedDict(object_dict)
         else:
-            object_dict = OrderedDict(object_dict)
+            try:
+                object_dict = OrderedDict(object_dict)
+            except ValueError:
+                pass
 
         if orientation == "vertical":
             if isinstance(objects, dict):
@@ -46,10 +48,20 @@ class TranscriptorView:
                     self.table.add_row(tc(option), value)
 
             if isinstance(objects, (list, tuple)):
-                for obj in objects:
-                    row = [str(object_dict.get(column)) for column in columns]
+                if isinstance(object_dict, dict):
+                    columns = object_dict.keys()
+                    for column in columns:
+                        self.table.add_column(tc(column))
+                    for obj in objects:
+                        row = [str(object_dict.get(column)) for column in columns]
+                    self.table.add_row(*row)
 
-                self.table.add_row(*row)
+                elif isinstance(object_dict, (list, tuple)):
+                    columns = object_dict
+                    for column in columns:
+                        self.table.add_column(tc(column))
+                    for row in objects[1:]:
+                        self.table.add_row(*row)
 
         elif orientation == "horizontal":
             columns = [

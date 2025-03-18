@@ -416,5 +416,29 @@ def html_to_md(html):
     return md_table
 
 
+def extract_table_data_from_docx(docx_path):
+    try:
+        import docx
+
+        docx_file = docx.Document(docx_path)
+    except ImportError:
+        print("docx library not installed")
+
+    except docx.opc.exceptions.PackageNotFoundError:
+        print("Docx file not found")
+        return []
+
+    table_data = []
+    for table in docx_file.tables:
+        table_data.extend([cell.text for cell in row.cells] for row in table.rows)
+    return table_data
+
+
+def to_date_object(iterable, date_fmt):
+    return tuple(
+        str_to_date(date_str.strip(), date_fmt).date() for date_str in iterable
+    )
+
+
 if __name__ == "__main__":
-    print(parse_conditions_as_dict(["name=anderson"]))
+    pass
