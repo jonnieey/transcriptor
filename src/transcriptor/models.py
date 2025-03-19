@@ -190,22 +190,22 @@ def from_yaml(cls, yaml_file):
         return None
 
 
-def write(cls, yaml_file):
+def write(self, yaml_file):
     try:
         with open(yaml_file, "w") as file:
-            yaml.dump(cls.__dict__, file, Dumper=yaml.SafeDumper)
+            yaml.dump(self.model_dump(), file)
     except FileNotFoundError:
-        print(f"Error: Cannot open or create YAML file '{yaml_file}'.")
-    except yaml.YAMLError as e:
-        print(f"Error writing YAML file: {e}")
+        print(f"Error: File not found, YAML file '{yaml_file}'")
+    except yaml.YAMLError:
+        print(f"Error writing YAML file: {yaml_file}")
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
 
 Config.from_yaml = classmethod(from_yaml)
 Profile.from_yaml = classmethod(from_yaml)
-Config.write = classmethod(write)
-Profile.write = classmethod(write)
+Config.write = write
+Profile.write = write
 
 
 class InvoiceLine(BaseModel):

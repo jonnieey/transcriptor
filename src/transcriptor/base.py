@@ -44,6 +44,7 @@ class Transcriptor:
             self.config = config
 
         self.base_dir = Path(self.config.base_dir)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
         self.date_format = self.config.date_format
 
         self.PROFILE_FILE = self.base_dir / "profile.yaml"
