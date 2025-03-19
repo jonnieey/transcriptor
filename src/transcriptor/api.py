@@ -143,7 +143,6 @@ class API:
         ordination = [
             "id",
             "job_number",
-            "client",
             "client_id",
             "date_received",
             "date_due",
@@ -158,9 +157,11 @@ class API:
             "note",
             "job_path",
         ]
+        columns = ", ".join(["JOBS." + col for col in ordination])
+
         if raw_sql_stmt is not None:
             raw_sql_stmt = f"""
-            SELECT CLIENTS.name as client, {', '.join(['JOBS.' + col for col in ordination if col != 'client'])}
+            SELECT JOBS.id as job_id, CLIENTS.name as client, {columns}
             FROM JOBS
             JOIN CLIENTS ON JOBS.client_id = CLIENTS.id
             {raw_sql_stmt}
