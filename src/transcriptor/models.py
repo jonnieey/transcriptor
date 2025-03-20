@@ -233,3 +233,16 @@ class Invoice(BaseModel):
             return values
         values["due_date"] = values["create_date"] + timedelta(days=7)
         return values
+
+
+class SummaryInvoiceLine(BaseModel):
+    month: str
+    job_count: int
+    total: float
+
+
+class SummaryInvoice(BaseModel):
+    profile: Profile
+    client_name: str
+    create_date: date = Field(default_factory=date.today)
+    summary_lines: List

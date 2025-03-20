@@ -12,40 +12,136 @@ DB_FILE_NAME = "transcriptor_sqlalchemy.db"
 
 
 class API:
-    def __init__(self, base_dir):
+    def __init__(self, base_dir: Path | str) -> None:
+        """Initializes the API with a base directory and sets up the database connection.
+        Args:
+            base_dir (str): The base directory where data will be stored.
+        """
         base_dir = Path(base_dir)
-        if not base_dir.exists():
-            base_dir.mkdir(parents=True)
+        base_dir.mkdir(parents=True, exist_ok=True)
 
         self.base_dir = base_dir
         self.db = Database(db_file=f"{base_dir}/{DB_FILE_NAME}")
         self.session = sessionmaker(self.db.engine, expire_on_commit=False)
         self.db.init_db()
 
-    def add(self, table, data):
+    def add(self, table: object, data: dict) -> int:
+        """Adds a new record to the specified table.
+
+        Args:
+            table (sqlalchemy.ext.declarative.api.DeclarativeMeta): The SQLAlchemy table class to add the record to.
+            data (dict): A dictionary containing the data for the new record.  Keys should correspond to column names in the table.
+
+        Returns:
+            int: The ID of the newly created record.
+        """
         obj = table(**data)
         with self.session() as session:
             session.add(obj)
             session.commit()
         return obj.id
 
-    def add_client(self, client_dict):
+    def add_client(self, client_dict: dict) -> int:
+        """Adds a new client to the database.
+
+        Args:
+            client_dict (dict): A dictionary containing the client's information.
+
+        Returns:
+            int: The ID of the newly created client record.
+
+        """
         return self.add(Client, client_dict)
 
-    def add_rates(self, rates):
-        return self.add(Rate, rates)
+    def add_rates(self, rates_dict: dict) -> int:
+        """Adds rates to the database.
 
-    def add_job(self, job):
-        return self.add(Job, job)
+        Args:
+            rates_dict (dict): A dictionary where keys are rate identifiers and values
+                are dictionaries containing rate information
 
-    def add_jobs(self, jobs):
+        Returns:
+            int: The ID of the newly created rates record.
+        """
+
+    def add_job(self, job_dict: dict) -> int:
+        """Adds a single job to the database.
+
+        Args:
+            job_dict (dict): A dictionary containing the job details.
+
+        Returns:
+            int: The ID of the newly added job.
+        """
+        return self.add(Job, job_dict)
+
+    def add_jobs(self, jobs: list[dict]) -> None:
+        """Adds multiple jobs to the database in a single session.
+
+        Args:
+            jobs (list[dict]): A list of dictionaries, where each dictionary
+                represents a job and contains the job details.
+
+        Returns:
+            None
+        """
         job_objects = [Job(**job_dict) for job_dict in jobs]
         with self.session() as session:
             session.add_all(job_objects)
             session.commit()
 
-    def _build_statement_with_conditions(self, table, conditions, stmt_type="select"):
-        """Builds a SQL statement with conditions."""
+    def _build_statement_with_conditions(
+        self, table, conditions=None, stmt_type="select"
+    ):
+        """Builds a SQL statement with conditions.
+
+        Args:
+            table (sqlalchemy.Table): The SQLAlchemy table object to build
+              the statement for.
+            conditions (dict[str, list[tuple[str, typing.Any]]]): A dictionary
+            where keys are column names and values are lists of tuples.
+              Each tuple in the list represents a condition for that column,
+              with the first element being the comparison operator and the
+              second element being the value to compare against.
+                Example: `{"column_name": [("=", "value"), (">", 10)]}`
+            stmt_type (str, optional): The type of SQL statement to build.
+              Must be one of "select", "update", or "delete". Defaults to "select".
+
+        Returns:
+            sqlalchemy.sql.expression.Select or sqlalchemy.sql.expression.Update
+              or sqlalchemy.sql.expression.Delete or False:
+
+        Raises:
+            ValueError: If `stmt_type` is not one of "select", "update", or "delete".
+            ValueError: If an invalid comparison operator is used in the `conditions`.
+
+        Example:
+            To build a SELECT statement:
+            ```python
+            conditions = {"age": [(">=", 18), ("<", 65)], "city": [("=", "New York")]}
+            statement = _build_statement_with_conditions(table, conditions)
+            # statement will be a SQLAlchemy select object equivalent to:
+            # SELECT * FROM my_table WHERE age >= 18 AND age < 65 AND city = "New York"
+            ```
+
+            To build an UPDATE statement:
+            ```python
+            table = my_table  # SQLAlchemy table object
+            conditions = {"age": [(">=", 18), ("<", 65)], "city": [("=", "New York")]}
+            statement = _build_statement_with_conditions(table, conditions, stmt_type="update")
+            # statement will be a SQLAlchemy update object equivalent to:
+            # UPDATE my_table SET ... WHERE age >= 18 AND age < 65 AND city = "New York"
+            ```
+
+            To build a DELETE statement:
+            ```python
+            table = my_table  # SQLAlchemy table object
+            conditions = {"age": [(">=", 18), ("<", 65)], "city": [("=", "New York")]}
+            statement = _build_statement_with_conditions(table, conditions, stmt_type="delete")
+            # statement will be a SQLAlchemy delete object equivalent to:
+            # DELETE FROM my_table WHERE age >= 18 AND age < 65 AND city = "New York"
+            ```
+        """
         if not conditions:
             return False
 
@@ -143,6 +239,7 @@ class API:
         ordination = [
             "id",
             "job_number",
+            "client",
             "client_id",
             "date_received",
             "date_due",
@@ -157,7 +254,7 @@ class API:
             "note",
             "job_path",
         ]
-        columns = ", ".join(["JOBS." + col for col in ordination])
+        columns = ", ".join(["JOBS." + col for col in ordination if col != "client"])
 
         if raw_sql_stmt is not None:
             raw_sql_stmt = f"""

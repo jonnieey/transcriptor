@@ -1,10 +1,18 @@
 from platformdirs import user_config_dir, user_data_dir
 import csv
 import shutil
+from pprint import pprint
 import zipfile
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
-from transcriptor.models import Config, Profile, InvoiceLine, Invoice
+from transcriptor.models import (
+    Config,
+    Profile,
+    InvoiceLine,
+    Invoice,
+    SummaryInvoiceLine,
+    SummaryInvoice,
+)
 from transcriptor.api import API
 from transcriptor.utils import (
     sc,
@@ -16,7 +24,12 @@ from transcriptor.utils import (
     next_non_existent_file,
 )
 from transcriptor.utils import str_to_date as std
-from transcriptor.invoice_generator import render_invoice, html_to_md, htmlstr_to_pdf
+from transcriptor.invoice_generator import (
+    render_invoice,
+    render_summary_invoice,
+    html_to_md,
+    htmlstr_to_pdf,
+)
 
 APP_NAME = "transcriptor5"
 CONFIG_FILE_NAME = "config5.yaml"
@@ -273,7 +286,7 @@ class Transcriptor:
             invoice_number = 0
         return invoice_number
 
-    def increase_invoice_counter(self, client, invoice_num_counter_file):
+    def increase_invoice_counter(self, invoice_num_counter_file):
         try:
             with open(invoice_num_counter_file, "r+") as file:
                 try:
@@ -329,22 +342,87 @@ class Transcriptor:
         )
         html = render_invoice(invoice=invoice)
 
-        return html, client
+        return html, client_name
 
-    def html_to_pdf(self, html, client_name, output_file=None):
+    def generate_summary_invoice(self, client_id, previous_year_cutoff=None):
+        client_name = None
+        cutoffs = self.load_cutoffs(as_str=True)
+
+        if client_id is None:
+            print("CLIENT ID CANNOT BE NONE")
+            return ("", "")
+
+        jobs_by_month = {str(i): [] for i in range(1, 13)}
+
+        cutoffs_list = list(cutoffs[1:])
+
+        for idx, (cutoff, deposit_date) in enumerate(cutoffs_list, start=1):
+            previous_cutoff, cutoff = self.select_cutoff_period(idx)
+            if previous_cutoff is None:
+                previous_cutoff = previous_year_cutoff or date(
+                    datetime.now().year, 1, 1
+                )
+
+            conditions = {
+                "client_id": [("=", client_id)],
+                "amount_paid": [(">", 0)],
+                "date_submitted": [
+                    (">=", previous_cutoff) if previous_cutoff else None,
+                    ("<=", cutoff) if cutoff else None,
+                ],
+            }
+            conditions["date_submitted"] = [
+                c for c in conditions["date_submitted"] if c
+            ]
+
+            jobs = self.api.get_jobs(conditions=conditions)
+            if jobs:
+                if client_name is None:
+                    client = jobs[0].get("client")
+                    client_name = client.name if hasattr(client, "name") else client
+                month_idx = std(deposit_date, "%Y-%m-%d").month
+                jobs_by_month[str(month_idx)].extend(jobs)
+
+        months_summary_list = []
+        for idx in range(1, 13):
+            month = str(idx)
+            jobs = jobs_by_month[month]
+
+            month_info = {
+                "month": date(year=datetime.now().year, month=idx, day=1).strftime(
+                    "%B"
+                ),
+                "job_count": len(jobs),
+                "total": round(sum(job["amount_paid"] for job in jobs), 2),
+            }
+            months_summary_list.append(SummaryInvoiceLine.parse_obj(month_info))
+
+        summary_invoice = SummaryInvoice(
+            profile=self.profile,
+            client_name=client_name,
+            summary_lines=months_summary_list,
+        )
+        html = render_summary_invoice(summary_invoice=summary_invoice)
+
+        return html, client_name
+
+    def html_to_pdf(self, html, client_name, output_file=None, summary_invoice=False):
         INVOICE_DIR = self.base_dir / "clients" / sc(client_name) / "invoices"
 
         if not INVOICE_DIR.exists():
             INVOICE_DIR.mkdir(parents=True, exist_ok=True)
 
-        INVOICE_FILE = (
-            INVOICE_DIR
-            / f"{date.today().strftime('%Y-%m-%d')}_{sc(client_name)}_invoice.pdf"
-        )
+        date_str = date.today().strftime("%Y-%m-%d")
+        client_name_sc = sc(client_name)
+        file_type = "summary" if summary_invoice else "invoice"
+
+        INVOICE_FILE = INVOICE_DIR / f"{date_str}_{client_name_sc}_{file_type}.pdf"
+
         htmlstr_to_pdf(html, output_path=INVOICE_FILE)
 
-        INVOICE_NUM_COUNTER_FILE = INVOICE_DIR / "invoice_number_counter"
-        self.increase_invoice_counter(INVOICE_NUM_COUNTER_FILE)
+        if summary_invoice is False:
+            INVOICE_NUM_COUNTER_FILE = INVOICE_DIR / "invoice_number_counter"
+            self.increase_invoice_counter(INVOICE_NUM_COUNTER_FILE)
 
     def to_md(self, html):
         return html_to_md(html)
@@ -394,4 +472,4 @@ class Transcriptor:
 
 if __name__ == "__main__":
     trans5 = Transcriptor()
-    print(trans5.config)
+    print(trans5.generate_summary_invoice(client_id=1))

@@ -2,7 +2,7 @@
 <html>
 <head>
 	<meta charset="UTF-8">
-	<title>Invoice</title>
+	<title>summary_invoice</title>
 	<style>
 		body {
 			font-family: Arial, sans-serif;
@@ -91,10 +91,7 @@
 <body>
 	<div class="header">
 		<img alt="">
-		{% if data.title %}
-			<h1> {{data.title}} </h1>
-		{% endif %}
-    <h1>Summary Invoice {{ data.summary_year.year }}</h1>
+    <h1>Summary Invoice {{ summary_invoice.create_date.year }}</h1>
 					
 	</div>
 	<div class="invoice-details">
@@ -102,13 +99,13 @@
 			<thead>
 				<tr>
 					<th>Name:</th>
-					<td>{{ profile.first_name }} {{ profile.last_name }}</td>
+					<td>{{ summary_invoice.profile.name }} </td>
 				</tr>
 				<tr>
 					<th>Area:</th>
-					<td>{{ profile.area }}</td>
+					<td>{{ summary_invoice.profile.area }}</td>
 					<th>Country:</th>
-					<td>{{ profile.country }}</td>
+					<td>{{ summary_invoice.profile.country }}</td>
 				</tr>
 			</thead>
 
@@ -116,7 +113,7 @@
 			<thead>
 				<tr>
 					<th>Client Name:</th>
-					<td>{{ client.name }}</td>
+					<td>{{ summary_invoice.client_name }}</td>
 				</tr>
 			</thead>
 		</table>
@@ -129,22 +126,22 @@
 					<th></th>
 					<th>Month</th>
 					<th>Job Count</th>
-					<th>Amount</th>
+					<th>Total</th>
 				</tr>
 			</thead>
 			<tbody>
-			  {% for job in jobs %}
+			  {% for month_info in summary_invoice.summary_lines %}
 					<tr>
 						<td>{{ loop.index }}</td>
-						<td>{{ job.month }}</td>
-						<td>{{ job.count }}</td>
-						<td>&#36;{{ "%.2f" | format(job.total) }}</td>
+						<td>{{ month_info.month }}</td>
+						<td>{{ month_info.job_count }}</td>
+						<td>{{ month_info.total }}</td>
 					</tr>
 				  {% endfor %}
 				  <tfoot>
 					<tr>
 						<td colspan="3">TOTAL</td>
-						<td>&#36;{{ jobs|sum(attribute='total')|float|round(2) }}</td>
+						<td>&#36;{{ summary_invoice.summary_lines|sum(attribute='total')|float|round(2) }}</td>
 					</tr>
 				  </tfoot>
 			</tbody>

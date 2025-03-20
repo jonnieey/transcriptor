@@ -229,6 +229,12 @@ invoice_parser.add_argument("-p", "--print", action="store_true", help="Print in
 invoice_parser.add_argument(
     "-T", "--table", action="store_true", help="Print cutoffs table"
 )
+invoice_parser.add_argument(
+    "-S", "--summary", action="store_true", help="Print annual summary invoice"
+)
+invoice_parser.add_argument(
+    "-l", "--previous_year_cutoff", help="Previous year last cutoff"
+)
 
 
 class TranscriptorCMD(cmd2.Cmd):
@@ -653,6 +659,10 @@ class TranscriptorCMD(cmd2.Cmd):
                 prompt("Enter client id: ", validator=positive_number_validator)
             )
             args.client_id = client_id  # Update the original args
+        if args.summary:
+            html, client_name = self.app.generate_summary_invoice(
+                client_id=args.client_id, previous_year_cutoff=args.previous_year_cutoff
+            )
         if args.table:
             cutoffs = self.app.load_cutoffs(as_str=True)
             cutoffs = [
@@ -676,24 +686,24 @@ class TranscriptorCMD(cmd2.Cmd):
         if args.raw:
             if args.table:
                 args.raw = args.raw + f" AND {raw_cutoff_condition}"
-            html, client = self.app.generate_invoice(
+            html, client_name = self.app.generate_invoice(
                 client_id=args.client_id, raw_sql_stmt=args.raw
             )
         elif args.where:
             if args.table:
                 args.where = args.where + cutoff_condition
             conditions = parse_conditions(args.where)
-            html, client = self.app.generate_invoice(
+            html, client_name = self.app.generate_invoice(
                 client_id=args.client_id, conditions=conditions
             )
         else:
             if args.table:
                 conditions = parse_conditions(cutoff_condition)
-                html, client = self.app.generate_invoice(
+                html, client_name = self.app.generate_invoice(
                     client_id=args.client_id, conditions=conditions
                 )
         if args.print:
-            self.app.html_to_pdf(html, client)
+            self.app.html_to_pdf(html, client_name, summary_invoice=args.summary)
         else:
             md = self.app.to_md(html)
             TranscriptorView().console.print(md)
