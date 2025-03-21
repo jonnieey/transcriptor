@@ -254,18 +254,34 @@ class API:
             "note",
             "job_path",
         ]
-        columns = ", ".join(["JOBS." + col for col in ordination if col != "client"])
+        columns = ", ".join(["jobs." + col for col in ordination if col != "client"])
 
         if raw_sql_stmt is not None:
             raw_sql_stmt = f"""
-            SELECT JOBS.id as job_id, CLIENTS.name as client, {columns}
-            FROM JOBS
-            JOIN CLIENTS ON JOBS.client_id = CLIENTS.id
+            SELECT 
+                jobs.id as job_id, {columns},
+                clients.id AS client_id, clients.name AS client_name, clients.email AS client_email
+            FROM 
+                jobs
+            JOIN 
+                clients ON jobs.client_id = clients.id
             {raw_sql_stmt}
             """
             stmt = self.get(table=Job, raw_sql_stmt=raw_sql_stmt)
             with self.session() as session:
-                return session.execute(stmt).mappings().all()
+                jobs = []
+                rows = session.execute(stmt).mappings().all()
+                for row in rows:
+                    job = {col: row[col] for col in ordination if col != "client"}
+                    client = Client(
+                        id=row["client_id"],
+                        name=row["client_name"],
+                        email=row["client_email"],
+                    )
+                    job["client"] = client
+                    jobs.append(job)
+
+                return jobs
 
         stmt = self.get(Job, conditions)
         with self.session() as session:
