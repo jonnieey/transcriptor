@@ -496,10 +496,12 @@ class TranscriptorCMD(cmd2.Cmd):
             self.do_help("base")
 
     def update_config(self, args):
+        config = self.app.config
         if args.base_dir:
-            self.app.config.base_dir = args.base_dir
+            config.base_dir = args.base_dir
         if args.date_format:
-            self.app.config.date_format = args.date_format
+            config.date_format = args.date_format
+        self.app.config = config
         self.app.save_config()
 
     update_config_parser.set_defaults(func=update_config)
