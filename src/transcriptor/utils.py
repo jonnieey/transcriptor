@@ -349,7 +349,7 @@ job_type_validator = ValidatorWrapper(
 )
 template_validator = ValidatorWrapper(
     is_valid_template,
-    f"Invalid template name, expects {",".join(list(template_mapping.keys()))}",
+    f"Invalid template name, expects {','.join(list(template_mapping.keys()))}",
 )
 
 
@@ -379,6 +379,17 @@ def render_invoice(
         template_name = "invoice.html"
     template = _init_jinja_env(custom_templates_dir).get_template(template_name)
     return template.render(invoice=invoice)
+
+
+def render_summary_invoice(
+    summary_invoice,
+    custom_templates_dir: Optional[Path] = None,
+    template_name: Optional[str] = None,
+) -> str:
+    if template_name is None:
+        template_name = "summary_invoice.html"
+    template = _init_jinja_env(custom_templates_dir).get_template(template_name)
+    return template.render(summary_invoice=summary_invoice)
 
 
 def write_pdf(

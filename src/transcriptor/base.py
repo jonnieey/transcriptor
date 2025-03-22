@@ -22,14 +22,12 @@ from transcriptor.utils import (
     to_date_object,
     extract_table_data_from_docx,
     next_non_existent_file,
-)
-from transcriptor.utils import str_to_date as std
-from transcriptor.invoice_generator import (
     render_invoice,
     render_summary_invoice,
     html_to_md,
     htmlstr_to_pdf,
 )
+from transcriptor.utils import str_to_date as std
 
 APP_NAME = "transcriptor5"
 CONFIG_FILE_NAME = "config5.yaml"
@@ -229,7 +227,7 @@ class Transcriptor:
             job_number = job_info["job_number"]
             task_file_path = next_non_existent_file(
                 job_dir
-                / f'{job_number} Due {date_due.strftime("%m.%d")}{task_template_suffix}'
+                / f"{job_number} Due {date_due.strftime('%m.%d')}{task_template_suffix}"
             )
             shutil.copy(task_template_path, task_file_path)
 
