@@ -125,8 +125,7 @@ update_config_parser.add_argument("-b", "--base-dir", help="base directory")
 update_config_parser.add_argument("-d", "--date-format", help="date format")
 
 update_profile_parser = update_subparsers.add_parser("profile", help="update profile")
-update_profile_parser.add_argument("-f", "--first_name", help="first name")
-update_profile_parser.add_argument("-l", "--last_name", help="last name")
+update_profile_parser.add_argument("-n", "--name", help="name")
 update_profile_parser.add_argument("-a", "--area", help="area")
 
 update_profile_parser.add_argument("-c", "--country", help="country")
@@ -506,14 +505,14 @@ class TranscriptorCMD(cmd2.Cmd):
     update_config_parser.set_defaults(func=update_config)
 
     def update_profile(self, args):
-        if args.first_name:
-            self.app.profile.first_name = args.first_name
-        if args.last_name:
-            self.app.profile.last_name = args.last_name
+        profile = self.app.profile
+        if args.name:
+            profile.name = args.name
         if args.area:
-            self.app.profile.area = args.area
+            profile.area = args.area
         if args.country:
-            self.app.profile.contry = args.country
+            profile.country = args.country
+        self.app.profile = profile
         self.app.save_profile()
 
     update_profile_parser.set_defaults(func=update_profile)
