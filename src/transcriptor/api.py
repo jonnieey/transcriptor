@@ -63,6 +63,7 @@ class API:
         Returns:
             int: The ID of the newly created rates record.
         """
+        return self.add(Rate, rates_dict)
 
     def add_job(self, job_dict: dict) -> int:
         """Adds a single job to the database.
@@ -314,7 +315,10 @@ class API:
 
     def update_clients(self, conditions=None, values=None, raw_sql_stmt=None):
         stmt = self.update(
-            Client, conditions=conditions, values=values, raw_sql_stmt=raw_sql_stmt
+            Client,
+            conditions=conditions,
+            values=values,
+            raw_sql_stmt=raw_sql_stmt,
         )
         with self.session() as session:
             session.execute(stmt)
@@ -323,7 +327,10 @@ class API:
 
     def update_rates(self, conditions=None, values=None, raw_sql_stmt=None):
         stmt = self.update(
-            Rate, conditions=conditions, values=values, raw_sql_stmt=raw_sql_stmt
+            Rate,
+            conditions=conditions,
+            values=values,
+            raw_sql_stmt=raw_sql_stmt,
         )
         with self.session() as session:
             session.execute(stmt)
@@ -332,7 +339,10 @@ class API:
 
     def update_jobs(self, conditions=None, values=None, raw_sql_stmt=None):
         stmt = self.update(
-            Job, conditions=conditions, values=values, raw_sql_stmt=raw_sql_stmt
+            Job,
+            conditions=conditions,
+            values=values,
+            raw_sql_stmt=raw_sql_stmt,
         )
         with self.session() as session:
             session.execute(stmt)
@@ -399,7 +409,10 @@ if __name__ == "__main__":
     print(
         len(
             api.get_clients(
-                conditions={"name": [("~", "%vic%")], "id": [(">", 1), ("<", 5)]}
+                conditions={
+                    "name": [("~", "%vic%")],
+                    "id": [(">", 1), ("<", 5)],
+                }
             )
         )
     )
