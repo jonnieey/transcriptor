@@ -1,18 +1,16 @@
+from datetime import date, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
 import yaml
-from sqlalchemy import String
-from sqlalchemy import ForeignKey
+from pydantic import BaseModel, Field, root_validator
+from sqlalchemy import DDL, ForeignKey, String, event
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     mapped_column,
     relationship,
 )
-from sqlalchemy import event
-from sqlalchemy import DDL
-from pydantic import BaseModel, Field, root_validator
-from typing import Dict, Union, List, Optional, Any
-from datetime import date, timedelta
-from pathlib import Path
 
 
 class Base(DeclarativeBase):
@@ -23,7 +21,9 @@ class Client(Base):
     __tablename__ = "clients"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(
+        String(255), nullable=False, unique=True
+    )
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     rate: Mapped["Rate"] = relationship(
         "Rate",
@@ -42,7 +42,9 @@ class Rate(Base):
     normal: Mapped[float] = mapped_column(nullable=False)
     expedite: Mapped[float] = mapped_column(nullable=False)
     interpreted: Mapped[float] = mapped_column(nullable=False)
-    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
+    client_id: Mapped[int] = mapped_column(
+        ForeignKey("clients.id", ondelete="CASCADE")
+    )
     client: Mapped[Client] = relationship(
         "Client", back_populates="rate", passive_deletes=True
     )
@@ -52,7 +54,9 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
+    client_id: Mapped[int] = mapped_column(
+        ForeignKey("clients.id", ondelete="CASCADE")
+    )
     date_received: Mapped[str] = mapped_column(nullable=False)
     job_number: Mapped[str] = mapped_column(nullable=False)
     job_type: Mapped[str] = mapped_column(nullable=False)

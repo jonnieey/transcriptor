@@ -1,9 +1,9 @@
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
-from transcriptor.models import Base, Client, Rate, Job, Profile, Config
+from sqlalchemy.orm import Session, sessionmaker
+
+from transcriptor.models import Base, Client, Config, Job, Profile, Rate
 
 engine = create_engine("sqlite:///:memory:", echo=True)
 SessionLocal = sessionmaker(bind=engine)
@@ -38,7 +38,10 @@ def seed_clients(session):
     [
         ({"name": "Client A", "email": "clienta@example.com"}, True),
         ({"name": "Client B", "email": "clientb@example.com"}, True),
-        ({"name": "Client A", "email": "clientc@example.com"}, False),  # Duplicate name
+        (
+            {"name": "Client A", "email": "clientc@example.com"},
+            False,
+        ),  # Duplicate name
         (
             {"name": "Client C", "email": "clienta@example.com"},
             True,
@@ -62,23 +65,48 @@ def test_client_insertion(session: Session, client_data, expected_result):
     "rate_data, expected_result",
     [
         (
-            {"normal": 100.0, "expedite": 150.0, "interpreted": 200.0, "client_id": 1},
+            {
+                "normal": 100.0,
+                "expedite": 150.0,
+                "interpreted": 200.0,
+                "client_id": 1,
+            },
             True,
         ),
         (
-            {"normal": None, "expedite": 150.0, "interpreted": 200.0, "client_id": 1},
+            {
+                "normal": None,
+                "expedite": 150.0,
+                "interpreted": 200.0,
+                "client_id": 1,
+            },
             False,
         ),  # Null normal
         (
-            {"normal": 100.0, "expedite": None, "interpreted": 200.0, "client_id": 1},
+            {
+                "normal": 100.0,
+                "expedite": None,
+                "interpreted": 200.0,
+                "client_id": 1,
+            },
             False,
         ),  # Null expedite
         (
-            {"normal": 100.0, "expedite": 150.0, "interpreted": None, "client_id": 1},
+            {
+                "normal": 100.0,
+                "expedite": 150.0,
+                "interpreted": None,
+                "client_id": 1,
+            },
             False,
         ),  # Null interpreted
         (
-            {"normal": 100.0, "expedite": 150.0, "interpreted": 200.0, "client_id": 99},
+            {
+                "normal": 100.0,
+                "expedite": 150.0,
+                "interpreted": 200.0,
+                "client_id": 99,
+            },
             False,
         ),  # Invalid client_id
         (
@@ -92,7 +120,9 @@ def test_client_insertion(session: Session, client_data, expected_result):
         ),  # No client_id
     ],
 )
-def test_rate_insertion(session: Session, seed_clients, rate_data, expected_result):
+def test_rate_insertion(
+    session: Session, seed_clients, rate_data, expected_result
+):
     rate = Rate(**rate_data)
     try:
         session.add(rate)
@@ -186,7 +216,9 @@ def test_rate_insertion(session: Session, seed_clients, rate_data, expected_resu
         ),
     ],
 )
-def test_job_insertion(session: Session, seed_clients, job_data, expected_result):
+def test_job_insertion(
+    session: Session, seed_clients, job_data, expected_result
+):
     job = Job(**job_data)
     try:
         session.add(job)

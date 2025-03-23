@@ -1,7 +1,6 @@
-from .models import Base
+from sqlalchemy import create_engine, event
 
-from sqlalchemy import create_engine
-from sqlalchemy import event
+from .models import Base
 
 
 class Database:

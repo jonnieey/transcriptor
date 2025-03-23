@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
+
 from sqlalchemy.exc import SQLAlchemyError
+
 from transcriptor.database import Database
 
 

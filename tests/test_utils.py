@@ -1,19 +1,21 @@
-import pytest
-from transcriptor.utils import (
-    touch,
-    mkdirp,
-    sc,
-    nc,
-    kc,
-    tc,
-    str_to_date,
-    get_media_files,
-    next_non_existent_file,
-)
-import tempfile
 import shutil
-from pathlib import Path
+import tempfile
 from datetime import datetime
+from pathlib import Path
+
+import pytest
+
+from transcriptor.utils import (
+    get_media_files,
+    kc,
+    mkdirp,
+    nc,
+    next_non_existent_file,
+    sc,
+    str_to_date,
+    tc,
+    touch,
+)
 
 
 @pytest.fixture

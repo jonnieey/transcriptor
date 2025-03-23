@@ -1,18 +1,19 @@
-from pathlib import Path
-from sqlalchemy import select, and_, text
-from sqlalchemy import update as sql_update
-from sqlalchemy import delete as sql_delete
-
-from transcriptor.database import Database
-from transcriptor.models import Client, Rate, Job
-from sqlalchemy.orm import sessionmaker
 from datetime import date
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
+
+from sqlalchemy import and_
+from sqlalchemy import delete as sql_delete
+from sqlalchemy import select, text
+from sqlalchemy import update as sql_update
 from sqlalchemy.engine.row import RowMapping
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql.dml import Delete, Update
 from sqlalchemy.sql.elements import TextClause
 from sqlalchemy.sql.selectable import Select
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, Sequence
 
+from transcriptor.database import Database
+from transcriptor.models import Client, Job, Rate
 
 DB_FILE_NAME = "transcriptor_sqlalchemy.db"
 
@@ -104,7 +105,11 @@ class API:
             Dict[
                 str,
                 Union[
-                    List[Union[Tuple[str, str], Tuple[str, int], Tuple[str, date]]],
+                    List[
+                        Union[
+                            Tuple[str, str], Tuple[str, int], Tuple[str, date]
+                        ]
+                    ],
                     List[Tuple[str, int]],
                     List[Tuple[str, str]],
                     List[Union[Tuple[str, str], Tuple[str, int]]],
@@ -172,7 +177,9 @@ class API:
         elif stmt_type == "delete":
             stmt = sql_delete(table)  # type: ignore
         else:
-            raise ValueError("Invalid stmt_type.  Must be select, update, or delete")
+            raise ValueError(
+                "Invalid stmt_type.  Must be select, update, or delete"
+            )
 
         try:
             for column, conditions_list in conditions.items():
@@ -212,7 +219,12 @@ class API:
             Union[
                 Dict[str, List[Tuple[str, str]]],
                 Dict[
-                    str, List[Union[Tuple[str, str], Tuple[str, int], Tuple[str, date]]]
+                    str,
+                    List[
+                        Union[
+                            Tuple[str, str], Tuple[str, int], Tuple[str, date]
+                        ]
+                    ],
                 ],
                 Dict[str, List[Tuple[str, int]]],
                 Dict[str, List[Union[Tuple[str, str], Tuple[str, int]]]],
@@ -228,7 +240,10 @@ class API:
             stmt = select(table)
             return stmt
 
-        return self._build_statement_with_conditions(table, conditions, "select")  # type: ignore
+        # type: ignore
+        return self._build_statement_with_conditions(
+            table, conditions, "select"
+        )
 
     def get_clients(
         self,
@@ -257,7 +272,8 @@ class API:
             scalars = session.scalars(stmt).all()
             ordination = {"id", "name", "email"}
             client_mappings = [
-                {col: getattr(client, col) for col in ordination} for client in scalars
+                {col: getattr(client, col) for col in ordination}
+                for client in scalars
             ]
 
             return client_mappings
@@ -270,7 +286,11 @@ class API:
         with self.session() as session:
             scalars = session.scalars(stmt).all()
             rate_mappings = [
-                {col: getattr(rate, col) for col in ordination if hasattr(rate, col)}
+                {
+                    col: getattr(rate, col)
+                    for col in ordination
+                    if hasattr(rate, col)
+                }
                 for rate in scalars
             ]
             return rate_mappings
@@ -281,7 +301,11 @@ class API:
             Dict[
                 str,
                 Union[
-                    List[Union[Tuple[str, str], Tuple[str, int], Tuple[str, date]]],
+                    List[
+                        Union[
+                            Tuple[str, str], Tuple[str, int], Tuple[str, date]
+                        ]
+                    ],
                     List[Tuple[str, str]],
                     List[Union[Tuple[str, str], Tuple[str, int]]],
                 ],
@@ -313,16 +337,18 @@ class API:
             "note",
             "job_path",
         ]
-        columns = ", ".join(["jobs." + col for col in ordination if col != "client"])
+        columns = ", ".join(
+            ["jobs." + col for col in ordination if col != "client"]
+        )
 
         if raw_sql_stmt is not None:
             raw_sql_stmt = f"""
-            SELECT 
+            SELECT
                 jobs.id as job_id, {columns},
                 clients.id AS client_id, clients.name AS client_name, clients.email AS client_email
-            FROM 
+            FROM
                 jobs
-            JOIN 
+            JOIN
                 clients ON jobs.client_id = clients.id
             {raw_sql_stmt}
             """
@@ -331,7 +357,9 @@ class API:
                 jobs = []
                 rows = session.execute(stmt).mappings().all()
                 for row in rows:
-                    job = {col: row[col] for col in ordination if col != "client"}
+                    job = {
+                        col: row[col] for col in ordination if col != "client"
+                    }
                     client = Client(
                         id=row["client_id"],
                         name=row["client_name"],
@@ -346,7 +374,11 @@ class API:
         with self.session() as session:
             scalars = session.scalars(stmt).all()
             job_mappings = [
-                {col: getattr(job, col) for col in ordination if hasattr(job, col)}
+                {
+                    col: getattr(job, col)
+                    for col in ordination
+                    if hasattr(job, col)
+                }
                 for job in scalars
             ]
             return job_mappings
@@ -359,13 +391,17 @@ class API:
         raw_sql_stmt: None = None,
     ) -> Union[Select[Any], Update, Delete, bool]:
         if raw_sql_stmt is not None:
-            raw_sql_stmt = text(f"UPDATE {table.__tablename__} {raw_sql_stmt}")
+            raw_sql_stmt = text(
+                f"UPDATE {table.__tablename__} {raw_sql_stmt}"
+            )
             return raw_sql_stmt
 
         if not all([conditions, values]):
             return False
 
-        stmt = self._build_statement_with_conditions(table, conditions, "update")  # type: ignore
+        stmt = self._build_statement_with_conditions(
+            table, conditions, "update"
+        )  # type: ignore
         if stmt is None:
             return False
         try:
@@ -435,7 +471,9 @@ class API:
         raw_sql_stmt: None = None,
     ) -> Delete | bool:
         if raw_sql_stmt is not None:
-            raw_sql_stmt = text(f"DELETE FROM {table.__tablename__} {raw_sql_stmt}")
+            raw_sql_stmt = text(
+                f"DELETE FROM {table.__tablename__} {raw_sql_stmt}"
+            )
             return raw_sql_stmt
 
         if not conditions:
@@ -476,7 +514,9 @@ class API:
         conditions: Optional[Dict[str, List[Tuple[str, str]]]] = None,
         raw_sql_stmt: None = None,
     ) -> Sequence[RowMapping]:
-        stmt = self.delete(Client, conditions=conditions, raw_sql_stmt=raw_sql_stmt)
+        stmt = self.delete(
+            Client, conditions=conditions, raw_sql_stmt=raw_sql_stmt
+        )
         stmt = stmt.returning(Client.id, Client.name)  # type: ignore
         with self.session() as session:
             clients = session.execute(stmt).mappings().all()  # type: ignore
@@ -484,7 +524,9 @@ class API:
             return clients
 
     def delete_jobs(self, conditions=None, raw_sql_stmt=None):
-        stmt = self.delete(Job, conditions=conditions, raw_sql_stmt=raw_sql_stmt)
+        stmt = self.delete(
+            Job, conditions=conditions, raw_sql_stmt=raw_sql_stmt
+        )
         stmt = stmt.returning(Job.job_path)
         with self.session() as session:
             jobs = session.execute(stmt).mappings().all()

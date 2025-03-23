@@ -1,6 +1,8 @@
-import pytest
-from unittest.mock import patch, MagicMock
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from transcriptor.api import API, Client
 
 
@@ -49,7 +51,10 @@ def test_add_job(api_instance, mock_session):
 
 def test_get_clients(api_instance, mock_session):
     api_instance.session = mock_session
-    mock_session.scalars.return_value.all.return_value = ["client1", "client2"]
+    mock_session.scalars.return_value.all.return_value = [
+        "client1",
+        "client2",
+    ]
 
     clients = api_instance.get_clients()
 
@@ -60,7 +65,9 @@ def test_get_clients(api_instance, mock_session):
 def test_update(api_instance, mock_session):
     api_instance.session = mock_session
 
-    result = api_instance.update(Client, {"name": "old_name"}, {"name": "new_name"})
+    result = api_instance.update(
+        Client, {"name": "old_name"}, {"name": "new_name"}
+    )
 
     mock_session.execute.assert_called_once()
     mock_session.commit.assert_called_once()

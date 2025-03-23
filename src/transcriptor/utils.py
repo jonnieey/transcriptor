@@ -1,22 +1,21 @@
-from pathlib import Path
-import re
 import mimetypes
-from datetime import datetime, date
-from audioread import audio_open  # type: ignore
-from prompt_toolkit.validation import Validator
+import re
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import (
+    Any,
     Callable,
     Dict,
+    Generator,
     List,
+    Optional,
     Tuple,
     Union,
-    Optional,
-    Generator,
-    Any,
 )
-from markdownify import MarkdownConverter  # type: ignore
 
+from audioread import audio_open  # type: ignore
+from bs4.element import Tag
 from jinja2 import (
     ChoiceLoader,
     Environment,
@@ -25,8 +24,10 @@ from jinja2 import (
     StrictUndefined,
     select_autoescape,
 )
+from markdownify import MarkdownConverter  # type: ignore
+from prompt_toolkit.validation import Validator
 from weasyprint import HTML  # type: ignore
-from bs4.element import Tag
+
 from transcriptor.models import Invoice, SummaryInvoice
 
 

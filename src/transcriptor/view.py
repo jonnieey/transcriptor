@@ -1,10 +1,12 @@
 from collections import OrderedDict
+from typing import Dict, List, Optional, Union
+
 from rich.console import Console
 from rich.table import Table
-from transcriptor.utils import tc  # type: ignore
 from sqlalchemy.engine.row import RowMapping
+
 from transcriptor.models import Client  # type: ignore
-from typing import Dict, List, Optional, Union
+from transcriptor.utils import tc  # type: ignore
 
 
 class TranscriptorView:

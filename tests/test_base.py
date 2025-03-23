@@ -1,15 +1,12 @@
-import pytest
 import shutil
 import zipfile
-from transcriptor.base import (
-    Transcriptor,
-    DEFAULT_CONFIG,
-    CONFIG_FILE_NAME,
-)
+
+import pytest
+
+from transcriptor.base import CONFIG_FILE_NAME, DEFAULT_CONFIG, Transcriptor
 from transcriptor.models import ConfigModel
 from transcriptor.utils import TEMPLATE_MAPPING, get_media_files
 from transcriptor.utils import str_to_date as std
-from unittest.mock import patch
 
 
 # Mock API for testing
@@ -83,7 +80,9 @@ def temp_base_dir(tmp_path):
 @pytest.fixture
 def transcriptor_instance(temp_base_dir, temp_config_dir):
     mock_api = MockAPI(base_dir=temp_base_dir)
-    transcriptor = Transcriptor(api=mock_api, config=ConfigModel(**DEFAULT_CONFIG))
+    transcriptor = Transcriptor(
+        api=mock_api, config=ConfigModel(**DEFAULT_CONFIG)
+    )
     transcriptor.config.base_dir = str(temp_base_dir)
     transcriptor.base_dir = temp_base_dir
     return transcriptor
@@ -166,9 +165,15 @@ def test_mv_extract_job_file_extract(tmp_path):
 
 # Tests for select_job_template
 def test_select_job_template(transcriptor_instance, temp_base_dir):
-    template_path = transcriptor_instance.select_job_template("Test Client", "zd")
+    template_path = transcriptor_instance.select_job_template(
+        "Test Client", "zd"
+    )
     expected_path = (
-        temp_base_dir / "clients" / "Test_Client" / "templates" / TEMPLATE_MAPPING["zd"]
+        temp_base_dir
+        / "clients"
+        / "Test_Client"
+        / "templates"
+        / TEMPLATE_MAPPING["zd"]
     )
     assert template_path == expected_path
     assert template_path.exists()
