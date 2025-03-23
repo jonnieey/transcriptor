@@ -4,7 +4,7 @@ import shutil
 from pprint import pprint
 import zipfile
 from datetime import date, datetime
-from pathlib import Path
+from pathlib import PosixPath, Path
 from transcriptor.models import (
     Config,
     Profile,
@@ -28,6 +28,9 @@ from transcriptor.utils import (
     htmlstr_to_pdf,
 )
 from transcriptor.utils import str_to_date as std
+from sqlalchemy.engine.row import RowMapping
+from typing import Callable, Dict, List, Optional, Tuple, Union, Sequence, Any
+from os import PathLike
 
 APP_NAME = "transcriptor5"
 CONFIG_FILE_NAME = "config5.yaml"
@@ -44,13 +47,13 @@ class Transcriptor:
         CONFIG_DIR.mkdir(parents=True)
     CONFIG_FILE = CONFIG_DIR / CONFIG_FILE_NAME
 
-    def __init__(self, api=None, config=None):
+    def __init__(self, api: None = None, config: None = None):
         if config is None:
             if not self.CONFIG_FILE.exists() or self.CONFIG_FILE.stat().st_size == 0:
                 self.config = Config(**DEFAULT_CONFIG)
-                self.config.write(self.CONFIG_FILE)
+                self.config.write(self.CONFIG_FILE)  # type: ignore
             else:
-                self.config = Config.from_yaml(self.CONFIG_FILE)
+                self.config = Config.from_yaml(self.CONFIG_FILE)  # type: ignore
         else:
             self.config = config
 
@@ -61,9 +64,9 @@ class Transcriptor:
         self.PROFILE_FILE = self.base_dir / "profile.yaml"
         if not self.PROFILE_FILE.exists() or self.PROFILE_FILE.stat().st_size == 0:
             self.profile = Profile()
-            self.profile.write(self.PROFILE_FILE)
+            self.profile.write(self.PROFILE_FILE)  # type: ignore
         else:
-            self.profile = Profile.from_yaml(self.PROFILE_FILE)
+            self.profile = Profile.from_yaml(self.PROFILE_FILE)  # type: ignore
 
         self.api = api if api is not None else API(base_dir=self.base_dir)
 
@@ -73,7 +76,7 @@ class Transcriptor:
     def save_profile(self):
         self.profile.write(self.PROFILE_FILE)
 
-    def create_client(self, name, email, rates_dict: dict = None):
+    def create_client(self, name: str, email: str, rates_dict: Optional[dict] = None):
         client_dict = {"name": name, "email": email}
         client_id = self.api.add_client(client_dict)
         if rates_dict is None:
@@ -117,22 +120,22 @@ class Transcriptor:
         Returns:
             Job directory path object
         """
-        date_received = std(date_received, self.date_format)
-        date_due = std(date_due, self.date_format)
+        date_received_obj = std(date_received, self.date_format)
+        date_due_obj = std(date_due, self.date_format)
 
         job_dir = (
             self.base_dir
             / "clients"
             / sc(client_name)
-            / f"{date_received.year}"
-            / f"{date_received.strftime('%B')}"
-            / f"{date_received.strftime('%d_%a')}_{job_number}_DUE_{date_due.strftime('%d_%a')}"
+            / f"{date_received_obj.year}"
+            / f"{date_received_obj.strftime('%B')}"
+            / f"{date_received_obj.strftime('%d_%a')}_{job_number}_DUE_{date_due_obj.strftime('%d_%a')}"
         )
         job_dir.mkdir(parents=True, exist_ok=True)
         return job_dir
 
     @staticmethod
-    def mv_extract_job_file(job_file: Path, job_dir: Path) -> None:
+    def mv_extract_job_file(job_file: Path | str, job_dir: Path | str) -> None:
         """
         Move/Extract job file to jobs directory
 
@@ -140,6 +143,7 @@ class Transcriptor:
             job_file: Path object or path-like string to job file
             job_dir: Path object or path-like string to job directory
         """
+        job_file = Path(job_file)
         if zipfile.is_zipfile(job_file):
             try:
                 with zipfile.ZipFile(job_file) as zf:
@@ -173,7 +177,9 @@ class Transcriptor:
 
         return client_template_dir / TEMPLATE_MAPPING[template]
 
-    def create_job(self, job_file, job_callback, task_callback):
+    def create_job(
+        self, job_file: str, job_callback: Callable, task_callback: Callable
+    ):
         """
         job callback should return a dict
         {
@@ -257,7 +263,12 @@ class Transcriptor:
         if tasks:
             self.api.add_jobs(tasks)
 
-    def delete_clients(self, conditions=None, raw_sql_stmt=None, purge=False):
+    def delete_clients(
+        self,
+        conditions: Optional[Dict[str, List[Tuple[str, str]]]] = None,
+        raw_sql_stmt: None = None,
+        purge: bool = False,
+    ) -> Sequence[RowMapping]:
         clients = self.api.delete_clients(
             conditions=conditions, raw_sql_stmt=raw_sql_stmt
         )
@@ -276,7 +287,7 @@ class Transcriptor:
                 shutil.rmtree(job_path.parent)
         return jobs
 
-    def read_invoice_counter(self, invoice_num_counter_file):
+    def read_invoice_counter(self, invoice_num_counter_file: Path) -> int:
         try:
             with open(invoice_num_counter_file, "r") as file:
                 invoice_number = int(file.read())
@@ -300,7 +311,12 @@ class Transcriptor:
             with open(invoice_num_counter_file, "w") as file:
                 file.write(f"{invoice_number:05}")
 
-    def generate_invoice(self, client_id, conditions=None, raw_sql_stmt=None):
+    def generate_invoice(
+        self,
+        client_id: str,
+        conditions: Optional[Dict[str, List[Tuple[str, Any]]]] = None,
+        raw_sql_stmt: None = None,
+    ) -> Tuple[str, Union[int, Any, str, float, None]]:
         if client_id is None:
             print("CLIENT ID CANNOT BE NONE")
             return ("", "")
@@ -318,16 +334,16 @@ class Transcriptor:
             else:
                 raw_sql_stmt = f"{raw_sql_stmt} AND amount_paid = 0"
 
-        jobs = self.api.get_jobs(conditions=conditions, raw_sql_stmt=raw_sql_stmt)
+        jobs = self.api.get_jobs(conditions=conditions, raw_sql_stmt=raw_sql_stmt)  # type: ignore
         if not jobs:
             print("No jobs found")
             return ("", "")
 
         invoice_lines = [InvoiceLine.parse_obj(job) for job in jobs]
         client = jobs[0].get("client")
-        client_name = client.name if hasattr(client, "name") else client
+        client_name = client.name if hasattr(client, "name") else client  # type: ignore
 
-        INVOICE_DIR = self.base_dir / "clients" / sc(client_name) / "invoices"
+        INVOICE_DIR = self.base_dir / "clients" / sc(client_name) / "invoices"  # type: ignore
         INVOICE_NUM_COUNTER_FILE = INVOICE_DIR / "invoice_number_counter"
 
         invoice_number = self.read_invoice_counter(INVOICE_NUM_COUNTER_FILE)
@@ -342,7 +358,9 @@ class Transcriptor:
 
         return html, client_name
 
-    def generate_summary_invoice(self, client_id, previous_year_cutoff=None):
+    def generate_summary_invoice(
+        self, client_id: str, previous_year_cutoff: None = None
+    ) -> Tuple[str, Union[int, Any, str, float, None]]:
         client_name = None
         cutoffs = self.load_cutoffs(as_str=True)
 
@@ -350,7 +368,7 @@ class Transcriptor:
             print("CLIENT ID CANNOT BE NONE")
             return ("", "")
 
-        jobs_by_month = {str(i): [] for i in range(1, 13)}
+        jobs_by_month: dict[str, list[Any]] = {str(i): [] for i in range(1, 13)}
 
         cutoffs_list = list(cutoffs[1:])
 
@@ -370,14 +388,16 @@ class Transcriptor:
                 ],
             }
             conditions["date_submitted"] = [
-                c for c in conditions["date_submitted"] if c
+                c
+                for c in conditions["date_submitted"]  # type: ignore
+                if c  # type: ignore
             ]
 
-            jobs = self.api.get_jobs(conditions=conditions)
+            jobs = self.api.get_jobs(conditions=conditions)  # type: ignore
             if jobs:
                 if client_name is None:
                     client = jobs[0].get("client")
-                    client_name = client.name if hasattr(client, "name") else client
+                    client_name = client.name if hasattr(client, "name") else client  # type: ignore
                 month_idx = std(deposit_date, "%Y-%m-%d").month
                 jobs_by_month[str(month_idx)].extend(jobs)
 
@@ -422,10 +442,12 @@ class Transcriptor:
             INVOICE_NUM_COUNTER_FILE = INVOICE_DIR / "invoice_number_counter"
             self.increase_invoice_counter(INVOICE_NUM_COUNTER_FILE)
 
-    def to_md(self, html):
+    def to_md(self, html: str) -> str:
         return html_to_md(html)
 
-    def generate_cutoff_list_from_docx(self, docx_path, date_fmt=None):
+    def generate_cutoff_list_from_docx(
+        self, docx_path: str, date_fmt: str = ""
+    ) -> List[Union[Tuple[date, ...], List[str]]]:
         date_fmt = date_fmt or "%m/%d/%Y"
         cutoff_list = extract_table_data_from_docx(docx_path)
 
@@ -433,16 +455,29 @@ class Transcriptor:
         cutoffs = [header] + [to_date_object(row, date_fmt) for row in rows]
         return cutoffs
 
-    def save_cutoffs(self, cutoffs, file_path=None):
-        file_path = file_path or self.base_dir.joinpath("cutoffs.csv")
+    def save_cutoffs(
+        self,
+        cutoffs: List[Union[List[str], Tuple[date, date]]],
+        file_path: Optional[
+            Union[Union[str, bytes, PathLike[str], PathLike[bytes]], int]
+        ] = None,
+    ):
+        file_path = file_path or self.base_dir.joinpath("cutoffs.csv")  # type: ignore
         with open(file_path, "w", newline="") as fd:
             writer = csv.writer(fd)
             writer.writerows(cutoffs)
 
-    def load_cutoffs(self, file_path=None, date_fmt="%Y-%m-%d", as_str=False):
-        file_path = file_path or self.base_dir.joinpath("cutoffs.csv")
+    def load_cutoffs(
+        self,
+        file_path: Optional[
+            Union[Union[str, bytes, PathLike[str], PathLike[bytes]], int]
+        ] = None,
+        date_fmt: str = "%Y-%m-%d",
+        as_str: bool = False,
+    ) -> Union[List[Union[Tuple[date, ...], List[str]]], Sequence[Any]]:
+        file_path = file_path or self.base_dir.joinpath("cutoffs.csv")  # type: ignore
         with open(file_path, "r", newline="") as fd:
-            cutoff_list = list(csv.reader(fd))
+            cutoff_list: Sequence = list(csv.reader(fd))
 
         if as_str:
             return cutoff_list
@@ -451,7 +486,9 @@ class Transcriptor:
         cutoffs = [header] + [to_date_object(row, date_fmt) for row in rows]
         return cutoffs
 
-    def select_cutoff_period(self, deposit_date_idx):
+    def select_cutoff_period(
+        self, deposit_date_idx: int
+    ) -> Tuple[Union[str, date, None], Union[str, date]]:
         cutoff_deposit_pairs = self.load_cutoffs()
 
         cutoff_deposit_pairs = self.load_cutoffs()[1:]
@@ -468,6 +505,6 @@ class Transcriptor:
         return previous_cutoff_date, cutoff_date
 
 
-if __name__ == "__main__":
-    trans5 = Transcriptor()
-    print(trans5.generate_summary_invoice(client_id=1))
+# if __name__ == "__main__":
+# trans5 = Transcriptor()
+# print(trans5.generate_summary_invoice(client_id=1))

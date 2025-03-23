@@ -1,12 +1,18 @@
 import yaml
 from sqlalchemy import String
 from sqlalchemy import ForeignKey
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship,
+)
 from sqlalchemy import event
 from sqlalchemy import DDL
 from pydantic import BaseModel, Field, root_validator
-from typing import List, Optional
+from typing import Dict, Type, Union, List, Optional
 from datetime import date, timedelta
+from pathlib import PosixPath
 
 
 class Base(DeclarativeBase):
@@ -17,7 +23,9 @@ class Client(Base):
     __tablename__ = "clients"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(
+        String(255), nullable=False, unique=True
+    )
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     rate: Mapped["Rate"] = relationship(
         "Rate",
@@ -36,7 +44,9 @@ class Rate(Base):
     normal: Mapped[float] = mapped_column(nullable=False)
     expedite: Mapped[float] = mapped_column(nullable=False)
     interpreted: Mapped[float] = mapped_column(nullable=False)
-    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
+    client_id: Mapped[int] = mapped_column(
+        ForeignKey("clients.id", ondelete="CASCADE")
+    )
     client: Mapped[Client] = relationship(
         "Client", back_populates="rate", passive_deletes=True
     )
@@ -46,7 +56,9 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
+    client_id: Mapped[int] = mapped_column(
+        ForeignKey("clients.id", ondelete="CASCADE")
+    )
     date_received: Mapped[str] = mapped_column(nullable=False)
     job_number: Mapped[str] = mapped_column(nullable=False)
     job_type: Mapped[str] = mapped_column(nullable=False)
@@ -76,7 +88,9 @@ update_amount_trigger = DDL(
 )
 
 event.listen(
-    Job.__table__, "after_create", update_amount_trigger.execute_if(dialect="sqlite")
+    Job.__table__,
+    "after_create",
+    update_amount_trigger.execute_if(dialect="sqlite"),
 )
 
 update_date_trigger = DDL(
@@ -97,7 +111,9 @@ update_date_trigger = DDL(
 )
 
 event.listen(
-    Job.__table__, "after_create", update_date_trigger.execute_if(dialect="sqlite")
+    Job.__table__,
+    "after_create",
+    update_date_trigger.execute_if(dialect="sqlite"),
 )
 
 update_status_trigger = DDL(
@@ -118,7 +134,9 @@ update_status_trigger = DDL(
     """
 )
 event.listen(
-    Job.__table__, "after_create", update_status_trigger.execute_if(dialect="sqlite")
+    Job.__table__,
+    "after_create",
+    update_status_trigger.execute_if(dialect="sqlite"),
 )
 limit_amount_paid_trigger = DDL(
     """
@@ -177,7 +195,9 @@ class Profile(BaseModel):
     country: str = ""
 
 
-def from_yaml(cls, yaml_file):
+def from_yaml(
+    cls: Union[Type[Profile], Type[Config]], yaml_file: PosixPath
+) -> Union[Config, Profile, None]:
     try:
         with open(yaml_file, "r") as file:
             data = yaml.safe_load(file)
@@ -190,7 +210,7 @@ def from_yaml(cls, yaml_file):
         return None
 
 
-def write(self, yaml_file):
+def write(self: Union[Config, Profile], yaml_file: PosixPath):
     try:
         with open(yaml_file, "w") as file:
             yaml.dump(self.model_dump(), file)
@@ -215,7 +235,7 @@ class InvoiceLine(BaseModel):
     quantity: float
 
     @property
-    def amount(self):
+    def amount(self) -> float:
         return self.quantity * self.job_rate
 
 
@@ -228,10 +248,13 @@ class Invoice(BaseModel):
     jobs: List[InvoiceLine]
 
     @root_validator(skip_on_failure=True)
-    def calculate_due_date(cls, values):
+    def calculate_due_date(
+        cls,
+        values: Dict[str, Optional[Union[date, timedelta]]],
+    ) -> Dict[str, Optional[Union[date, timedelta]]]:
         if values["due_date"]:
             return values
-        values["due_date"] = values["create_date"] + timedelta(days=7)
+        values["due_date"] = values["create_date"] + timedelta(days=7)  # type: ignore
         return values
 
 

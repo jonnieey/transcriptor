@@ -6,6 +6,12 @@ from sqlalchemy import delete as sql_delete
 from transcriptor.database import Database
 from transcriptor.models import Client, Rate, Job
 from sqlalchemy.orm import sessionmaker
+from datetime import date
+from sqlalchemy.engine.row import RowMapping
+from sqlalchemy.sql.dml import Delete, Update
+from sqlalchemy.sql.elements import TextClause
+from sqlalchemy.sql.selectable import Select
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, Sequence
 
 
 DB_FILE_NAME = "transcriptor_sqlalchemy.db"
@@ -35,7 +41,7 @@ class API:
         Returns:
             int: The ID of the newly created record.
         """
-        obj = table(**data)
+        obj = table(**data)  # type: ignore
         with self.session() as session:
             session.add(obj)
             session.commit()
@@ -92,8 +98,21 @@ class API:
             session.commit()
 
     def _build_statement_with_conditions(
-        self, table, conditions=None, stmt_type="select"
-    ):
+        self,
+        table: Union[Type[Rate], Type[Job], Type[Client]],
+        conditions: Optional[
+            Dict[
+                str,
+                Union[
+                    List[Union[Tuple[str, str], Tuple[str, int], Tuple[str, date]]],
+                    List[Tuple[str, int]],
+                    List[Tuple[str, str]],
+                    List[Union[Tuple[str, str], Tuple[str, int]]],
+                ],
+            ]
+        ] = None,
+        stmt_type: str = "select",
+    ) -> Union[Select, Update, Delete, bool]:
         """Builds a SQL statement with conditions.
 
         Args:
@@ -149,9 +168,9 @@ class API:
         if stmt_type == "select":
             stmt = select(table)
         elif stmt_type == "update":
-            stmt = sql_update(table)
+            stmt = sql_update(table)  # type: ignore
         elif stmt_type == "delete":
-            stmt = sql_delete(table)
+            stmt = sql_delete(table)  # type: ignore
         else:
             raise ValueError("Invalid stmt_type.  Must be select, update, or delete")
 
@@ -182,22 +201,40 @@ class API:
                     stmt = stmt.where(and_(*filters))
             return stmt
         except Exception as e:
-            self.session.rollback()
+            # self.session.rollback()
             print(f"Error during {stmt_type}: {e}")
             return False
 
-    def get(self, table, conditions=None, raw_sql_stmt=None):
+    def get(
+        self,
+        table: Union[Type[Rate], Type[Job], Type[Client]],
+        conditions: Optional[
+            Union[
+                Dict[str, List[Tuple[str, str]]],
+                Dict[
+                    str, List[Union[Tuple[str, str], Tuple[str, int], Tuple[str, date]]]
+                ],
+                Dict[str, List[Tuple[str, int]]],
+                Dict[str, List[Union[Tuple[str, str], Tuple[str, int]]]],
+            ]
+        ] = None,
+        raw_sql_stmt: Optional[str] = None,
+    ) -> Union[Select, TextClause]:
         if raw_sql_stmt is not None:
-            raw_sql_stmt = text(raw_sql_stmt)
-            return raw_sql_stmt
+            raw_stmt = text(raw_sql_stmt)
+            return raw_stmt
 
         if conditions is None:
             stmt = select(table)
             return stmt
 
-        return self._build_statement_with_conditions(table, conditions, "select")
+        return self._build_statement_with_conditions(table, conditions, "select")  # type: ignore
 
-    def get_clients(self, conditions=None, raw_sql_stmt=None) -> list:
+    def get_clients(
+        self,
+        conditions: Optional[Dict[str, List[Tuple[str, int]]]] = None,
+        raw_sql_stmt: Optional[str] = None,
+    ) -> Union[List[Dict[str, Any]], Sequence[RowMapping]]:
         if raw_sql_stmt is not None:
             raw_sql_stmt = f"""
                 SELECT id, name, email
@@ -225,7 +262,9 @@ class API:
 
             return client_mappings
 
-    def get_rates(self, conditions=None):
+    def get_rates(
+        self, conditions: Optional[Dict[str, List[Tuple[str, int]]]] = None
+    ) -> List[Dict[str, Union[int, float]]]:
         ordination = ["id", "client_id", "normal", "expedite", "interpreted"]
         stmt = self.get(Rate, conditions)
         with self.session() as session:
@@ -236,7 +275,26 @@ class API:
             ]
             return rate_mappings
 
-    def get_jobs(self, conditions=None, raw_sql_stmt=None):
+    def get_jobs(
+        self,
+        conditions: Optional[
+            Dict[
+                str,
+                Union[
+                    List[Union[Tuple[str, str], Tuple[str, int], Tuple[str, date]]],
+                    List[Tuple[str, str]],
+                    List[Union[Tuple[str, str], Tuple[str, int]]],
+                ],
+            ]
+        ] = None,
+        raw_sql_stmt: None = None,
+    ) -> List[
+        Union[
+            Dict[str, Optional[Union[int, str, Client, float]]],
+            Dict[str, Union[int, str, Client, float]],
+            Any,
+        ]
+    ]:
         ordination = [
             "id",
             "job_number",
@@ -284,7 +342,7 @@ class API:
 
                 return jobs
 
-        stmt = self.get(Job, conditions)
+        stmt = self.get(Job, conditions)  # type: ignore
         with self.session() as session:
             scalars = session.scalars(stmt).all()
             job_mappings = [
@@ -293,7 +351,13 @@ class API:
             ]
             return job_mappings
 
-    def update(self, table, conditions=None, values=None, raw_sql_stmt=None):
+    def update(
+        self,
+        table: Union[Type[Rate], Type[Job], Type[Client]],
+        conditions: Optional[Dict[str, List[Tuple[str, int]]]] = None,
+        values: Optional[Dict[str, str]] = None,
+        raw_sql_stmt: None = None,
+    ) -> Union[Select[Any], Update, Delete, bool]:
         if raw_sql_stmt is not None:
             raw_sql_stmt = text(f"UPDATE {table.__tablename__} {raw_sql_stmt}")
             return raw_sql_stmt
@@ -301,19 +365,24 @@ class API:
         if not all([conditions, values]):
             return False
 
-        stmt = self._build_statement_with_conditions(table, conditions, "update")
+        stmt = self._build_statement_with_conditions(table, conditions, "update")  # type: ignore
         if stmt is None:
             return False
         try:
-            stmt = stmt.values(**values)
+            stmt = stmt.values(**values)  # type: ignore
             return stmt
 
         except Exception as e:
-            self.session.rollback()
+            # self.session.rollback()
             print(f"Error during update: {e}")
             return False
 
-    def update_clients(self, conditions=None, values=None, raw_sql_stmt=None):
+    def update_clients(
+        self,
+        conditions: Optional[Dict[str, List[Tuple[str, int]]]] = None,
+        values: Optional[Dict[str, str]] = None,
+        raw_sql_stmt: None = None,
+    ) -> bool:
         stmt = self.update(
             Client,
             conditions=conditions,
@@ -321,11 +390,16 @@ class API:
             raw_sql_stmt=raw_sql_stmt,
         )
         with self.session() as session:
-            session.execute(stmt)
+            session.execute(stmt)  # type: ignore
             session.commit()
             return True
 
-    def update_rates(self, conditions=None, values=None, raw_sql_stmt=None):
+    def update_rates(
+        self,
+        conditions: Optional[Dict[str, List[Tuple[str, int]]]] = None,
+        values: Optional[Dict[str, str]] = None,
+        raw_sql_stmt: None = None,
+    ):
         stmt = self.update(
             Rate,
             conditions=conditions,
@@ -333,11 +407,16 @@ class API:
             raw_sql_stmt=raw_sql_stmt,
         )
         with self.session() as session:
-            session.execute(stmt)
+            session.execute(stmt)  # type: ignore
             session.commit()
             return True
 
-    def update_jobs(self, conditions=None, values=None, raw_sql_stmt=None):
+    def update_jobs(
+        self,
+        conditions: Optional[Dict[str, List[Tuple[str, int]]]] = None,
+        values: Optional[Dict[str, str]] = None,
+        raw_sql_stmt: None = None,
+    ):
         stmt = self.update(
             Job,
             conditions=conditions,
@@ -345,11 +424,16 @@ class API:
             raw_sql_stmt=raw_sql_stmt,
         )
         with self.session() as session:
-            session.execute(stmt)
+            session.execute(stmt)  # type: ignore
             session.commit()
             return True
 
-    def delete(self, table, conditions, raw_sql_stmt=None):
+    def delete(
+        self,
+        table: Type[Client],
+        conditions: Optional[Dict[str, List[Tuple[str, str]]]],
+        raw_sql_stmt: None = None,
+    ) -> Delete | bool:
         if raw_sql_stmt is not None:
             raw_sql_stmt = text(f"DELETE FROM {table.__tablename__} {raw_sql_stmt}")
             return raw_sql_stmt
@@ -383,15 +467,19 @@ class API:
             return stmt
 
         except Exception as e:
-            self.session.rollback()
+            # self.session.rollback()
             print(f"Error during delete: {e}")
             return False
 
-    def delete_clients(self, conditions=None, raw_sql_stmt=None):
+    def delete_clients(
+        self,
+        conditions: Optional[Dict[str, List[Tuple[str, str]]]] = None,
+        raw_sql_stmt: None = None,
+    ) -> Sequence[RowMapping]:
         stmt = self.delete(Client, conditions=conditions, raw_sql_stmt=raw_sql_stmt)
-        stmt = stmt.returning(Client.id, Client.name)
+        stmt = stmt.returning(Client.id, Client.name)  # type: ignore
         with self.session() as session:
-            clients = session.execute(stmt).mappings().all()
+            clients = session.execute(stmt).mappings().all()  # type: ignore
             session.commit()
             return clients
 
@@ -404,15 +492,15 @@ class API:
             return jobs
 
 
-if __name__ == "__main__":
-    api = API(base_dir=Path(__file__).parent)
-    print(
-        len(
-            api.get_clients(
-                conditions={
-                    "name": [("~", "%vic%")],
-                    "id": [(">", 1), ("<", 5)],
-                }
-            )
-        )
-    )
+# if __name__ == "__main__":
+#     api = API(base_dir=Path(__file__).parent)
+#     print(
+#         len(
+#             api.get_clients(
+#                 conditions={
+#                     "name": [("~", "%vic%")],
+#                     "id": [(">", 1), ("<", 5)],
+#                 }
+#             )
+#         )
+#     )

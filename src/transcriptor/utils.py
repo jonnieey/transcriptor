@@ -3,10 +3,19 @@ import re
 import mimetypes
 from datetime import datetime, date
 from audioread import audio_open  # type: ignore
-from prompt_toolkit.validation import Validator
+from prompt_toolkit.validation import _ValidatorFromCallable, Validator
 from decimal import Decimal, InvalidOperation
-from typing import Optional
-from markdownify import MarkdownConverter
+from typing import (
+    Callable,
+    Dict,
+    List,
+    Tuple,
+    Union,
+    Optional,
+    Generator,
+    Any,
+)
+from markdownify import MarkdownConverter  # type: ignore
 
 from jinja2 import (
     ChoiceLoader,
@@ -16,7 +25,10 @@ from jinja2 import (
     StrictUndefined,
     select_autoescape,
 )
-from weasyprint import HTML
+from weasyprint import HTML  # type: ignore
+import jinja2.environment
+from bs4.element import Tag
+from transcriptor.models import Invoice, SummaryInvoice
 
 
 def touch(file_paths: list[Path | str]) -> None:
@@ -59,11 +71,11 @@ def convert_case(string: str, from_: str, to_: str) -> str:
     return pattern.sub(to_, string)
 
 
-def sc(s):
+def sc(s: str) -> str:
     return convert_case(s, r"[ -]", "_")
 
 
-def nc(s):
+def nc(s: str) -> str:
     return convert_case(s, r"[-_]", " ")
 
 
@@ -71,7 +83,7 @@ def kc(s):
     return convert_case(s, r"[ _]", "-")
 
 
-def tc(s):
+def tc(s: str) -> str:
     return nc(s).title()
 
 
@@ -120,7 +132,7 @@ def date_to_str(date_obj: datetime, date_fmt: str) -> str:
     return date_obj.strftime(date_fmt)
 
 
-def get_media_files(directory: Path) -> list[Path]:
+def get_media_files(directory: Path) -> Generator[Path, None, None]:
     """
     Get all media files in a directory.
 
@@ -142,7 +154,7 @@ def get_media_files(directory: Path) -> list[Path]:
                 yield file
 
 
-def next_non_existent_file(filename):
+def next_non_existent_file(filename: Path | str) -> Path:
     """
     Generate name for next non-existant file
     Example:
@@ -165,14 +177,14 @@ def next_non_existent_file(filename):
     return Path(nf)
 
 
-def round_up(number):
+def round_up(number: float) -> float:
     if number % 0.5 == 0:
         return number
     else:
         return number + 0.5 - (number % 0.5)
 
 
-def parse_conditions_as_dict(condition_strings):
+def parse_conditions_as_dict(condition_strings: List[str]) -> Dict[str, str]:
     """
     input = ['name=anderson', 'id<=1', 'amount>0']
     output = {'name': 'anderson', 'id': 1, 'amount': '0' }
@@ -184,7 +196,9 @@ def parse_conditions_as_dict(condition_strings):
     return conditions_dict
 
 
-def parse_conditions(condition_strings):
+def parse_conditions(
+    condition_strings: List[str],
+) -> Dict[str, Union[List[Tuple[str, str]], List[Tuple[str, int]]]]:
     """
     Parses a list of condition strings and returns a dictionary.
 
@@ -196,7 +210,7 @@ def parse_conditions(condition_strings):
         lists of tuples, each tuple containing an operator and a value.
         For example: {"id": [("<=", 1)], "amount": [(">", 0), ("<", 10)]}
     """
-    conditions_dict = {}
+    conditions_dict: Dict[str, List[Tuple[str, Any]]] = {}
     operators = {
         "<=": "<=",
         ">=": ">=",
@@ -244,7 +258,7 @@ def parse_conditions(condition_strings):
     return conditions_dict
 
 
-def type_convert(value_str):
+def type_convert(value_str: str) -> Union[str, int, float]:
     """
     Attempts to convert a string to an int or float. If it fails, returns the string as is.
     """
@@ -260,7 +274,7 @@ def type_convert(value_str):
 job_number_pattern = re.compile(r"\b(\d{6,8})\b")
 
 
-def extract_job_number(file):
+def extract_job_number(file: str) -> str:
     """
     Get job number from path-like string.
 
@@ -275,12 +289,12 @@ def extract_job_number(file):
     return job_number_matches.group(1) if job_number_matches else ""
 
 
-def seconds_to_minutes(seconds):
+def seconds_to_minutes(seconds: float) -> float:
     minutes = (seconds // 60) + ((seconds % 60) / 60)
     return round_up(minutes)
 
 
-def get_media_duration(media_file):
+def get_media_duration(media_file: Path) -> float:
     with audio_open(media_file) as mf:
         duration = mf.duration
     return seconds_to_minutes(duration)
@@ -291,7 +305,7 @@ def is_file(text: str) -> bool:
     return path.is_file()
 
 
-def is_positive_number(text):
+def is_positive_number(text: str) -> bool:
     try:
         return Decimal(text) > 0
     except (InvalidOperation, TypeError):
@@ -306,7 +320,7 @@ def is_valid_yes_no(text: str) -> bool:
     return bool(re.match(r"(?i)^[YyNn](?:es|o)?$", text))
 
 
-def is_valid_job_type(text):
+def is_valid_job_type(text: str) -> bool:
     return bool(re.match(r"(?i)^(?:Normal|Interpreted|Expedite)$", text))
 
 
@@ -325,14 +339,14 @@ template_mapping = {
 }
 
 
-def is_valid_template(text):
+def is_valid_template(text: str):
     if text.lower() in template_mapping:
         return True
     else:
         return False
 
 
-def ValidatorWrapper(func, error_message, mve=True):
+def ValidatorWrapper(func: Callable, error_message: str, mve: bool = True) -> Validator:
     return Validator.from_callable(func, error_message, move_cursor_to_end=mve)
 
 
@@ -345,7 +359,8 @@ yes_no_validator = ValidatorWrapper(
     is_valid_yes_no, "Invalid input, expects [Y, Yes, N, No]"
 )
 job_type_validator = ValidatorWrapper(
-    is_valid_job_type, "Invalid job type, expects [Normal Interpreted Expedite]"
+    is_valid_job_type,
+    "Invalid job type, expects [Normal Interpreted Expedite]",
 )
 template_validator = ValidatorWrapper(
     is_valid_template,
@@ -357,7 +372,7 @@ def _init_jinja_env(custom_templates_dir: Optional[Path]) -> Environment:
     loaders = []
     if custom_templates_dir is not None:
         loaders.append(FileSystemLoader(custom_templates_dir))
-    loaders.append(PackageLoader("transcriptor", "invoice_templates"))
+    loaders.append(PackageLoader("transcriptor", "invoice_templates"))  # type: ignore
     loader = ChoiceLoader(loaders)
     return Environment(
         loader=loader,
@@ -371,7 +386,7 @@ def htmlstr_to_pdf(htmlstr: str, output_path: Path) -> Optional[bytes]:
 
 
 def render_invoice(
-    invoice,
+    invoice: Invoice,
     custom_templates_dir: Optional[Path] = None,
     template_name: Optional[str] = None,
 ) -> str:
@@ -382,7 +397,7 @@ def render_invoice(
 
 
 def render_summary_invoice(
-    summary_invoice,
+    summary_invoice: SummaryInvoice,
     custom_templates_dir: Optional[Path] = None,
     template_name: Optional[str] = None,
 ) -> str:
@@ -409,27 +424,27 @@ class MDConverter(MarkdownConverter):
     Converter for Markdown to HTML
     """
 
-    def convert_tr(self, el, text, convert_as_inline):
+    def convert_tr(self, el: Tag, text: str, convert_as_inline: bool) -> str:
         return super().convert_tr(el, text, convert_as_inline) + "\n"
 
 
-def md(html, **options):
+def md(html: str, **options) -> str:
     """
     Convert Markdown to HTML
     """
     return MDConverter(**options).convert(html)
 
 
-def html_to_md(html):
+def html_to_md(html: str) -> str:
     markdown = md(html)
     md_table = markdown[markdown.find("![]()") + 5 :]
     md_table = re.sub(r"\n{2,}", "\n\n", md_table)
     return md_table
 
 
-def extract_table_data_from_docx(docx_path):
+def extract_table_data_from_docx(docx_path: str) -> List[List[str]]:
     try:
-        import docx
+        import docx  # type: ignore
 
         docx_file = docx.Document(docx_path)
     except ImportError:
@@ -439,13 +454,13 @@ def extract_table_data_from_docx(docx_path):
         print("Docx file not found")
         return []
 
-    table_data = []
+    table_data: List[List[str]] = []
     for table in docx_file.tables:
         table_data.extend([cell.text for cell in row.cells] for row in table.rows)
     return table_data
 
 
-def to_date_object(iterable, date_fmt):
+def to_date_object(iterable: List[str], date_fmt: str) -> Tuple[date, ...]:
     return tuple(
         str_to_date(date_str.strip(), date_fmt).date() for date_str in iterable
     )
