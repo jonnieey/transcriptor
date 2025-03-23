@@ -657,6 +657,13 @@ class TranscriptorCMD(cmd2.Cmd):
             self.do_help("base")
 
     def invoice(self, args: Namespace):
+        if not any([args.raw, args.table, args.where]):
+            error = """Conditions must be provided.
+    Ex. invoice -w 'date_submitted > \"2025-01-01\" -w date_submitted <= \"2025-01-31\"
+            """
+            self.poutput(error)
+            self.do_help("invoice")
+            return
         if not args.client_id:
             self.show_clients(args=None)
             client_id = int(
