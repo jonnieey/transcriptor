@@ -10,9 +10,9 @@ from sqlalchemy.orm import (
 from sqlalchemy import event
 from sqlalchemy import DDL
 from pydantic import BaseModel, Field, root_validator
-from typing import Dict, Type, Union, List, Optional
+from typing import Dict, Union, List, Optional, Any
 from datetime import date, timedelta
-from pathlib import PosixPath
+from pathlib import Path
 
 
 class Base(DeclarativeBase):
@@ -23,9 +23,7 @@ class Client(Base):
     __tablename__ = "clients"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(
-        String(255), nullable=False, unique=True
-    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     rate: Mapped["Rate"] = relationship(
         "Rate",
@@ -44,9 +42,7 @@ class Rate(Base):
     normal: Mapped[float] = mapped_column(nullable=False)
     expedite: Mapped[float] = mapped_column(nullable=False)
     interpreted: Mapped[float] = mapped_column(nullable=False)
-    client_id: Mapped[int] = mapped_column(
-        ForeignKey("clients.id", ondelete="CASCADE")
-    )
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
     client: Mapped[Client] = relationship(
         "Client", back_populates="rate", passive_deletes=True
     )
@@ -56,9 +52,7 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    client_id: Mapped[int] = mapped_column(
-        ForeignKey("clients.id", ondelete="CASCADE")
-    )
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
     date_received: Mapped[str] = mapped_column(nullable=False)
     job_number: Mapped[str] = mapped_column(nullable=False)
     job_type: Mapped[str] = mapped_column(nullable=False)
@@ -184,48 +178,41 @@ event.listen(
 )
 
 
-class Config(BaseModel):
+class YAMLBase(BaseModel):
+    @classmethod
+    def from_yaml(cls, yaml_file: Path) -> Any:
+        try:
+            with open(yaml_file, "r") as file:
+                data = yaml.safe_load(file)
+            return cls(**data)
+        except FileNotFoundError:
+            print(f"Error: YAML file '{yaml_file}' not found.")
+            return None
+        except yaml.YAMLError as e:
+            print(f"Error parsing YAML file: {e}")
+            return None
+
+    def write(self, yaml_file: Path) -> Any:
+        try:
+            with open(yaml_file, "w") as file:
+                yaml.dump(self.model_dump(), file)
+        except FileNotFoundError:
+            print(f"Error: File not found, YAML file '{yaml_file}'")
+        except yaml.YAMLError:
+            print(f"Error writing YAML file: {yaml_file}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+
+class Config(YAMLBase):
     base_dir: str
     date_format: str
 
 
-class Profile(BaseModel):
+class Profile(YAMLBase):
     name: str = ""
     area: str = ""
     country: str = ""
-
-
-def from_yaml(
-    cls: Union[Type[Profile], Type[Config]], yaml_file: PosixPath
-) -> Union[Config, Profile, None]:
-    try:
-        with open(yaml_file, "r") as file:
-            data = yaml.safe_load(file)
-        return cls(**data)
-    except FileNotFoundError:
-        print(f"Error: YAML file '{yaml_file}' not found.")
-        return None
-    except yaml.YAMLError as e:
-        print(f"Error parsing YAML file: {e}")
-        return None
-
-
-def write(self: Union[Config, Profile], yaml_file: PosixPath):
-    try:
-        with open(yaml_file, "w") as file:
-            yaml.dump(self.model_dump(), file)
-    except FileNotFoundError:
-        print(f"Error: File not found, YAML file '{yaml_file}'")
-    except yaml.YAMLError:
-        print(f"Error writing YAML file: {yaml_file}")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-
-
-Config.from_yaml = classmethod(from_yaml)
-Profile.from_yaml = classmethod(from_yaml)
-Config.write = write
-Profile.write = write
 
 
 class InvoiceLine(BaseModel):

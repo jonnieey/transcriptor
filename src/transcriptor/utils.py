@@ -3,7 +3,7 @@ import re
 import mimetypes
 from datetime import datetime, date
 from audioread import audio_open  # type: ignore
-from prompt_toolkit.validation import _ValidatorFromCallable, Validator
+from prompt_toolkit.validation import Validator
 from decimal import Decimal, InvalidOperation
 from typing import (
     Callable,
@@ -26,7 +26,6 @@ from jinja2 import (
     select_autoescape,
 )
 from weasyprint import HTML  # type: ignore
-import jinja2.environment
 from bs4.element import Tag
 from transcriptor.models import Invoice, SummaryInvoice
 
@@ -247,7 +246,9 @@ def parse_conditions(
                         if field:
                             if field not in conditions_dict:
                                 conditions_dict[field] = []
-                            conditions_dict[field].append((op_name, value_str))
+                            conditions_dict[field].append(
+                                (op_name, value_str)
+                            )
                             parsed = True
                             break
         if not parsed:
@@ -346,8 +347,12 @@ def is_valid_template(text: str):
         return False
 
 
-def ValidatorWrapper(func: Callable, error_message: str, mve: bool = True) -> Validator:
-    return Validator.from_callable(func, error_message, move_cursor_to_end=mve)
+def ValidatorWrapper(
+    func: Callable, error_message: str, mve: bool = True
+) -> Validator:
+    return Validator.from_callable(
+        func, error_message, move_cursor_to_end=mve
+    )
 
 
 file_validator = ValidatorWrapper(is_file, "File does not exist")
@@ -392,7 +397,9 @@ def render_invoice(
 ) -> str:
     if template_name is None:
         template_name = "invoice.html"
-    template = _init_jinja_env(custom_templates_dir).get_template(template_name)
+    template = _init_jinja_env(custom_templates_dir).get_template(
+        template_name
+    )
     return template.render(invoice=invoice)
 
 
@@ -403,7 +410,9 @@ def render_summary_invoice(
 ) -> str:
     if template_name is None:
         template_name = "summary_invoice.html"
-    template = _init_jinja_env(custom_templates_dir).get_template(template_name)
+    template = _init_jinja_env(custom_templates_dir).get_template(
+        template_name
+    )
     return template.render(summary_invoice=summary_invoice)
 
 
@@ -456,13 +465,16 @@ def extract_table_data_from_docx(docx_path: str) -> List[List[str]]:
 
     table_data: List[List[str]] = []
     for table in docx_file.tables:
-        table_data.extend([cell.text for cell in row.cells] for row in table.rows)
+        table_data.extend(
+            [cell.text for cell in row.cells] for row in table.rows
+        )
     return table_data
 
 
 def to_date_object(iterable: List[str], date_fmt: str) -> Tuple[date, ...]:
     return tuple(
-        str_to_date(date_str.strip(), date_fmt).date() for date_str in iterable
+        str_to_date(date_str.strip(), date_fmt).date()
+        for date_str in iterable
     )
 
 

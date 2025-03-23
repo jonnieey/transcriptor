@@ -1,7 +1,10 @@
 from collections import OrderedDict
 from rich.console import Console
 from rich.table import Table
-from transcriptor.utils import tc
+from transcriptor.utils import tc  # type: ignore
+from sqlalchemy.engine.row import RowMapping
+from transcriptor.models import Client  # type: ignore
+from typing import Dict, List, Optional, Union
 
 
 class TranscriptorView:
@@ -14,7 +17,18 @@ class TranscriptorView:
             padding=(0, 0),
         )
 
-    def generate_table(self, objects, orientation="vertical", ordination=None):
+    def generate_table(
+        self,
+        objects: Union[
+            Dict[str, str],
+            List[Dict[str, Optional[Union[int, str, Client, float]]]],
+            List[Dict[str, Union[int, float]]],
+            List[RowMapping],
+            List[List[str]],
+        ],
+        orientation: str = "vertical",
+        ordination: None = None,
+    ):
         if not objects:
             return
 
@@ -24,7 +38,7 @@ class TranscriptorView:
             try:
                 object_dict = objects[0].__dict__
             except AttributeError:
-                object_dict = objects[0]
+                object_dict = objects[0]  # type: ignore
 
         if ordination:
             try:
@@ -49,11 +63,13 @@ class TranscriptorView:
 
             if isinstance(objects, (list, tuple)):
                 if isinstance(object_dict, dict):
-                    columns = object_dict.keys()
+                    columns = list(object_dict.keys())
                     for column in columns:
                         self.table.add_column(tc(column))
                     for obj in objects:
-                        row = [str(object_dict.get(column)) for column in columns]
+                        row = [
+                            str(object_dict.get(column)) for column in columns
+                        ]
                     self.table.add_row(*row)
 
                 elif isinstance(object_dict, (list, tuple)):
@@ -68,7 +84,13 @@ class TranscriptorView:
                 column
                 for column in object_dict.keys()
                 if column
-                not in ("_sa_instance_state", "job_path", "client", "job", "rate")
+                not in (
+                    "_sa_instance_state",
+                    "job_path",
+                    "client",
+                    "job",
+                    "rate",
+                )
             ]
             for column in columns:
                 self.table.add_column(tc(column))
@@ -85,7 +107,10 @@ class TranscriptorView:
                             for obj in objects
                         ]
                     except AttributeError:
-                        rows = [[obj[column] for column in columns] for obj in objects]
+                        rows = [
+                            [obj[column] for column in columns]  # type: ignore
+                            for obj in objects
+                        ]
                 for row in rows:
                     row = list(map(str, row))
                     self.table.add_row(*row)
@@ -93,9 +118,11 @@ class TranscriptorView:
                 self.table.add_section()
                 try:
                     try:
-                        total_amount = sum([obj.get("amount") for obj in objects])
+                        total_amount = sum(
+                            [obj.get("amount") for obj in objects]  # type: ignore
+                        )
                         total_amount_paid = sum(
-                            [obj.get("amount_paid") for obj in objects]
+                            [obj.get("amount_paid") for obj in objects]  # type: ignore
                         )
 
                         amount_column = columns.index("amount")
@@ -103,23 +130,40 @@ class TranscriptorView:
 
                         summary_row = [""] * len(columns)
                         summary_row[amount_column] = str(total_amount)
-                        summary_row[amount_paid_column] = str(total_amount_paid)
+                        summary_row[amount_paid_column] = str(
+                            total_amount_paid
+                        )
 
                         self.table.add_row(*summary_row)
                     except (TypeError, KeyError, AttributeError):
-                        total_amount = sum([obj.amount for obj in objects])
-                        total_amount_paid = sum([obj.amount_paid for obj in objects])
+                        total_amount = sum([obj.amount for obj in objects])  # type: ignore
+                        total_amount_paid = sum([obj.amount_paid for obj in objects])  # type: ignore
                         amount_column = columns.index("amount")
                         amount_paid_column = columns.index("amount_paid")
 
                         summary_row = [""] * len(columns)
                         summary_row[amount_column] = str(total_amount)
-                        summary_row[amount_paid_column] = str(total_amount_paid)
+                        summary_row[amount_paid_column] = str(
+                            total_amount_paid
+                        )
                         self.table.add_row(*summary_row)
 
                 except AttributeError:
                     pass
 
-    def print_table(self, objects, orientation="vertical", ordination=None):
-        self.generate_table(objects, orientation=orientation, ordination=ordination)
+    def print_table(
+        self,
+        objects: Union[
+            Dict[str, str],
+            List[Dict[str, Optional[Union[int, str, Client, float]]]],
+            List[Dict[str, Union[int, float]]],
+            List[RowMapping],
+            List[List[str]],
+        ],
+        orientation: str = "vertical",
+        ordination: None = None,
+    ):
+        self.generate_table(
+            objects, orientation=orientation, ordination=ordination
+        )
         self.console.print(self.table)
