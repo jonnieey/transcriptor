@@ -36,7 +36,7 @@ sqlalchemy = { version = ">=2.0.0", extras = ["mypy"] }
 types-PyYAML = "~=6.0.2"
 
 [tool.poetry.scripts]
-trans4 = "transcriptor.main:main"
+trans5 = "transcriptor.main:main"
 
 [build-system]
 requires = ["poetry-core"]
