@@ -33,11 +33,13 @@ show_subparsers = show_parser.add_subparsers(
     title="subcommands", help="subcommand help"
 )
 show_config_parser = show_subparsers.add_parser("config", help="show config")
-show_profile_parser = show_subparsers.add_parser("profile", help="show profile")
+show_profile_parser = show_subparsers.add_parser(
+    "profile", help="show profile")
 show_clients_parser = show_subparsers.add_parser("clients", help="show client")
 show_rates_parser = show_subparsers.add_parser("rates", help="show rates")
 show_jobs_parser = show_subparsers.add_parser("jobs", help="show jobs")
-show_cutoffs_parser = show_subparsers.add_parser("cutoffs", help="show cutoffs")
+show_cutoffs_parser = show_subparsers.add_parser(
+    "cutoffs", help="show cutoffs")
 
 
 show_clients_parser.add_argument(
@@ -72,7 +74,8 @@ show_jobs_parser.add_argument(
 
 
 add_parser = base_subparsers.add_parser("add", help="add object")
-add_subparsers = add_parser.add_subparsers(title="subcommands", help="subcommand help")
+add_subparsers = add_parser.add_subparsers(
+    title="subcommands", help="subcommand help")
 add_client_parser = add_subparsers.add_parser("client", help="add client")
 
 add_client_parser.add_argument(
@@ -116,25 +119,29 @@ add_cutoffs_parser.add_argument(
     help="Cutoffs docx File Path",
 )
 add_cutoffs_parser.add_argument("-d", "--date_fmt", help="Date Format")
+add_cutoffs_parser.add_argument("-y", "--year", help="Year for cutoffs")
 
 
 update_parser = base_subparsers.add_parser("update", help="update object")
 update_subparsers = update_parser.add_subparsers(
     title="subcommands", help="subcommand help"
 )
-update_config_parser = update_subparsers.add_parser("config", help="update config")
+update_config_parser = update_subparsers.add_parser(
+    "config", help="update config")
 
 update_config_parser.add_argument("-b", "--base-dir", help="base directory")
 update_config_parser.add_argument("-d", "--date-format", help="date format")
 
-update_profile_parser = update_subparsers.add_parser("profile", help="update profile")
+update_profile_parser = update_subparsers.add_parser(
+    "profile", help="update profile")
 update_profile_parser.add_argument("-n", "--name", help="name")
 update_profile_parser.add_argument("-a", "--area", help="area")
 
 update_profile_parser.add_argument("-c", "--country", help="country")
 
 
-update_client_parser = update_subparsers.add_parser("client", help="update client")
+update_client_parser = update_subparsers.add_parser(
+    "client", help="update client")
 update_client_parser.add_argument("-r", "--raw", help="Raw sql query")
 update_client_parser.add_argument(
     "-w",
@@ -149,7 +156,8 @@ update_client_parser.add_argument(
     help='Specify values in the format "field=value", e.g., -v id=1 -v amount=100',
 )
 
-update_rates_parser = update_subparsers.add_parser("rates", help="update rates")
+update_rates_parser = update_subparsers.add_parser(
+    "rates", help="update rates")
 update_rates_parser.add_argument("-r", "--raw", help="Raw sql query")
 update_rates_parser.add_argument(
     "-w",
@@ -183,7 +191,8 @@ delete_parser = base_subparsers.add_parser("delete", help="delete object")
 delete_subparsers = delete_parser.add_subparsers(
     title="subcommands", help="subcommand help"
 )
-delete_client_parser = delete_subparsers.add_parser("clients", help="delete client")
+delete_client_parser = delete_subparsers.add_parser(
+    "clients", help="delete client")
 
 delete_client_parser.add_argument(
     "-r",
@@ -227,7 +236,8 @@ invoice_parser.add_argument(
     help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
 )
 invoice_parser.add_argument("-r", "--raw", help="Raw sql query")
-invoice_parser.add_argument("-p", "--print", action="store_true", help="Print invoice")
+invoice_parser.add_argument(
+    "-p", "--print", action="store_true", help="Print invoice")
 invoice_parser.add_argument(
     "-T", "--table", action="store_true", help="Print cutoffs table"
 )
@@ -337,7 +347,8 @@ class TranscriptorCMD(cmd2.Cmd):
             elif args.all:
                 jobs = self.app.api.get_jobs()
             else:
-                jobs = self.app.api.get_jobs(conditions={"status": [("=", "Pending")]})
+                jobs = self.app.api.get_jobs(
+                    conditions={"status": [("=", "Pending")]})
 
         TranscriptorView().print_table(jobs, orientation="horizontal")
 
@@ -374,7 +385,8 @@ class TranscriptorCMD(cmd2.Cmd):
                 self.poutput(f"File not found: {args.file}")
                 return
         else:
-            args.file = prompt("Enter job file path: ", validator=file_validator)
+            args.file = prompt("Enter job file path: ",
+                               validator=file_validator)
 
         def job_callback(job_file):
             tmp_args = copy(args)
@@ -387,7 +399,8 @@ class TranscriptorCMD(cmd2.Cmd):
             if not client_id:
                 self.show_clients(args=None)
                 client_id = int(
-                    prompt("Enter client id: ", validator=positive_number_validator)
+                    prompt("Enter client id: ",
+                           validator=positive_number_validator)
                 )
                 tmp_args.client_id = client_id  # Update the original args
 
@@ -400,7 +413,8 @@ class TranscriptorCMD(cmd2.Cmd):
             if not date_received:
                 date_received = prompt(
                     f"Enter date received [{self.app.config.date_format}]: ",
-                    default=str(datetime.now().strftime(self.app.config.date_format)),
+                    default=str(datetime.now().strftime(
+                        self.app.config.date_format)),
                     validator=date_validator,
                 )
                 tmp_args.date_received = date_received  # Update the original args
@@ -430,7 +444,8 @@ class TranscriptorCMD(cmd2.Cmd):
 
             if not work_on_file:
                 work_on_file = prompt(
-                    f"Enter work on file: ...{'/'.join(task_file.parts[-2:])}: ",
+                    f"Enter work on file: ...{
+                        '/'.join(task_file.parts[-2:])}: ",
                     validator=yes_no_validator,
                 )
                 tmp_args.work_on_file = work_on_file
@@ -438,11 +453,13 @@ class TranscriptorCMD(cmd2.Cmd):
                 return
 
             if not job_type:
-                job_type = prompt("Enter job type: ", validator=job_type_validator)
+                job_type = prompt("Enter job type: ",
+                                  validator=job_type_validator)
                 tmp_args.job_type = job_type
             total_quantity = get_media_duration(task_file)
             if not quantity:
-                quantity = prompt("Enter quantity: ", default=str(total_quantity))
+                quantity = prompt("Enter quantity: ",
+                                  default=str(total_quantity))
                 tmp_args.quantity = quantity
 
             if not job_template:
@@ -477,13 +494,13 @@ class TranscriptorCMD(cmd2.Cmd):
                 self.poutput(f"File not found: {args.file}")
                 return
         else:
-            args.file = prompt("Enter cutoff file path: ", validator=file_validator)
+            args.file = prompt("Enter cutoff file path: ",
+                               validator=file_validator)
 
-        if not args.date_fmt:
-            cutoffs = self.app.generate_cutoff_list_from_docx(args.file, args.date_fmt)
-        else:
-            cutoffs = self.app.generate_cutoff_list_from_docx(args.file)
-        self.app.save_cutoffs(cutoffs)
+        cutoffs = self.app.generate_cutoff_list_from_docx(
+            docx_path=args.file, date_fmt=args.date_fmt
+        )
+        self.app.save_cutoffs(cutoffs, year=args.year)
 
     add_cutoffs_parser.set_defaults(func=add_cutoffs)
 
@@ -603,7 +620,8 @@ class TranscriptorCMD(cmd2.Cmd):
                     "\n** DELETING CLIENT WILL DELETE CLIENT'S JOBS AND RATES **\n"
                 )
                 if args.purge:
-                    self.poutput("\n** DELETING CLIENT WILL DELETE ALL CLIENT DATA**\n")
+                    self.poutput(
+                        "\n** DELETING CLIENT WILL DELETE ALL CLIENT DATA**\n")
                 confirm_delete = prompt(f"TYPE {client['name']} to confirm: ")
 
                 if confirm_delete == client["name"]:
@@ -633,7 +651,8 @@ class TranscriptorCMD(cmd2.Cmd):
 
         for job in jobs:
             confirm_delete = prompt(
-                f"Are you sure you want to delete {job['job_number']}? (y/n): ",
+                f"Are you sure you want to delete {
+                    job['job_number']}? (y/n): ",
                 validator=yes_no_validator,
             )
 
@@ -657,8 +676,8 @@ class TranscriptorCMD(cmd2.Cmd):
             self.do_help("base")
 
     def invoice(self, args: Namespace):
-        if not any([args.raw, args.table, args.where]):
-            error = """Conditions must be provided.
+        if not any([args.raw, args.table, args.where, args.summary]):
+            error = """Conditions must be provided or summary flag must be set.
     Ex. invoice -w 'date_submitted > \"2025-01-01\" -w date_submitted <= \"2025-01-31\"
             """
             self.poutput(error)
@@ -685,9 +704,11 @@ class TranscriptorCMD(cmd2.Cmd):
                 "select deposit date. Use index number: ",
                 validator=positive_number_validator,
             )
-            previous_cutoff, cutoff = self.app.select_cutoff_period(int(cutoff_idx))
+            previous_cutoff, cutoff = self.app.select_cutoff_period(
+                int(cutoff_idx))
             raw_cutoff_condition = (
-                f"date_submitted > '{previous_cutoff}' AND date_submitted <= '{cutoff}'"
+                f"date_submitted > '{
+                    previous_cutoff}' AND date_submitted <= '{cutoff}'"
             )
             cutoff_condition = [
                 f"date_submitted>{previous_cutoff}",
@@ -714,7 +735,8 @@ class TranscriptorCMD(cmd2.Cmd):
                     client_id=args.client_id, conditions=conditions
                 )
         if args.print:
-            self.app.html_to_pdf(html, client_name, summary_invoice=args.summary)
+            self.app.html_to_pdf(
+                html, client_name, summary_invoice=args.summary)
         else:
             md = self.app.to_md(html)
             TranscriptorView().console.print(md)

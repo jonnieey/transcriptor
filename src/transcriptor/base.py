@@ -53,7 +53,8 @@ class Transcriptor:
                 self.config = Config(**DEFAULT_CONFIG)
                 self.config.write(self.CONFIG_FILE)  # type: ignore
             else:
-                self.config = Config.from_yaml(self.CONFIG_FILE)  # type: ignore
+                self.config = Config.from_yaml(
+                    self.CONFIG_FILE)  # type: ignore
         else:
             self.config = config
 
@@ -167,7 +168,8 @@ class Transcriptor:
         Returns:
             Path to template file
         """
-        client_template_dir = self.base_dir / "clients" / sc(client) / "templates"
+        client_template_dir = self.base_dir / \
+            "clients" / sc(client) / "templates"
 
         if not client_template_dir.exists():
             jobs_templates_path = Path(__file__).parent / "templates"
@@ -240,7 +242,8 @@ class Transcriptor:
             task_rate_obj = self.api.get_rates(
                 conditions={"client_id": [("=", client["id"])]}
             )
-            task_info["job_rate"] = task_rate_obj[0].get(task_info["job_type"].lower())
+            task_info["job_rate"] = task_rate_obj[0].get(
+                task_info["job_type"].lower())
             task_info["amount"] = round_up(
                 float(task_info["job_rate"]) * float(task_info["quantity"])
             )
@@ -280,7 +283,8 @@ class Transcriptor:
         return clients
 
     def delete_jobs(self, conditions=None, raw_sql_stmt=None, purge=False):
-        jobs = self.api.delete_jobs(conditions=conditions, raw_sql_stmt=raw_sql_stmt)
+        jobs = self.api.delete_jobs(
+            conditions=conditions, raw_sql_stmt=raw_sql_stmt)
         if purge:
             for job in jobs:
                 job_path = Path(job["job_path"])
@@ -329,21 +333,25 @@ class Transcriptor:
             # Use format strings cautiously against SQL injection; ensure client_id is validated
             if "client_id" not in raw_sql_stmt:
                 raw_sql_stmt = (
-                    f"{raw_sql_stmt} AND client_id = {client_id} AND amount_paid = 0"
+                    f"{raw_sql_stmt} AND client_id = {
+                        client_id} AND amount_paid = 0"
                 )
             else:
                 raw_sql_stmt = f"{raw_sql_stmt} AND amount_paid = 0"
 
-        jobs = self.api.get_jobs(conditions=conditions, raw_sql_stmt=raw_sql_stmt)  # type: ignore
+        jobs = self.api.get_jobs(
+            conditions=conditions, raw_sql_stmt=raw_sql_stmt)  # type: ignore
         if not jobs:
             print("No jobs found")
             return ("", "")
 
         invoice_lines = [InvoiceLine.parse_obj(job) for job in jobs]
         client = jobs[0].get("client")
-        client_name = client.name if hasattr(client, "name") else client  # type: ignore
+        client_name = client.name if hasattr(
+            client, "name") else client  # type: ignore
 
-        INVOICE_DIR = self.base_dir / "clients" / sc(client_name) / "invoices"  # type: ignore
+        INVOICE_DIR = self.base_dir / "clients" / \
+            sc(client_name) / "invoices"  # type: ignore
         INVOICE_NUM_COUNTER_FILE = INVOICE_DIR / "invoice_number_counter"
 
         invoice_number = self.read_invoice_counter(INVOICE_NUM_COUNTER_FILE)
@@ -368,7 +376,8 @@ class Transcriptor:
             print("CLIENT ID CANNOT BE NONE")
             return ("", "")
 
-        jobs_by_month: dict[str, list[Any]] = {str(i): [] for i in range(1, 13)}
+        jobs_by_month: dict[str, list[Any]] = {
+            str(i): [] for i in range(1, 13)}
 
         cutoffs_list = list(cutoffs[1:])
 
@@ -397,7 +406,8 @@ class Transcriptor:
             if jobs:
                 if client_name is None:
                     client = jobs[0].get("client")
-                    client_name = client.name if hasattr(client, "name") else client  # type: ignore
+                    client_name = client.name if hasattr(
+                        client, "name") else client  # type: ignore
                 month_idx = std(deposit_date, "%Y-%m-%d").month
                 jobs_by_month[str(month_idx)].extend(jobs)
 
@@ -413,7 +423,8 @@ class Transcriptor:
                 "job_count": len(jobs),
                 "total": round(sum(job["amount_paid"] for job in jobs), 2),
             }
-            months_summary_list.append(SummaryInvoiceLine.parse_obj(month_info))
+            months_summary_list.append(
+                SummaryInvoiceLine.parse_obj(month_info))
 
         summary_invoice = SummaryInvoice(
             profile=self.profile,
@@ -434,7 +445,8 @@ class Transcriptor:
         client_name_sc = sc(client_name)
         file_type = "summary" if summary_invoice else "invoice"
 
-        INVOICE_FILE = INVOICE_DIR / f"{date_str}_{client_name_sc}_{file_type}.pdf"
+        INVOICE_FILE = INVOICE_DIR / \
+            f"{date_str}_{client_name_sc}_{file_type}.pdf"
 
         htmlstr_to_pdf(html, output_path=INVOICE_FILE)
 
@@ -461,8 +473,15 @@ class Transcriptor:
         file_path: Optional[
             Union[Union[str, bytes, PathLike[str], PathLike[bytes]], int]
         ] = None,
+        year: Optional[Union[str | int]] = None,
     ):
-        file_path = file_path or self.base_dir.joinpath("cutoffs.csv")  # type: ignore
+        CUTOFFS_DIR = self.base_dir / "cutoffs"
+        CUTOFFS_DIR.mkdir(parents=True, exist_ok=True)
+
+        year = year or date.today().year
+
+        file_path = file_path or CUTOFFS_DIR / \
+            f"cutoffs_{year}.csv"  # type: ignore
         with open(file_path, "w", newline="") as fd:
             writer = csv.writer(fd)
             writer.writerows(cutoffs)
@@ -474,8 +493,14 @@ class Transcriptor:
         ] = None,
         date_fmt: str = "%Y-%m-%d",
         as_str: bool = False,
+        year: Optional[Union[str | int]] = None,
     ) -> Union[List[Union[Tuple[date, ...], List[str]]], Sequence[Any]]:
-        file_path = file_path or self.base_dir.joinpath("cutoffs.csv")  # type: ignore
+        CUTOFFS_DIR = self.base_dir / "cutoffs"
+        CUTOFFS_DIR.mkdir(parents=True, exist_ok=True)
+        year = year or date.today().year
+
+        file_path = file_path or CUTOFFS_DIR / \
+            f"cutoffs_{year}.csv"  # type: ignore
         with open(file_path, "r", newline="") as fd:
             cutoff_list: Sequence = list(csv.reader(fd))
 
@@ -498,6 +523,14 @@ class Transcriptor:
         if deposit_date_idx == 0:
             cutoff_date = cutoff_deposit_pairs[0][0]
             previous_cutoff_date = None
+            try:
+                previous_year = cutoff_date.year - 1
+                previous_year_cutoffs = self.load_cutoffs(
+                    year=previous_year)[1:]
+                if previous_year_cutoffs:
+                    previous_cutoff_date = previous_year_cutoffs[-1][0]
+            except Exception:
+                pass
         else:
             cutoff_date = cutoff_deposit_pairs[deposit_date_idx][0]
             previous_cutoff_date = cutoff_deposit_pairs[deposit_date_idx - 1][0]
