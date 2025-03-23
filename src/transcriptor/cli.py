@@ -1,3 +1,4 @@
+# type: ignore
 from transcriptor.base import Transcriptor
 import os
 import sys
@@ -19,6 +20,8 @@ from transcriptor.utils import (
     template_validator,
 )
 from prompt_toolkit import prompt
+from argparse import Namespace
+from typing import Optional
 
 base_parser = cmd2.Cmd2ArgumentParser(description="Transcriptor CLI")
 base_subparsers = base_parser.add_subparsers(
@@ -239,7 +242,7 @@ invoice_parser.add_argument(
 class TranscriptorCMD(cmd2.Cmd):
     prompt = "(trans5) "
 
-    def __init__(self, app=None):
+    def __init__(self, app: None = None):
         self.app = app if app is not None else Transcriptor()
         history_file = self.app.base_dir.joinpath(".history")
         alias_script = self.app.CONFIG_DIR.joinpath(".cmd2rc")
@@ -264,7 +267,7 @@ class TranscriptorCMD(cmd2.Cmd):
         self.poutput("\n** Exiting program, bye **")
         return True
 
-    def do_quit(self, arg):
+    def do_quit(self, arg: str):
         """Exit"""
         self.poutput("\n** Exiting program, bye **")
         return True
@@ -276,7 +279,7 @@ class TranscriptorCMD(cmd2.Cmd):
         """Clear screen"""
         os.system("clear")
 
-    def show_config(self, arg):
+    def show_config(self, arg: Namespace):
         """
         Show configuration
         Ex.
@@ -287,7 +290,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     show_config_parser.set_defaults(func=show_config)
 
-    def show_profile(self, arg):
+    def show_profile(self, arg: Namespace):
         """
         Show profile
         Ex.
@@ -298,7 +301,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     show_profile_parser.set_defaults(func=show_profile)
 
-    def show_clients(self, args):
+    def show_clients(self, args: Optional[Namespace]):
         """
         Show clients
         Ex.
@@ -318,13 +321,13 @@ class TranscriptorCMD(cmd2.Cmd):
 
     show_clients_parser.set_defaults(func=show_clients)
 
-    def show_rates(self, args):
+    def show_rates(self, args: Namespace):
         rates = self.app.api.get_rates()
         TranscriptorView().print_table(rates, orientation="horizontal")
 
     show_rates_parser.set_defaults(func=show_rates)
 
-    def show_jobs(self, args):
+    def show_jobs(self, args: Namespace):
         if args:
             if args.raw:
                 jobs = self.app.api.get_jobs(raw_sql_stmt=args.raw)
@@ -340,14 +343,14 @@ class TranscriptorCMD(cmd2.Cmd):
 
     show_jobs_parser.set_defaults(func=show_jobs)
 
-    def show_cutoffs(self, args):
+    def show_cutoffs(self, args: Namespace):
         cutoffs = self.app.load_cutoffs(as_str=True)
         TranscriptorView().print_table(cutoffs, orientation="vertical")
 
     show_cutoffs_parser.set_defaults(func=show_cutoffs)
 
     @cmd2.with_argparser(show_parser)
-    def do_show(self, args):
+    def do_show(self, args: Namespace):
         """
         Show command help
         """
@@ -357,7 +360,7 @@ class TranscriptorCMD(cmd2.Cmd):
         else:
             self.do_help("base")
 
-    def add_client(self, args):
+    def add_client(self, args: Namespace):
         if args.name and args.email:
             self.app.create_client(name=args.name, email=args.email)
         else:
@@ -365,7 +368,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     add_client_parser.set_defaults(func=add_client)
 
-    def add_job(self, args):
+    def add_job(self, args: Namespace):
         if args.file:
             if not Path(args.file).exists():
                 self.poutput(f"File not found: {args.file}")
@@ -468,7 +471,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     add_job_parser.set_defaults(func=add_job)
 
-    def add_cutoffs(self, args):
+    def add_cutoffs(self, args: Namespace):
         if args.file:
             if not Path(args.file).exists():
                 self.poutput(f"File not found: {args.file}")
@@ -485,7 +488,7 @@ class TranscriptorCMD(cmd2.Cmd):
     add_cutoffs_parser.set_defaults(func=add_cutoffs)
 
     @cmd2.with_argparser(add_parser)
-    def do_add(self, args):
+    def do_add(self, args: Namespace):
         """
         Add command help
         """
@@ -495,7 +498,7 @@ class TranscriptorCMD(cmd2.Cmd):
         else:
             self.do_help("base")
 
-    def update_config(self, args):
+    def update_config(self, args: Namespace):
         config = self.app.config
         if args.base_dir:
             config.base_dir = args.base_dir
@@ -506,7 +509,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     update_config_parser.set_defaults(func=update_config)
 
-    def update_profile(self, args):
+    def update_profile(self, args: Namespace):
         profile = self.app.profile
         if args.name:
             profile.name = args.name
@@ -519,7 +522,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     update_profile_parser.set_defaults(func=update_profile)
 
-    def update_clients(self, args):
+    def update_clients(self, args: Namespace):
         if args.raw:
             self.app.api.update("clients", raw_sql_stmt=args.raw)
         if args.where and args.values:
@@ -532,7 +535,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     update_client_parser.set_defaults(func=update_clients)
 
-    def update_rates(self, args):
+    def update_rates(self, args: Namespace):
         if args.raw:
             self.app.api.update_rates(raw_sql_stmt=args.raw)
             return
@@ -547,7 +550,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     update_rates_parser.set_defaults(func=update_rates)
 
-    def update_job(self, args):
+    def update_job(self, args: Namespace):
         if args.raw:
             self.app.api.update_jobs(raw_sql_stmt=args.raw)
         if args.where and args.values:
@@ -561,7 +564,7 @@ class TranscriptorCMD(cmd2.Cmd):
     update_jobs_parser.set_defaults(func=update_job)
 
     @cmd2.with_argparser(update_parser)
-    def do_update(self, args):
+    def do_update(self, args: Namespace):
         """
         Update command help
         """
@@ -571,7 +574,7 @@ class TranscriptorCMD(cmd2.Cmd):
         else:
             self.do_help("base")
 
-    def delete_clients(self, args):
+    def delete_clients(self, args: Namespace):
         clients = None
 
         if not args.where and not args.raw:
@@ -643,7 +646,7 @@ class TranscriptorCMD(cmd2.Cmd):
     delete_jobs_parser.set_defaults(func=delete_jobs)
 
     @cmd2.with_argparser(delete_parser)
-    def do_delete(self, args):
+    def do_delete(self, args: Namespace):
         """
         Delete command help
         """
@@ -653,7 +656,7 @@ class TranscriptorCMD(cmd2.Cmd):
         else:
             self.do_help("base")
 
-    def invoice(self, args):
+    def invoice(self, args: Namespace):
         if not args.client_id:
             self.show_clients(args=None)
             client_id = int(
@@ -712,7 +715,7 @@ class TranscriptorCMD(cmd2.Cmd):
     invoice_parser.set_defaults(func=invoice)
 
     @cmd2.with_argparser(invoice_parser)
-    def do_invoice(self, args):
+    def do_invoice(self, args: Namespace):
         """
         Delete command help
         """
