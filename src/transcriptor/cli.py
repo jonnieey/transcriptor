@@ -13,10 +13,12 @@ from prompt_toolkit import prompt
 from transcriptor.base import Transcriptor
 from transcriptor.utils import (
     date_validator,
+    extract_date_due,
     extract_job_number,
     file_validator,
     get_media_duration,
     job_type_validator,
+    month_day_to_date,
     parse_conditions,
     parse_conditions_as_dict,
     positive_number_validator,
@@ -415,6 +417,7 @@ class TranscriptorCMD(cmd2.Cmd):
             job_number = tmp_args.job_number
             date_received = tmp_args.date_received
             date_due = tmp_args.date_due
+            date_format = self.app.config.date_format
 
             if not client_id:
                 self.show_clients(args=None)
@@ -434,10 +437,8 @@ class TranscriptorCMD(cmd2.Cmd):
 
             if not date_received:
                 date_received = prompt(
-                    f"Enter date received [{self.app.config.date_format}]: ",
-                    default=str(
-                        datetime.now().strftime(self.app.config.date_format)
-                    ),
+                    f"Enter date received [{date_format}]: ",
+                    default=str(datetime.now().strftime(date_format)),
                     validator=date_validator,
                 )
                 tmp_args.date_received = (
@@ -445,7 +446,8 @@ class TranscriptorCMD(cmd2.Cmd):
                 )
             if not date_due:
                 date_due = prompt(
-                    f"Enter date due [{self.app.config.date_format}]: ",
+                    f"Enter date due [{date_format}]: ",
+                    default=month_day_to_date(extract_date_due(args.file)),
                     validator=date_validator,
                 )
                 tmp_args.date_due = date_due  # Update the original args
@@ -469,9 +471,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
             if not work_on_file:
                 work_on_file = prompt(
-                    f"""
-                    Enter work on file: ...{'/'.join(task_file.parts[-2:])}:
-                    """,
+                    f"Enter work on file: ...{'/'.join(task_file.parts[-2:])}:",
                     validator=yes_no_validator,
                 )
                 tmp_args.work_on_file = work_on_file

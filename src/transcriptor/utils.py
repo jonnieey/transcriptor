@@ -479,5 +479,39 @@ def to_date_object(iterable: List[str], date_fmt: str) -> Tuple[date, ...]:
     )
 
 
+def extract_date_due(file: str) -> str:
+    date_due_pattern = re.compile(
+        r"(?i)(DUE|BACK)[_/\s-](\d{1,2}[-./]\d{1,2})"
+    )
+    date_due_matches = date_due_pattern.search(file)
+    return date_due_matches[2] if date_due_matches else ""
+
+
+def month_day_to_date(
+    date_str: str, date_fmt: str = "%Y-%m-%d", year: str = ""
+) -> str:
+    """
+    Convert a month.day ('%m.%d') string to a full date string.
+
+    Args:
+        date_str (str): A string in the format '%m.%d'.
+        date_fmt (str): The desired date format string.
+        year (str): The year to append to the date string.
+
+    Returns:
+        A string representing the date in the given format,
+        or an empty string if the input date_str is invalid.
+    """
+    try:
+        if not year:
+            current_year = f"{datetime.now().year}"
+            year = current_year
+        date_str = f"{date_str}.{year}"
+        date_obj = datetime.strptime(date_str, "%m.%d.%Y")
+        return date_obj.strftime(date_fmt)
+    except ValueError:
+        return ""
+
+
 if __name__ == "__main__":
-    pass
+    print(month_day_to_date(extract_date_due("test Due 3.20.docx")))
