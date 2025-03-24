@@ -35,6 +35,7 @@ autoflake = "~=2.0.0"
 cmd2-ext-test = "~=2.0.0"
 sqlalchemy = { version = ">=2.0.0", extras = ["mypy"] }
 types-PyYAML = "~=6.0.2"
+pre-commit = "~4.2.0"
 
 [tool.poetry.scripts]
 trans5 = "transcriptor.main:main"
@@ -44,7 +45,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 # [tool.poetry.build]
-# includes = ["src.transcriptor"]  
+# includes = ["src.transcriptor"]
 # Note: You might need to add more files/directories to `includes`
 # if your project has additional data or resource files
 
