@@ -268,6 +268,17 @@ invoice_parser.add_argument(
     "-l", "--previous_year_cutoff", help="Previous year last cutoff"
 )
 
+purge_parser = base_subparsers.add_parser(
+    "purge", help="purge job media files, ex. m4a, mp3, mp4"
+)
+purge_parser.add_argument(
+    "-w",
+    "--where",
+    action="append",
+    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
+)
+purge_parser.add_argument("-r", "--raw", help="Raw sql query")
+
 
 class TranscriptorCMD(cmd2.Cmd):
     prompt = "(trans5) "
@@ -782,6 +793,40 @@ class TranscriptorCMD(cmd2.Cmd):
 
     @cmd2.with_argparser(invoice_parser)
     def do_invoice(self, args: Namespace):
+        """
+        Delete command help
+        """
+        func = getattr(args, "func", None)
+        if func is not None:
+            func(self, args)
+        else:
+            self.do_help("base")
+
+    def purge(self, args):
+        if not any([args.raw, args.where]):
+            self.poutput("Please provide conditions to purge")
+            return
+        if args.raw:
+            jobs = self.app.api.get_jobs(raw_sql_stmt=args.raw)
+        else:
+            conditions = parse_conditions(args.where)
+            jobs = self.app.api.get_jobs(conditions=conditions)
+        if not jobs:
+            self.poutput("No jobs found")
+        else:
+            confirm_delete = prompt(
+                "Are you sure you want to delete (y/n) :",
+                validator=yes_no_validator,
+            )
+            if confirm_delete.startswith("y") or confirm_delete.startswith(
+                "Y"
+            ):
+                self.app.purge_job_files(jobs)
+
+    purge_parser.set_defaults(func=purge)
+
+    @cmd2.with_argparser(purge_parser)
+    def do_purge(self, args: Namespace):
         """
         Delete command help
         """

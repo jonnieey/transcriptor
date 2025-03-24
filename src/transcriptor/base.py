@@ -566,6 +566,27 @@ class Transcriptor:
 
         return previous_cutoff_date, cutoff_date
 
+    def purge_job_files(
+        self,
+        jobs: List[dict[str, Any]],
+    ):
+        for job in jobs:
+            job_path = Path(job.job_path)
+            if job_path.exists():
+                purge_path = (
+                    job_path if job_path.is_dir() else job_path.parent
+                )
+                unwanted_files = list(
+                    purge_path.glob("**/*[mwzM][p4aiP][3avp3]")
+                )
+                for p in unwanted_files:
+                    try:
+                        p.unlink(missing_ok=True)
+                    except OSError as e:
+                        print(
+                            f"Error deleting file {p}: {e}"
+                        )  # Handle potential errors during unlinking
+
 
 # if __name__ == "__main__":
 # trans5 = Transcriptor()
