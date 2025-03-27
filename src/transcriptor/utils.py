@@ -513,5 +513,43 @@ def month_day_to_date(
         return ""
 
 
+def parse_sql_clause(sql_clause, split_by):
+    condition_list = sql_clause.split(split_by)
+    condition_dict = {}
+
+    for condition in condition_list:
+        parts = condition.split("=")
+        if len(parts) != 2:
+            continue
+        column, value = parts
+        column = column.strip()
+        value = value.strip()
+        if value.startswith(("'", '"')) and value.endswith(("'", '"')):
+            value = value[1:-1]
+        condition_dict[column] = value
+
+    return condition_dict
+
+
+def parse_sql_update_query(sql_query):
+    set_clause_start = sql_query.upper().find("SET") + len("SET")
+    where_clause_start = sql_query.upper().find("WHERE")
+
+    if where_clause_start == -1:
+        where_clause_start = len(sql_query)
+
+    set_clause = sql_query[set_clause_start:where_clause_start].strip()
+    set_assignments = parse_sql_clause(set_clause, ",")
+
+    where_assignments = {}
+    if where_clause_start < len(sql_query):
+        where_clause = sql_query[where_clause_start + len("WHERE") :].strip()
+        where_assignments = parse_sql_clause(where_clause, "AND")
+
+    return set_assignments, where_assignments
+
+
 if __name__ == "__main__":
-    print(month_day_to_date(extract_date_due("test Due 3.20.docx")))
+    stmt = "SET amount_paid=2222 WHERE client_id=1 AND date_received='2023-04-22' AND job_number='JOB001'"
+    s, w = parse_sql_update_query(stmt)
+    print(s, w)

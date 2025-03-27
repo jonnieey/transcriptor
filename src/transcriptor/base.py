@@ -25,6 +25,7 @@ from transcriptor.utils import (
     html_to_md,
     htmlstr_to_pdf,
     next_non_existent_file,
+    parse_sql_update_query,
     render_invoice,
     render_summary_invoice,
     round_up,
@@ -279,6 +280,162 @@ class Transcriptor:
             tasks.append(task_dict)
         if tasks:
             self.api.add_jobs(tasks)
+
+    def update_jobs(self, conditions=None, values=None, raw_sql_stmt=None):
+
+        # TODO api function accept conditions as a list, raw_sql_stmt as a string
+        def _get_where_clause_from_update_sql(raw_sql_stmt):
+            if raw_sql_stmt:
+                where_clause = raw_sql_stmt.lower().find("where")
+                if where_clause != -1:
+                    where_clause = raw_sql_stmt[where_clause:]
+                    where_clause = where_clause.replace(
+                        "id", "job_id"
+                    ).strip()
+                else:
+                    where_clause = None
+
+                return where_clause
+            return None
+
+        def _get_client_to_update(conditions, values, raw_sql_stmt):
+            update_client_name = ""
+
+            if conditions:
+                if values.get("client_id"):
+                    update_client = self.api.get_clients(
+                        conditions={"id": [("=", values["client_id"])]}
+                    )
+                    if update_client:
+                        update_client_name = update_client[0].get("name")
+                        return update_client_name
+            elif raw_sql_stmt:
+                set_clause, where_clause = parse_sql_update_query(
+                    raw_sql_stmt
+                )
+                if set_clause.get("client_id"):
+                    update_client = self.api.get_clients(
+                        raw_sql_stmt="WHERE id = {}".format(
+                            set_clause["client_id"]
+                        )
+                    )
+                    if update_client:
+                        update_client_name = update_client[0].get("name")
+                        return update_client_name
+
+        def _create_new_job_path(
+            job, conditions, values, raw_sql_stmt, update_client_name
+        ):
+            if not update_client_name:
+                update_client = job.get("client")
+                update_client_name = getattr(
+                    update_client, "name", update_client
+                )
+
+            task_path = Path(job["job_path"])
+            old_job_path = task_path.parent
+            task_name = task_path.name
+            if conditions:
+                date_received = values.get(
+                    "date_received", job.get("date_received")
+                )
+                date_due = values.get("date_due", job.get("date_due"))
+
+            elif raw_sql_stmt:
+                set_clause, _ = parse_sql_update_query(raw_sql_stmt)
+                date_received = set_clause.get(
+                    "date_received", job.get("date_received")
+                )
+                date_due = set_clause.get("date_due", job.get("date_due"))
+
+            new_job_path = self.create_job_dir(
+                update_client_name,
+                job["job_number"],
+                date_received,
+                date_due,
+            )
+            return old_job_path, new_job_path, task_name
+
+        def _update_db_and_create_dir(
+            conditions,
+            values,
+            raw_sql_stmt,
+            old_job_path,
+            new_job_path,
+            task_name,
+        ):
+            if conditions:
+                if new_job_path != old_job_path:
+                    values.update({"job_path": f"{new_job_path}/{task_name}"})
+                self.api.update_jobs(conditions=conditions, values=values)
+            elif raw_sql_stmt:
+                if new_job_path != old_job_path:
+                    set_idx = raw_sql_stmt.lower().find("set ")
+                    if set_idx != -1:
+                        raw_sql_stmt = (
+                            raw_sql_stmt[:set_idx]
+                            + f'set job_path="{new_job_path}/{task_name}", '
+                            + raw_sql_stmt[set_idx + len("set ") :]
+                        )
+                self.api.update_jobs(raw_sql_stmt=raw_sql_stmt)
+
+            if new_job_path != old_job_path:
+                new_job_path.mkdir(exist_ok=True, parents=True)
+                for item in old_job_path.iterdir():
+                    item.rename(new_job_path / item.name)
+                old_job_path.rmdir()
+            else:
+                raise ValueError(
+                    f"{old_job_path} and {new_job_path} are the same. Cannot rename."
+                )
+
+        def _apply_update(conditions, values, raw_sql_stmt):
+            where_clause = _get_where_clause_from_update_sql(raw_sql_stmt)
+
+            jobs = self.api.get_jobs(
+                conditions=conditions, raw_sql_stmt=where_clause
+            )
+            if conditions is None:
+                conditions = []
+            if values is None:
+                values = {}
+            if raw_sql_stmt is None:
+                raw_sql_stmt = ""
+
+            update_client_name = _get_client_to_update(
+                conditions, values, raw_sql_stmt
+            )
+            should_update = any(
+                key in values
+                for key in ("date_received", "date_due", "client_id")
+            ) or any(
+                key in raw_sql_stmt
+                for key in ("date_received", "date_due", "client_id")
+            )
+
+            if jobs and should_update:
+                for job in jobs:
+                    (
+                        old_job_path,
+                        new_job_path,
+                        task_name,
+                    ) = _create_new_job_path(
+                        job,
+                        conditions,
+                        values,
+                        raw_sql_stmt,
+                        update_client_name,
+                    )
+                    _update_db_and_create_dir(
+                        conditions,
+                        values,
+                        raw_sql_stmt,
+                        old_job_path,
+                        new_job_path,
+                        task_name,
+                    )
+
+        _apply_update(conditions, values, raw_sql_stmt)
 
     def delete_clients(
         self,

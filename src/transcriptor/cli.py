@@ -609,11 +609,11 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def update_job(self, args: Namespace):
         if args.raw:
-            self.app.api.update_jobs(raw_sql_stmt=args.raw)
-        if args.where and args.values:
+            self.app.update_jobs(raw_sql_stmt=args.raw)
+        elif args.where and args.values:
             where = parse_conditions(args.where)
             values = parse_conditions_as_dict(args.values)
-            self.app.api.update_jobs(conditions=where, values=values)
+            self.app.update_jobs(conditions=where, values=values)
         else:
             self.poutput("Please provide conditions and values")
             return

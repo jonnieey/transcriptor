@@ -173,7 +173,7 @@ class API:
         if stmt_type == "select":
             stmt = select(table)
         elif stmt_type == "update":
-            stmt = sql_update(table)  # type: ignore
+            stmt = table.__table__.update()  # type: ignore
         elif stmt_type == "delete":
             stmt = sql_delete(table)  # type: ignore
         else:
@@ -453,16 +453,20 @@ class API:
         values: Optional[Dict[str, str]] = None,
         raw_sql_stmt: None = None,
     ):
+        if raw_sql_stmt is not None:
+            raw_sql_stmt = raw_sql_stmt + " RETURNING *;"
         stmt = self.update(
             Job,
             conditions=conditions,
             values=values,
             raw_sql_stmt=raw_sql_stmt,
         )
+        if not raw_sql_stmt:
+            stmt = stmt.returning(Job)
         with self.session() as session:
-            session.execute(stmt)  # type: ignore
+            update_jobs = session.execute(stmt).mappings().all()  # type: ignore
             session.commit()
-            return True
+            return update_jobs
 
     def delete(
         self,
