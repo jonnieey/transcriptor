@@ -62,6 +62,18 @@ show_clients_parser.add_argument(
     help="Raw sql query",
 )
 
+show_rates_parser.add_argument(
+    "-r",
+    "--raw",
+    help="Raw sql query",
+)
+show_rates_parser.add_argument(
+    "-w",
+    "--where",
+    action="append",
+    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
+)
+
 show_jobs_parser.add_argument(
     "-w",
     "--where",
@@ -363,7 +375,13 @@ class TranscriptorCMD(cmd2.Cmd):
     show_clients_parser.set_defaults(func=show_clients)
 
     def show_rates(self, args: Namespace):
-        rates = self.app.api.get_rates()
+        if args.raw:
+            rates = self.app.api.get_rates(raw_sql_stmt=args.raw)
+        elif args.where:
+            conditions = parse_conditions(args.where)
+            rates = self.app.api.get_rates(conditions=conditions)
+        else:
+            rates = self.app.api.get_rates()
         TranscriptorView().print_table(rates, orientation="horizontal")
 
     show_rates_parser.set_defaults(func=show_rates)

@@ -279,17 +279,45 @@ class API:
             return client_mappings
 
     def get_rates(
-        self, conditions: Optional[Dict[str, List[Tuple[str, int]]]] = None
+        self,
+        conditions: Optional[Dict[str, List[Tuple[str, int]]]] = None,
+        raw_sql_stmt: Optional[str] = None,
     ) -> List[Dict[str, Union[int, float]]]:
-        ordination = ["id", "client_id", "normal", "expedite", "interpreted"]
-        stmt = self.get(Rate, conditions)
+        if raw_sql_stmt is not None:
+            raw_sql_stmt = f"""
+                SELECT
+                    rates.id as rates_id, rates.normal, rates.expedite, rates.interpreted,
+                    clients.name as client_name
+                FROM
+                    rates
+                JOIN
+                    clients ON rates.client_id = clients.id
+                {raw_sql_stmt}
+                """
+            stmt = self.get(table=Client, raw_sql_stmt=raw_sql_stmt)
+            with self.session() as session:
+                return session.execute(stmt).mappings().all()
+
+        ordination = [
+            "id",
+            "client_name",
+            "normal",
+            "expedite",
+            "interpreted",
+        ]
+        stmt = self.get(Rate, conditions, raw_sql_stmt)
         with self.session() as session:
             scalars = session.scalars(stmt).all()
+
             rate_mappings = [
                 {
-                    col: getattr(rate, col)
+                    col: (
+                        rate.client.name
+                        if col == "client_name"
+                        else getattr(rate, col, None)
+                    )
                     for col in ordination
-                    if hasattr(rate, col)
+                    if hasattr(rate, col) or col == "client_name"
                 }
                 for rate in scalars
             ]
