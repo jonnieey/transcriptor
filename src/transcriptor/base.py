@@ -364,12 +364,16 @@ class Transcriptor:
             new_job_path,
             task_name,
         ):
+            keys_to_check = ("date_received", "date_due", "client_id")
+            should_update_dir = any(
+                key in values for key in keys_to_check
+            ) or any(key in raw_sql_stmt for key in keys_to_check)
             if conditions:
-                if new_job_path != old_job_path:
-                    values.update({"job_path": f"{new_job_path}/{task_name}"})
+                if new_job_path != old_job_path and should_update_dir:
+                    values["job_path"] = f"{new_job_path}/{task_name}"
                 self.api.update_jobs(conditions=conditions, values=values)
             elif raw_sql_stmt:
-                if new_job_path != old_job_path:
+                if new_job_path != old_job_path and should_update_dir:
                     set_idx = raw_sql_stmt.lower().find("set ")
                     if set_idx != -1:
                         raw_sql_stmt = (
@@ -379,15 +383,16 @@ class Transcriptor:
                         )
                 self.api.update_jobs(raw_sql_stmt=raw_sql_stmt)
 
-            if new_job_path != old_job_path:
-                new_job_path.mkdir(exist_ok=True, parents=True)
-                for item in old_job_path.iterdir():
-                    item.rename(new_job_path / item.name)
-                old_job_path.rmdir()
-            else:
-                raise ValueError(
-                    f"{old_job_path} and {new_job_path} are the same. Cannot rename."
-                )
+            if new_job_path != old_job_path and should_update_dir:
+                try:
+                    new_job_path.mkdir(exist_ok=True, parents=True)
+                    for item in old_job_path.iterdir():
+                        item.rename(new_job_path / item.name)
+                    old_job_path.rmdir()
+                except ValueError:
+                    raise ValueError(
+                        f"{old_job_path} and {new_job_path} are the same. Cannot rename."
+                    )
 
         def _apply_update(conditions, values, raw_sql_stmt):
             where_clause = _get_where_clause_from_update_sql(raw_sql_stmt)
@@ -405,16 +410,9 @@ class Transcriptor:
             update_client_name = _get_client_to_update(
                 conditions, values, raw_sql_stmt
             )
-            should_update = any(
-                key in values
-                for key in ("date_received", "date_due", "client_id")
-            ) or any(
-                key in raw_sql_stmt
-                for key in ("date_received", "date_due", "client_id")
-            )
 
-            if jobs and should_update:
-                for job in jobs:
+            for job in jobs:
+                if jobs:
                     (
                         old_job_path,
                         new_job_path,
@@ -426,14 +424,14 @@ class Transcriptor:
                         raw_sql_stmt,
                         update_client_name,
                     )
-                    _update_db_and_create_dir(
-                        conditions,
-                        values,
-                        raw_sql_stmt,
-                        old_job_path,
-                        new_job_path,
-                        task_name,
-                    )
+                _update_db_and_create_dir(
+                    conditions,
+                    values,
+                    raw_sql_stmt,
+                    old_job_path,
+                    new_job_path,
+                    task_name,
+                )
 
         _apply_update(conditions, values, raw_sql_stmt)
 
