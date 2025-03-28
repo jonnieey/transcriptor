@@ -12,7 +12,7 @@ from transcriptor.models import Config
 
 # Constants for testing
 TEST_BASE_DIR = Path(__file__).parent / "test_transcriptor_data"
-CONFIG_FILE = TEST_BASE_DIR / "config5.yaml"
+CONFIG_FILE = TEST_BASE_DIR / "config.yaml"
 PROFILE_FILE = TEST_BASE_DIR / "profile.yaml"
 
 

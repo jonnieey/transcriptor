@@ -34,8 +34,8 @@ from transcriptor.utils import (
 from transcriptor.utils import str_to_date as std
 from transcriptor.utils import to_date_object
 
-APP_NAME = "transcriptor5"
-CONFIG_FILE_NAME = "config5.yaml"
+APP_NAME = "transcriptor"
+CONFIG_FILE_NAME = "config.yaml"
 
 DEFAULT_CONFIG = {
     "base_dir": f"{user_data_dir(APP_NAME)}",

@@ -14,7 +14,7 @@ from sqlalchemy.sql.selectable import Select
 from transcriptor.database import Database
 from transcriptor.models import Client, Job, Rate
 
-DB_FILE_NAME = "transcriptor5.db"
+DB_FILE_NAME = "transcriptor.db"
 
 
 class API:
