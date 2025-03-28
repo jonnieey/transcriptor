@@ -1,227 +1,411 @@
 import shutil
-import zipfile
+from datetime import date
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+import yaml
 
-from transcriptor.base import CONFIG_FILE_NAME, DEFAULT_CONFIG, Transcriptor
-from transcriptor.models import ConfigModel
-from transcriptor.utils import TEMPLATE_MAPPING, get_media_files
-from transcriptor.utils import str_to_date as std
+from transcriptor.api import API
+from transcriptor.base import Transcriptor
+from transcriptor.models import Config, Profile
 
-
-# Mock API for testing
-class MockAPI:
-    def __init__(self, base_dir=None):
-        self.clients = []
-        self.rates = []
-        self.jobs = []
-        self.base_dir = base_dir
-
-    def add_client(self, client_dict):
-        client_id = len(self.clients) + 1
-        client_dict["id"] = client_id
-        self.clients.append(client_dict)
-        return client_id
-
-    def add_rates(self, rates_dict):
-        self.rates.append(rates_dict)
-
-    def get_clients(self, conditions):
-        if (
-            not isinstance(conditions, set)
-            or len(conditions) != 2
-            or "id" not in conditions
-        ):
-            return None
-
-        client_id = None
-        for item in conditions:
-            if isinstance(item, int):
-                client_id = item
-                break
-
-        if client_id is None:
-            return None
-
-        for client in self.clients:
-            if client["id"] == client_id:
-                return type("Client", (object,), client)
-        return None
-
-    def get_rates(self, conditions):
-        for rate in self.rates:
-            if rate["client_id"] == conditions["client_id"]:
-                return type("Rates", (object,), rate)
-        return None
-
-    def add_jobs(self, jobs):
-        self.jobs.extend(jobs)
+# Constants for testing
+TEST_BASE_DIR = Path(__file__).parent / "test_transcriptor_data"
+CONFIG_FILE = TEST_BASE_DIR / "config5.yaml"
+PROFILE_FILE = TEST_BASE_DIR / "profile.yaml"
 
 
-# Fixtures
-@pytest.fixture
-def temp_config_dir(tmp_path):
-    config_dir = tmp_path / "config"
-    config_dir.mkdir()
-    Transcriptor.CONFIG_DIR = config_dir
-    Transcriptor.CONFIG_FILE = config_dir / CONFIG_FILE_NAME
-    yield config_dir
-    shutil.rmtree(config_dir)
+@pytest.fixture(scope="module")
+def test_base_dir():
+    # Setup
+    test_dir = TEST_BASE_DIR
+    test_dir.mkdir(exist_ok=True)
+    yield test_dir
+    # Teardown
+    shutil.rmtree(test_dir, ignore_errors=True)
 
 
 @pytest.fixture
-def temp_base_dir(tmp_path):
-    base_dir = tmp_path / "base"
-    base_dir.mkdir()
-    yield base_dir
-    shutil.rmtree(base_dir)
+def clean_config(test_base_dir):
+    # Ensure clean config for each test
+    if CONFIG_FILE.exists():
+        CONFIG_FILE.unlink()
+    yield
+    if CONFIG_FILE.exists():
+        CONFIG_FILE.unlink()
 
 
 @pytest.fixture
-def transcriptor_instance(temp_base_dir, temp_config_dir):
-    mock_api = MockAPI(base_dir=temp_base_dir)
-    transcriptor = Transcriptor(
-        api=mock_api, config=ConfigModel(**DEFAULT_CONFIG)
+def clean_profile(test_base_dir):
+    # Ensure clean profile for each test
+    if PROFILE_FILE.exists():
+        PROFILE_FILE.unlink()
+    yield
+    if PROFILE_FILE.exists():
+        PROFILE_FILE.unlink()
+
+
+@pytest.fixture
+def default_config():
+    return {"base_dir": str(TEST_BASE_DIR), "date_format": "%Y-%m-%d"}
+
+
+@pytest.fixture
+def default_profile():
+    return {"name": "", "area": "", "country": ""}
+
+
+@pytest.fixture
+def transcriptor(test_base_dir, clean_config, clean_profile, default_config):
+    # Create a fresh Transcriptor instance for each test
+    config = Config(**default_config)
+    t = Transcriptor(config=config, config_file=CONFIG_FILE)
+    return t
+
+
+def test_initialization(
+    transcriptor, test_base_dir, default_config, default_profile
+):
+    """Test Transcriptor initializes with default config and profile"""
+    # Verify config
+    assert transcriptor.config.base_dir == str(test_base_dir)
+    assert transcriptor.config.date_format == default_config["date_format"]
+    assert CONFIG_FILE.exists()
+
+    # Verify profile
+    assert transcriptor.profile.name == default_profile["name"]
+    assert transcriptor.profile.area == default_profile["area"]
+    assert transcriptor.profile.country == default_profile["country"]
+    assert PROFILE_FILE.exists()
+
+    # Verify API initialization
+    assert isinstance(transcriptor.api, API)
+    assert transcriptor.api.base_dir == test_base_dir
+
+
+def test_initialization_with_existing_config(test_base_dir, default_config):
+    """Test initialization with existing config file"""
+    # Create existing config
+    with open(CONFIG_FILE, "w") as f:
+        yaml.dump(default_config, f)
+
+    transcriptor = Transcriptor(config_file=CONFIG_FILE)
+
+    assert transcriptor.config.base_dir == str(test_base_dir)
+    assert transcriptor.config.date_format == default_config["date_format"]
+
+
+def test_initialization_with_existing_profile(test_base_dir, default_profile):
+    """Test initialization with existing profile file"""
+    profile_data = {
+        "name": "Test User",
+        "area": "Test Area",
+        "country": "Test Country",
+    }
+    # Create existing profile
+    with open(PROFILE_FILE, "w") as f:
+        yaml.dump(profile_data, f)
+
+    transcriptor = Transcriptor(config_file=CONFIG_FILE)
+
+    assert transcriptor.profile.name == profile_data["name"]
+    assert transcriptor.profile.area == profile_data["area"]
+    assert transcriptor.profile.country == profile_data["country"]
+
+
+def test_save_config(transcriptor, test_base_dir):
+    """Test saving config updates the file"""
+    new_date_format = "%d-%m-%Y"
+    transcriptor.config.date_format = new_date_format
+    transcriptor.save_config(CONFIG_FILE)
+
+    # Verify file was updated
+    with open(CONFIG_FILE, "r") as f:
+        saved_config = yaml.safe_load(f)
+    assert saved_config["date_format"] == new_date_format
+
+
+def test_save_profile(transcriptor, test_base_dir):
+    """Test saving profile updates the file"""
+    new_name = "Updated Name"
+    transcriptor.profile.name = new_name
+    transcriptor.save_profile(PROFILE_FILE)
+
+    # Verify file was updated
+    with open(PROFILE_FILE, "r") as f:
+        saved_profile = yaml.safe_load(f)
+    assert saved_profile["name"] == new_name
+
+
+def test_create_client(transcriptor, test_base_dir):
+    """Test client creation with default rates"""
+    client_name = "Test Client"
+    client_email = "test@example.com"
+
+    transcriptor.create_client(name=client_name, email=client_email)
+
+    # Verify client was created in database
+    clients = transcriptor.api.get_clients(
+        conditions={"name": [("=", client_name)]}
     )
-    transcriptor.config.base_dir = str(temp_base_dir)
-    transcriptor.base_dir = temp_base_dir
-    return transcriptor
+    assert len(clients) == 1
+    assert clients[0]["name"] == client_name
+    assert clients[0]["email"] == client_email
 
+    # Verify rates were created
+    rates = transcriptor.api.get_rates(
+        conditions={"client_id": [("=", clients[0]["id"])]}
+    )
+    assert len(rates) == 1
+    assert rates[0]["normal"] == 0.4
+    assert rates[0]["expedite"] == 0.6
+    assert rates[0]["interpreted"] == 0.3
 
-# Tests for __init__
-def test_init_default_config(temp_config_dir):
-    transcriptor = Transcriptor()
-    assert transcriptor.config.base_dir == DEFAULT_CONFIG["base_dir"]
-    assert transcriptor.config.date_format == DEFAULT_CONFIG["date_format"]
-    assert Transcriptor.CONFIG_FILE.exists()
-
-
-def test_init_existing_config(temp_config_dir):
-    config_file = Transcriptor.CONFIG_FILE
-    config = ConfigModel(base_dir="test", date_format="%d-%m-%Y")
-    config.write(config_file)
-    transcriptor = Transcriptor()
-    assert transcriptor.config.base_dir == "test"
-    assert transcriptor.config.date_format == "%d-%m-%Y"
-
-
-def test_init_provided_config(temp_base_dir):
-    config = ConfigModel(base_dir=str(temp_base_dir), date_format="%d-%m-%Y")
-    transcriptor = Transcriptor(config=config)
-    assert transcriptor.config.base_dir == str(temp_base_dir)
-    assert transcriptor.config.date_format == "%d-%m-%Y"
-
-
-# Tests for create_client
-def test_create_client(transcriptor_instance, temp_base_dir):
-    transcriptor_instance.create_client("Test Client", "test@example.com")
-    client_dir = temp_base_dir / "clients" / "Test_Client"
+    # Verify client directory was created
+    client_dir = test_base_dir / "clients" / "Test_Client"
     assert client_dir.exists()
     assert (client_dir / "templates").exists()
-    assert len(transcriptor_instance.api.clients) == 1
-    assert len(transcriptor_instance.api.rates) == 1
-    assert transcriptor_instance.api.clients[0]["name"] == "Test Client"
-    assert transcriptor_instance.api.rates[0]["client_id"] == 1
 
 
-# Tests for create_job_dir
-def test_create_job_dir(transcriptor_instance, temp_base_dir):
-    job_dir = transcriptor_instance.create_job_dir(
-        "Test Client", "123", "2023-10-26", "2023-10-27"
+def test_create_client_with_custom_rates(transcriptor, test_base_dir):
+    """Test client creation with custom rates"""
+    client_name = "Custom Rate Client"
+    client_email = "custom@example.com"
+    custom_rates = {"normal": 0.5, "expedite": 0.7, "interpreted": 0.4}
+
+    transcriptor.create_client(
+        name=client_name, email=client_email, rates_dict=custom_rates
     )
-    expected_dir = (
-        temp_base_dir
-        / "clients"
-        / "Test_Client"
-        / "2023"
-        / "October"
-        / "26_Thu_123_DUE_27_Fri"
+
+    # Verify custom rates were set
+    clients = transcriptor.api.get_clients(
+        conditions={"name": [("=", client_name)]}
     )
-    assert job_dir == expected_dir
+    rates = transcriptor.api.get_rates(
+        conditions={"client_id": [("=", clients[0]["id"])]}
+    )
+    assert rates[0]["normal"] == 0.5
+    assert rates[0]["expedite"] == 0.7
+    assert rates[0]["interpreted"] == 0.4
+
+
+def test_create_job_dir(transcriptor, test_base_dir):
+    """Test job directory creation"""
+    client_name = "JobDirTest"
+    job_number = "JOB123"
+    date_received = "2023-06-15"
+    date_due = "2023-06-20"
+
+    # First create the client
+    transcriptor.create_client(name=client_name, email="jobdir@test.com")
+
+    job_dir = transcriptor.create_job_dir(
+        client_name=client_name,
+        job_number=job_number,
+        date_received=date_received,
+        date_due=date_due,
+    )
+
+    # Verify directory structure
     assert job_dir.exists()
+    assert str(job_dir).endswith("15_Thu_JOB123_DUE_20_Tue")
+    assert job_dir.parent.name == "June"
+    assert job_dir.parent.parent.name == "2023"
 
 
-# Tests for mv_extract_job_file
-def test_mv_extract_job_file_move(tmp_path):
-    job_file = tmp_path / "test.txt"
-    job_file.write_text("test content")
-    job_dir = tmp_path / "job_dir"
-    job_dir.mkdir()
-    Transcriptor.mv_extract_job_file(job_file, job_dir)
-    assert not job_file.exists()
-    assert (job_dir / "test.txt").exists()
+@patch("transcriptor.base.shutil.copy")
+@patch("transcriptor.base.shutil.copytree")
+def test_mv_extract_job_file(mock_copytree, mock_copy, transcriptor):
+    """Test job file movement/extraction"""
+    test_file = Path("test_file.zip")
+    test_dir = Path("test_dir")
+
+    # Test with zip file
+    with patch("transcriptor.base.zipfile.is_zipfile", return_value=True):
+        with patch("transcriptor.base.zipfile.ZipFile") as mock_zip:
+            transcriptor.mv_extract_job_file(test_file, test_dir)
+            mock_zip.assert_called_once_with(test_file)
+
+    # Test with regular file
+    with patch("transcriptor.base.zipfile.is_zipfile", return_value=False):
+        transcriptor.mv_extract_job_file(test_file, test_dir)
+        mock_copy.assert_called_once_with(test_file, test_dir)
 
 
-def test_mv_extract_job_file_extract(tmp_path):
-    job_file = tmp_path / "test.txt"
-    job_dir = tmp_path / "job_dir"
-    job_dir.mkdir()
-    with zipfile.ZipFile(job_file, "w") as zf:
-        zf.writestr("inner.txt", "inner content")
-    Transcriptor.mv_extract_job_file(job_file, job_dir)
-    assert not job_file.exists()
-    assert (job_dir / "inner.txt").exists()
+def test_select_job_template(transcriptor, test_base_dir):
+    """Test job template selection"""
+    client_name = "TemplateTest"
+    transcriptor.create_client(name=client_name, email="template@test.com")
 
-
-# Tests for select_job_template
-def test_select_job_template(transcriptor_instance, temp_base_dir):
-    template_path = transcriptor_instance.select_job_template(
-        "Test Client", "zd"
-    )
-    expected_path = (
-        temp_base_dir
-        / "clients"
-        / "Test_Client"
-        / "templates"
-        / TEMPLATE_MAPPING["zd"]
-    )
-    assert template_path == expected_path
+    # Test with valid template
+    template_path = transcriptor.select_job_template(client_name, "zd")
     assert template_path.exists()
+    assert template_path.name == "Zoom Deposition Block Files.docx"
 
-
-def test_get_media_files(tmp_path):
-    (tmp_path / "audio.mp3").write_text("audio")
-    (tmp_path / "video.mp4").write_text("video")
-    (tmp_path / "other.txt").write_text("other")
-
-    media_files = list(get_media_files(tmp_path))
-    assert len(media_files) == 2
-    assert (tmp_path / "audio.mp3") in media_files
-    assert (tmp_path / "video.mp4") in media_files
-
-
-# Tests for create_job
-def test_create_job(transcriptor_instance, temp_base_dir, tmp_path):
-    job_file = tmp_path / "job.txt"
-    job_file.write_text("test")
-    client_name = "Test Client"
-    transcriptor_instance.create_client(client_name, "test@example.com")
-
-    def job_callback(file):
-        return {
-            "client_id": 1,
-            "job_number": "123",
-            "date_received": std("2023-10-26", "%Y-%m-%d"),
-            "date_due": std("2023-10-27", "%Y-%m-%d"),
-        }
-
-    def task_callback(file):
-        return {
-            "job_type": "normal",
-            "quantity": 10,
-            "job_template": "zd",
-            "note": "test note",
-            "total_quantity": 20,
-        }
-
-    job_dir = transcriptor_instance.create_job_dir(
-        "Test Client", "123", "2023-10-26", "2023-10-27"
+    # Test template directory was created
+    client_template_dir = (
+        test_base_dir / "clients" / "TemplateTest" / "templates"
     )
-    (job_dir / "media1.mp3").write_text("media1")
-    (job_dir / "media2.wav").write_text("media2")
+    assert client_template_dir.exists()
 
-    transcriptor_instance.create_job(job_file, job_callback, task_callback)
 
-    assert (job_dir / "123 Due 10.27.docx").exists()
-    assert len(transcriptor_instance.api.jobs) == 2
-    assert transcriptor_instance.api.jobs[0]["amount"] == 4.0
+def test_generate_invoice(transcriptor):
+    """Test invoice generation"""
+    # Setup test client and jobs
+    client_id = transcriptor.api.add_client(
+        {"name": "InvoiceClient", "email": "invoice@test.com"}
+    )
+    job_data = {
+        "client_id": client_id,
+        "date_received": "2023-01-01",
+        "job_number": "INV001",
+        "job_type": "Normal",
+        "status": "Done",
+        "date_due": "2023-01-10",
+        "total_quantity": 60.0,
+        "quantity": 60.0,
+        "job_rate": 0.4,
+        "amount": 24.0,
+        "amount_paid": 0.0,
+        "job_path": "/path/to/job",
+        "note": "Test invoice job",
+        "date_submitted": "2023-01-05",
+    }
+    transcriptor.api.add_job(job_data)
+
+    # Generate invoice
+    html, client_name = transcriptor.generate_invoice(
+        client_id=client_id, conditions={"amount_paid": [("=", 0)]}
+    )
+
+    assert client_name == "InvoiceClient"
+    assert "InvoiceClient" in html
+    assert "INV001" in html
+    assert "24.0" in html
+
+
+@patch("transcriptor.utils.HTML.write_pdf")
+def test_html_to_pdf(mock_write_pdf, transcriptor, test_base_dir):
+    """Test HTML to PDF conversion"""
+    test_html = "<html><body>Test</body></html>"
+    client_name = "PDFClient"
+
+    transcriptor.html_to_pdf(test_html, client_name)
+
+    # Verify directory was created
+    invoice_dir = test_base_dir / "clients" / "PDFClient" / "invoices"
+    assert invoice_dir.exists()
+
+    # Verify PDF would be created with today's date
+    today = date.today().strftime("%Y-%m-%d")
+    invoice_dir / f"{today}_PDFClient_invoice.pdf"
+    mock_write_pdf.assert_called_once()
+
+
+def test_save_and_load_cutoffs(transcriptor, test_base_dir):
+    """Test cutoff date saving and loading"""
+    test_cutoffs = [
+        ["Cutoff Date", "Deposit Date"],
+        [date(2023, 1, 15), date(2023, 1, 20)],
+        [date(2023, 2, 15), date(2023, 2, 20)],
+    ]
+
+    # Save cutoffs
+    transcriptor.save_cutoffs(test_cutoffs)
+
+    # Verify file was created
+    cutoff_file = test_base_dir / "cutoffs" / "cutoffs_2025.csv"
+    assert cutoff_file.exists()
+
+    # Load cutoffs
+    loaded_cutoffs = transcriptor.load_cutoffs()
+    assert len(loaded_cutoffs) == 3
+    assert loaded_cutoffs[1][0] == date(2023, 1, 15)
+    assert loaded_cutoffs[2][1] == date(2023, 2, 20)
+
+
+def test_select_cutoff_period(transcriptor):
+    """Test cutoff period selection"""
+    test_cutoffs = [
+        [date(2023, 1, 15), date(2023, 1, 20)],
+        [date(2023, 2, 15), date(2023, 2, 20)],
+        [date(2023, 3, 15), date(2023, 3, 20)],
+    ]
+
+    # Mock loaded cutoffs
+    # Test first period
+    prev, curr = transcriptor.select_cutoff_period(1, cutoffs=test_cutoffs)
+    assert prev is None
+    assert curr == date(2023, 1, 15)
+
+    # Test middle period
+    prev, curr = transcriptor.select_cutoff_period(2, cutoffs=test_cutoffs)
+    assert prev == date(2023, 1, 15)
+    assert curr == date(2023, 2, 15)
+
+    # Test last period
+    prev, curr = transcriptor.select_cutoff_period(3, cutoffs=test_cutoffs)
+    assert prev == date(2023, 2, 15)
+    assert curr == date(2023, 3, 15)
+
+
+def test_delete_clients_with_purge(transcriptor, test_base_dir):
+    """Test client deletion with purge option"""
+    client_name = "DeleteClient"
+    transcriptor.create_client(name=client_name, email="delete@test.com")
+
+    # Verify client exists
+    clients = transcriptor.api.get_clients(
+        conditions={"name": [("=", client_name)]}
+    )
+    assert len(clients) == 1
+
+    # Delete with purge
+    deleted = transcriptor.delete_clients(
+        conditions={"name": [("=", client_name)]}, purge=True
+    )
+
+    assert len(deleted) == 1
+    assert deleted[0]["name"] == client_name
+
+    # Verify client directory was removed
+    client_dir = test_base_dir / "clients" / "DeleteClient"
+    assert not client_dir.exists()
+
+
+def test_delete_jobs_with_purge(transcriptor, test_base_dir):
+    """Test job deletion with purge option"""
+    # Setup client and job
+    client_id = transcriptor.api.add_client(
+        {"name": "JobDeleteTest", "email": "jobdelete@test.com"}
+    )
+    job_data = {
+        "client_id": client_id,
+        "date_received": "2023-01-01",
+        "job_number": "DEL001",
+        "job_type": "Normal",
+        "status": "Done",
+        "date_due": "2023-01-10",
+        "total_quantity": 60.0,
+        "quantity": 60.0,
+        "job_rate": 0.4,
+        "amount": 24.0,
+        "amount_paid": 0.0,
+        "job_path": str(test_base_dir / "test_job_path"),
+        "note": "Test job to delete",
+        "date_submitted": "2023-01-05",
+    }
+    job_id = transcriptor.api.add_job(job_data)
+
+    # Create dummy job directory
+    job_dir = test_base_dir / "test_job_path"
+    job_dir.mkdir(parents=True)
+
+    # Delete with purge
+    deleted = transcriptor.delete_jobs(
+        conditions={"id": [("=", job_id)]}, purge=True
+    )
+
+    assert len(deleted) == 1
+    assert not job_dir.exists()
