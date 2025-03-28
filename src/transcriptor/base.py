@@ -70,6 +70,7 @@ class Transcriptor:
         self.CONFIG_DIR, self.CONFIG_FILE = self._get_config_paths(
             config_file
         )
+        self.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
         if config is None:
             if not self._config_file_exists():
