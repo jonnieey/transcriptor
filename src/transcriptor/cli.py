@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Optional
 
 import cmd2
-from prompt_toolkit import prompt
+from prompt_toolkit import PromptSession
+from prompt_toolkit.styles import Style
 
 from transcriptor.base import Transcriptor
 from transcriptor.utils import (
@@ -331,6 +332,12 @@ class TranscriptorCMD(cmd2.Cmd):
         )
         self.debug = True
         self.add_settable(cmd2.Settable("debug", bool, "debug", self))
+        style = Style.from_dict(
+            {
+                "prompt": "bg:#000000 #00aa00 bold",  # black background, green text, bold text.
+            }
+        )
+        self.session = PromptSession(style=style)
 
     def do_EOF(self, arg):
         """
@@ -459,7 +466,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 self.poutput(f"File not found: {args.file}")
                 return
         else:
-            args.file = prompt(
+            args.file = self.session.prompt(
                 "Enter job file path: ", validator=file_validator
             )
 
@@ -475,7 +482,7 @@ class TranscriptorCMD(cmd2.Cmd):
             if not client_id:
                 self.show_clients(args=None)
                 client_id = int(
-                    prompt(
+                    self.session.prompt(
                         "Enter client id: ",
                         validator=positive_number_validator,
                     )
@@ -483,13 +490,13 @@ class TranscriptorCMD(cmd2.Cmd):
                 tmp_args.client_id = client_id  # Update the original args
 
             if not job_number:
-                job_number = extract_job_number(str(job_file)) or prompt(
-                    "Enter job number: "
-                )
+                job_number = extract_job_number(
+                    str(job_file)
+                ) or self.session.prompt("Enter job number: ")
                 tmp_args.job_number = job_number  # Update the original args
 
             if not date_received:
-                date_received = prompt(
+                date_received = self.session.prompt(
                     f"Enter date received [{date_format}]: ",
                     default=str(datetime.now().strftime(date_format)),
                     validator=date_validator,
@@ -498,7 +505,7 @@ class TranscriptorCMD(cmd2.Cmd):
                     date_received  # Update the original args
                 )
             if not date_due:
-                date_due = prompt(
+                date_due = self.session.prompt(
                     f"Enter date due [{date_format}]: ",
                     default=month_day_to_date(extract_date_due(args.file)),
                     validator=date_validator,
@@ -523,7 +530,7 @@ class TranscriptorCMD(cmd2.Cmd):
             note = tmp_args.note
 
             if not work_on_file:
-                work_on_file = prompt(
+                work_on_file = self.session.prompt(
                     f"Enter work on file: ...{'/'.join(task_file.parts[-2:])}:",
                     validator=yes_no_validator,
                 )
@@ -532,24 +539,24 @@ class TranscriptorCMD(cmd2.Cmd):
                 return
 
             if not job_type:
-                job_type = prompt(
+                job_type = self.session.prompt(
                     "Enter job type: ", validator=job_type_validator
                 )
                 tmp_args.job_type = job_type
             total_quantity = get_media_duration(task_file)
             if not quantity:
-                quantity = prompt(
+                quantity = self.session.prompt(
                     "Enter quantity: ", default=str(total_quantity)
                 )
                 tmp_args.quantity = quantity
 
             if not job_template:
-                job_template = prompt(
+                job_template = self.session.prompt(
                     "Enter job template: ", validator=template_validator
                 )
                 tmp_args.job_template = job_template
             if not note:
-                note = prompt("Enter notes: ", default="")
+                note = self.session.prompt("Enter notes: ", default="")
                 tmp_args.notes = note
 
             return {
@@ -575,7 +582,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 self.poutput(f"File not found: {args.file}")
                 return
         else:
-            args.file = prompt(
+            args.file = self.session.prompt(
                 "Enter cutoff file path: ", validator=file_validator
             )
 
@@ -696,7 +703,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 self.poutput(
                     "\n** DELETING CLIENTS WILL DELETE ALL CLIENT DATA (NO CONFIRMATION)**\n"
                 )
-            to_delete = prompt(
+            to_delete = self.session.prompt(
                 "Are you sure you want to delete clients (NO CONFIRM)  (y/n): ",
                 validator=yes_no_validator,
             )
@@ -709,7 +716,7 @@ class TranscriptorCMD(cmd2.Cmd):
         else:
             for client in clients:
                 client_name = client["name"]
-                to_delete = prompt(
+                to_delete = self.session.prompt(
                     f"Are you sure you want to delete {client_name}? (y/n): ",
                     validator=yes_no_validator,
                 )
@@ -722,7 +729,7 @@ class TranscriptorCMD(cmd2.Cmd):
                         self.poutput(
                             "\n** DELETING CLIENT WILL DELETE ALL CLIENT DATA**\n"
                         )
-                    confirm_delete = prompt(
+                    confirm_delete = self.session.prompt(
                         f"TYPE {client_name} to confirm: "
                     )
 
@@ -757,7 +764,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 self.poutput(
                     "\n** DELETING CLIENTS WILL DELETE ALL CLIENT DATA (NO CONFIRMATION)**\n"
                 )
-            confirm_delete = prompt(
+            confirm_delete = self.session.prompt(
                 f"Are you sure you want to delete jobs (NO CONFIRMATION)? (y/n): ",
                 validator=yes_no_validator,
             )
@@ -769,7 +776,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 )
         else:
             for job in jobs:
-                confirm_delete = prompt(
+                confirm_delete = self.session.prompt(
                     f"""Are you sure you want to delete {job['job_number']}? (y/n):
                     """,
                     validator=yes_no_validator,
@@ -809,7 +816,7 @@ class TranscriptorCMD(cmd2.Cmd):
         if not args.client_id:
             self.show_clients(args=None)
             client_id = int(
-                prompt(
+                self.session.prompt(
                     "Enter client id: ", validator=positive_number_validator
                 )
             )
@@ -826,7 +833,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 for idx, row in enumerate(cutoffs)
             ]
             TranscriptorView().print_table(cutoffs)
-            cutoff_idx = prompt(
+            cutoff_idx = self.session.prompt(
                 "select deposit date. Use index number: ",
                 validator=positive_number_validator,
             )
@@ -899,7 +906,7 @@ class TranscriptorCMD(cmd2.Cmd):
         if not jobs:
             self.poutput("No jobs found")
         else:
-            confirm_delete = prompt(
+            confirm_delete = self.session.prompt(
                 "Are you sure you want to delete (y/n) :",
                 validator=yes_no_validator,
             )
