@@ -1,96 +1,425 @@
+import os
+import shutil
+from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.engine.row import RowMapping
 
-from transcriptor.api import API, Client
+from transcriptor.api import API
+from transcriptor.models import Client, Job, Rate
+
+# Constants for testing
+TEST_BASE_DIR = Path("test_data")
+DB_FILE_NAME = "transcriptor5.db"
+
+
+@pytest.fixture(scope="module")
+def test_base_dir():
+    # Setup
+    test_dir = TEST_BASE_DIR
+    test_dir.mkdir(exist_ok=True)
+    yield test_dir
+    # Teardown
+    shutil.rmtree(test_dir, ignore_errors=True)
 
 
 @pytest.fixture
-def api_instance():
-    base_dir = Path(__file__).parent
-    return API(base_dir)
+def api(test_base_dir):
+    # Create a fresh API instance for each test
+    api = API(base_dir=test_base_dir)
+    yield api
+    # Clean up database after each test
+    if (test_base_dir / DB_FILE_NAME).exists():
+        os.remove(test_base_dir / DB_FILE_NAME)
 
 
 @pytest.fixture
-def mock_session():
-    with patch("transcriptor.database.Database"):
-        mock_session = MagicMock()
-        yield mock_session
+def sample_client_data():
+    return {
+        "name": f"Test Client {datetime.now().timestamp()}",
+        "email": "test@example.com",
+    }
 
 
-def test_add_client(api_instance, mock_session):
-    api_instance.session = mock_session
-
-    client = {"name": "Client1"}
-    api_instance.add_client(client)
-
-    assert len(mock_session.add.call_args[0]) == 1
-    mock_session.commit.assert_called_once()
+@pytest.fixture
+def sample_rate_data():
+    return {"normal": 0.4, "expedite": 0.6, "interpreted": 0.3}
 
 
-def test_add_rates(api_instance, mock_session):
-    api_instance.session = mock_session
-
-    rates = {"normal": 0.4, "expedite": 0.6, "interpreted": 0.3}
-    api_instance.add_rates(rates)
-
-    assert len(mock_session.add.call_args[0]) == 1
-    mock_session.commit.assert_called_once()
-
-
-def test_add_job(api_instance, mock_session):
-    api_instance.session = mock_session
-
-    jobs = {"id": 1}
-    api_instance.add_job(jobs)
-
-    assert len(mock_session.add.call_args[0]) == 1
-    mock_session.commit.assert_called_once()
-
-
-def test_get_clients(api_instance, mock_session):
-    api_instance.session = mock_session
-    mock_session.scalars.return_value.all.return_value = [
-        "client1",
-        "client2",
-    ]
-
-    clients = api_instance.get_clients()
-
-    mock_session.scalars.assert_called_once()
-    assert clients == ["client1", "client2"]
+@pytest.fixture
+def sample_job_data():
+    return {
+        "client_id": 1,
+        "date_received": "2023-01-01",
+        "job_number": "JOB001",
+        "job_type": "Normal",
+        "status": "Pending",
+        "date_due": "2023-01-10",
+        "total_quantity": 60.0,
+        "quantity": 60.0,
+        "job_rate": 0.4,
+        "amount": 24.0,
+        "amount_paid": 0.0,
+        "job_path": "/path/to/job",
+        "note": "Test job",
+    }
 
 
-def test_update(api_instance, mock_session):
-    api_instance.session = mock_session
+def test_api_initialization(api, test_base_dir):
+    assert api.base_dir == test_base_dir
+    assert (test_base_dir / DB_FILE_NAME).exists()
 
-    result = api_instance.update(
-        Client, {"name": "old_name"}, {"name": "new_name"}
+
+def test_add_client(api, sample_client_data):
+    client_id = api.add_client(sample_client_data)
+    assert isinstance(client_id, int)
+    assert client_id > 0
+
+
+def test_add_rate(api, sample_client_data, sample_rate_data):
+    # First add a client since rates need a client_id
+    client_id = api.add_client(sample_client_data)
+    rate_data = sample_rate_data.copy()
+    rate_data["client_id"] = client_id
+
+    rate_id = api.add_rates(rate_data)
+    assert isinstance(rate_id, int)
+    assert rate_id > 0
+
+
+def test_add_job(api, sample_client_data, sample_job_data):
+    # First add a client since jobs need a client_id
+    client_id = api.add_client(sample_client_data)
+    job_data = sample_job_data.copy()
+    job_data["client_id"] = client_id
+
+    job_id = api.add_job(job_data)
+    assert isinstance(job_id, int)
+    assert job_id > 0
+
+
+def test_add_jobs(api, sample_client_data, sample_job_data):
+    # First add a client since jobs need a client_id
+    client_id = api.add_client(sample_client_data)
+
+    # Create multiple job data with unique job numbers
+    jobs = []
+    for i in range(1, 4):
+        job = sample_job_data.copy()
+        job["client_id"] = client_id
+        job["job_number"] = f"JOB00{i}"
+        jobs.append(job)
+
+    api.add_jobs(jobs)
+
+    # Verify jobs were added
+    stmt = api.get(Job)
+    with api.session() as session:
+        result = session.execute(stmt).scalars().all()
+    assert len(result) == 3
+
+
+def test_get_clients(api):
+    # Add some test clients with unique names
+    client_ids = []
+    for i in range(1, 4):
+        client_data = {
+            "name": f"Client {i} {datetime.now().timestamp()}",
+            "email": f"client{i}@example.com",
+        }
+        client_ids.append(api.add_client(client_data))
+
+    # Test get all clients
+    clients = api.get_clients()
+    assert len(clients) == 3
+
+    # Test get with conditions - use the actual client name from the first client
+    first_client_name = clients[0]["name"]
+    second_client_name = clients[1]["name"]
+
+    clients = api.get_clients(
+        conditions={"name": [("~", f"%{first_client_name}%")]}
+    )
+    assert len(clients) == 1
+    assert first_client_name in clients[0]["name"]
+
+    # Test raw SQL - use the actual client name from the second client
+    clients = api.get_clients(
+        raw_sql_stmt=f"WHERE name LIKE '%{second_client_name}%'"
+    )
+    assert len(clients) == 1
+    assert second_client_name in clients[0]["name"]
+
+
+def test_get_rates(api, sample_rate_data):
+    # Add a client with unique name and rates
+    client_data = {
+        "name": f"Rate Test Client {datetime.now().timestamp()}",
+        "email": "rate_test@example.com",
+    }
+    client_id = api.add_client(client_data)
+    rate_data = sample_rate_data.copy()
+    rate_data["client_id"] = client_id
+    api.add_rates(rate_data)
+
+    # Test get all rates
+    rates = api.get_rates()
+    assert len(rates) == 1
+    assert rates[0]["normal"] == 0.4
+
+    # Test get with conditions
+    rates = api.get_rates(conditions={"client_id": [("=", client_id)]})
+    assert len(rates) == 1
+
+    # Test raw SQL
+    rates = api.get_rates(raw_sql_stmt=f"WHERE client_id = {client_id}")
+    assert len(rates) == 1
+
+
+def test_get_jobs(api, sample_job_data):
+    # Add a client with unique name and jobs
+    client_data = {
+        "name": f"Job Test Client {datetime.now().timestamp()}",
+        "email": "job_test@example.com",
+    }
+    client_id = api.add_client(client_data)
+    job_data = sample_job_data.copy()
+    job_data["client_id"] = client_id
+
+    # Add multiple jobs with unique job numbers
+    jobs = []
+    for i in range(1, 4):
+        job = job_data.copy()
+        job["job_number"] = f"JOB00{i}"
+        job["status"] = "Pending" if i % 2 == 0 else "Done"
+        jobs.append(job)
+    api.add_jobs(jobs)
+
+    # Test get all jobs
+    all_jobs = api.get_jobs()
+    assert len(all_jobs) == 3
+
+    # Test get with conditions
+    pending_jobs = api.get_jobs(conditions={"status": [("=", "Pending")]})
+    assert len(pending_jobs) == 1  # Only 1 job with status="Pending"
+
+    # Test raw SQL
+    done_jobs = api.get_jobs(raw_sql_stmt="WHERE status = 'Done'")
+    assert len(done_jobs) == 2  # 2 jobs with status="Done"
+
+
+def test_update_clients(api):
+    # Add a client with unique name
+    client_data = {
+        "name": f"Update Test Client {datetime.now().timestamp()}",
+        "email": "update_test@example.com",
+    }
+    client_id = api.add_client(client_data)
+
+    # Update the client
+    new_email = "updated@example.com"
+    api.update_clients(
+        conditions={"id": [("=", client_id)]}, values={"email": new_email}
     )
 
-    mock_session.execute.assert_called_once()
-    mock_session.commit.assert_called_once()
-    assert result
+    # Verify update
+    clients = api.get_clients(conditions={"id": [("=", client_id)]})
+    assert clients[0]["email"] == new_email
+
+    # Test raw SQL update
+    new_name = f"Updated Client Name {datetime.now().timestamp()}"
+    api.update_clients(
+        raw_sql_stmt=f"SET name = '{new_name}' WHERE id = {client_id}"
+    )
+
+    # Verify update
+    clients = api.get_clients(conditions={"id": [("=", client_id)]})
+    assert clients[0]["name"] == new_name
 
 
-def test_delete(api_instance, mock_session):
-    api_instance.session = mock_session
-    mock_session.execute.return_value.rowcount = 1
+def test_update_rates(api, sample_rate_data):
+    # Add a client with unique name and rate
+    client_data = {
+        "name": f"Rate Update Test Client {datetime.now().timestamp()}",
+        "email": "rate_update_test@example.com",
+    }
+    client_id = api.add_client(client_data)
+    rate_data = sample_rate_data.copy()
+    rate_data["client_id"] = client_id
+    rate_id = api.add_rates(rate_data)
 
-    result = api_instance.delete(Client, {"name": "client1"})
+    # Update the rate
+    new_normal_rate = 0.5
+    api.update_rates(
+        conditions={"id": [("=", rate_id)]},
+        values={"normal": new_normal_rate},
+    )
 
-    mock_session.execute.assert_called_once()
-    mock_session.commit.assert_called_once()
-    assert result
+    # Verify update
+    rates = api.get_rates(conditions={"id": [("=", rate_id)]})
+    assert rates[0]["normal"] == new_normal_rate
 
 
-def test_delete_no_match(api_instance, mock_session):
-    api_instance.session = mock_session
-    mock_session.execute.return_value.rowcount = 0
+def test_update_jobs(api, sample_job_data):
+    # Add a client with unique name and job
+    client_data = {
+        "name": f"Job Update Test Client {datetime.now().timestamp()}",
+        "email": "job_update_test@example.com",
+    }
+    client_id = api.add_client(client_data)
+    job_data = sample_job_data.copy()
+    job_data["client_id"] = client_id
+    job_id = api.add_job(job_data)
 
-    result = api_instance.delete(Client, {"name": "non_existing_client"})
+    # Update the job
+    new_status = "Done"
+    api.update_jobs(
+        conditions={"id": [("=", job_id)]}, values={"status": new_status}
+    )
 
-    mock_session.execute.assert_called_once()
-    mock_session.commit.assert_not_called()
-    assert not result
+    # Verify update
+    jobs = api.get_jobs(conditions={"id": [("=", job_id)]})
+    assert jobs[0]["status"] == new_status
+
+    # Test that triggers updated date_submitted
+    assert jobs[0]["date_submitted"] is not None
+
+    # Test raw SQL update
+    new_note = "Updated note"
+    api.update_jobs(
+        raw_sql_stmt=f"SET note = '{new_note}' WHERE id = {job_id}"
+    )
+
+    # Verify update
+    jobs = api.get_jobs(conditions={"id": [("=", job_id)]})
+    assert jobs[0]["note"] == new_note
+
+
+def test_delete_clients(api, sample_rate_data, sample_job_data):
+    # Add a client with unique name, rate and job
+    client_data = {
+        "name": f"Delete Test Client {datetime.now().timestamp()}",
+        "email": "delete_test@example.com",
+    }
+    client_id = api.add_client(client_data)
+
+    # Add rate for client
+    rate_data = sample_rate_data.copy()
+    rate_data["client_id"] = client_id
+    api.add_rates(rate_data)
+
+    # Add job for client
+    job_data = sample_job_data.copy()
+    job_data["client_id"] = client_id
+    api.add_job(job_data)
+
+    # Delete the client (should cascade to rates and jobs)
+    deleted_clients = api.delete_clients(
+        conditions={"id": [("=", client_id)]}
+    )
+
+    # Verify deletion
+    assert len(deleted_clients) == 1
+    assert deleted_clients[0]["id"] == client_id
+
+    # Verify rates were deleted (cascade)
+    rates = api.get_rates(conditions={"client_id": [("=", client_id)]})
+    assert len(rates) == 0
+
+    # Verify jobs were deleted (cascade)
+    jobs = api.get_jobs(conditions={"client_id": [("=", client_id)]})
+    assert len(jobs) == 0
+
+
+def test_delete_jobs(api, sample_job_data):
+    # Add a client with unique name and job
+    client_data = {
+        "name": f"Job Delete Test Client {datetime.now().timestamp()}",
+        "email": "job_delete_test@example.com",
+    }
+    client_id = api.add_client(client_data)
+    job_data = sample_job_data.copy()
+    job_data["client_id"] = client_id
+    job_id = api.add_job(job_data)
+
+    # Delete the job
+    deleted_jobs = api.delete_jobs(conditions={"id": [("=", job_id)]})
+
+    # Verify deletion
+    assert len(deleted_jobs) == 1
+    # assert str(job_id) in deleted_jobs[0]["job_path"]
+
+    # Verify job is gone
+    jobs = api.get_jobs(conditions={"id": [("=", job_id)]})
+    assert len(jobs) == 0
+
+
+def test_build_statement_with_conditions(api):
+    # Test select statement
+    stmt = api._build_statement_with_conditions(
+        Client,
+        conditions={"name": [("=", "Test")], "id": [(">", 1), ("<", 10)]},
+        stmt_type="select",
+    )
+    assert stmt is not False
+    assert "SELECT" in str(stmt)
+
+    # Test update statement
+    stmt = api._build_statement_with_conditions(
+        Client, conditions={"name": [("=", "Test")]}, stmt_type="update"
+    )
+    assert stmt is not False
+    assert "UPDATE" in str(stmt)
+
+    # Test delete statement
+    stmt = api._build_statement_with_conditions(
+        Client, conditions={"name": [("=", "Test")]}, stmt_type="delete"
+    )
+    assert stmt is not False
+    assert "DELETE" in str(stmt)
+
+    # Test invalid statement type
+    with pytest.raises(ValueError):
+        api._build_statement_with_conditions(
+            Client, conditions={"name": [("=", "Test")]}, stmt_type="invalid"
+        )
+
+    # Test invalid operator
+    with pytest.raises(ValueError):
+        api._build_statement_with_conditions(
+            Client,
+            conditions={"name": [("invalid", "Test")]},
+            stmt_type="select",
+        )
+    with pytest.raises(ValueError):
+        api._build_statement_with_conditions(
+            Client, conditions={"name": [("??", "test")]}, stmt_type="select"
+        )
+
+    with pytest.raises(AttributeError):
+        api._build_statement_with_conditions(
+            Client, conditions={"bad_column": [("=", 1)]}, stmt_type="select"
+        )
+
+
+def test_get_method(api):
+    # Add a client with unique name for testing
+    client_data = {
+        "name": f"Get Method Test Client {datetime.now().timestamp()}",
+        "email": "get_method_test@example.com",
+    }
+    client_id = api.add_client(client_data)
+
+    # Test get with no conditions
+    stmt = api.get(Client)
+    assert isinstance(stmt, type(select(Client)))
+
+    # Test get with conditions
+    stmt = api.get(Client, conditions={"id": [("=", client_id)]})
+    assert isinstance(stmt, type(select(Client)))
+
+    # Test get with raw SQL
+    stmt = api.get(Client, raw_sql_stmt=f"WHERE id = {client_id}")
+    assert f"WHERE id = {client_id}" in str(stmt)

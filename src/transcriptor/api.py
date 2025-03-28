@@ -183,7 +183,14 @@ class API:
 
         try:
             for column, conditions_list in conditions.items():
-                column_attribute = getattr(table, column)
+
+                try:
+                    column_attribute = getattr(table, column)
+                except AttributeError as e:
+                    raise AttributeError(
+                        f"Invalid column name '{column}' for table {table.__name__}"
+                    ) from e
+
                 op_map = {
                     "<=": column_attribute.__le__,
                     ">=": column_attribute.__ge__,
@@ -197,20 +204,26 @@ class API:
                 filters = []
                 for comparison_op, comp_value in conditions_list:
                     try:
-                        filters.append(op_map[comparison_op](comp_value))
-                    except KeyError:
+                        op_func = op_map[comparison_op]
+                    except KeyError as e:
                         raise ValueError(
-                            f"Invalid comparison operator: {comparison_op}"
-                        )
+                            f"Invalid comparison operator: '{comparison_op}'. "
+                            f"Valid operators are: {', '.join(op_map.keys())}"
+                        ) from e
+                    filters.append(op_func(comp_value))
+
                 if stmt_type == "select":
                     stmt = stmt.filter(and_(*filters))
                 else:
                     stmt = stmt.where(and_(*filters))
             return stmt
         except Exception as e:
-            # self.session.rollback()
-            print(f"Error during {stmt_type}: {e}")
-            return False
+            if isinstance(e, (ValueError, AttributeError, KeyError)):
+                raise
+            # Wrap unexpected errors with more context
+            raise Exception(
+                f"Error building {stmt_type} statement for table {table.__name__}: {str(e)}"
+            ) from e
 
     def get(
         self,
