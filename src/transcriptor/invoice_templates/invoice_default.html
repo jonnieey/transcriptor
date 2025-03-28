@@ -92,7 +92,7 @@
 	<div class="header">
 		<img alt="">
 		<h1>Invoice  #{{ invoice.invoice_number }}</h1>
-					
+
 	</div>
 	<div class="invoice-details">
 		<table>
@@ -144,7 +144,7 @@
 					<tr>
 						<td>{{ loop.index }}</td>
 						<td>{{ job.job_number }}</td>
-						<td>{{ job.job_type }}</td>
+						<td>{{ job.job_type|title }}</td>
 						<td>&#36;{{ "%.2f" | format(job.job_rate) }}</td>
 						<td>{{ "%.1f" | format(job.quantity) }}</td>
 						<td>&#36;{{ "%.2f" | format(job.amount) }}</td>
@@ -160,5 +160,4 @@
 		</table>
 	</div>
 </body>
-</html> 
-
+</html>

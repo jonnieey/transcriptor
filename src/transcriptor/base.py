@@ -576,6 +576,7 @@ class Transcriptor:
         client_id: str,
         conditions: Optional[Dict[str, List[Tuple[str, Any]]]] = None,
         raw_sql_stmt: None = None,
+        invoice_theme: Optional[str] = None,
     ) -> Tuple[str, Union[int, Any, str, float, None]]:
         if client_id is None:
             print("CLIENT ID CANNOT BE NONE")
@@ -621,7 +622,9 @@ class Transcriptor:
             client_name=client_name,
             jobs=invoice_lines,
         )
-        html = render_invoice(invoice=invoice)
+        html = render_invoice(
+            invoice=invoice, template_name=f"invoice_{invoice_theme}.html"
+        )
 
         return html, client_name
 

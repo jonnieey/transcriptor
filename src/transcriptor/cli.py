@@ -17,6 +17,7 @@ from transcriptor.utils import (
     extract_job_number,
     file_validator,
     get_media_duration,
+    invoice_template_themes,
     job_type_validator,
     month_day_to_date,
     parse_conditions,
@@ -290,6 +291,13 @@ invoice_parser.add_argument(
 )
 invoice_parser.add_argument(
     "-l", "--previous_year_cutoff", help="Previous year last cutoff"
+)
+invoice_parser.add_argument(
+    "-t",
+    "--invoice_template",
+    help="Select invoice template",
+    default="default",
+    choices=invoice_template_themes(),
 )
 
 purge_parser = base_subparsers.add_parser(
@@ -837,20 +845,26 @@ class TranscriptorCMD(cmd2.Cmd):
             if args.table:
                 args.raw = args.raw + f" AND {raw_cutoff_condition}"
             html, client_name = self.app.generate_invoice(
-                client_id=args.client_id, raw_sql_stmt=args.raw
+                client_id=args.client_id,
+                raw_sql_stmt=args.raw,
+                invoice_theme=args.invoice_template,
             )
         elif args.where:
             if args.table:
                 args.where = args.where + cutoff_condition
             conditions = parse_conditions(args.where)
             html, client_name = self.app.generate_invoice(
-                client_id=args.client_id, conditions=conditions
+                client_id=args.client_id,
+                conditions=conditions,
+                invoice_theme=args.invoice_template,
             )
         else:
             if args.table:
                 conditions = parse_conditions(cutoff_condition)
                 html, client_name = self.app.generate_invoice(
-                    client_id=args.client_id, conditions=conditions
+                    client_id=args.client_id,
+                    conditions=conditions,
+                    invoice_theme=args.invoice_template,
                 )
         if args.print:
             self.app.html_to_pdf(

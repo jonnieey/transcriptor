@@ -276,7 +276,9 @@ def test_generate_invoice(transcriptor):
 
     # Generate invoice
     html, client_name = transcriptor.generate_invoice(
-        client_id=client_id, conditions={"amount_paid": [("=", 0)]}
+        client_id=client_id,
+        conditions={"amount_paid": [("=", 0)]},
+        invoice_theme="blue",
     )
 
     assert client_name == "InvoiceClient"

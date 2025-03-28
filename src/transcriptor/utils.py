@@ -398,7 +398,7 @@ def render_invoice(
     template_name: Optional[str] = None,
 ) -> str:
     if template_name is None:
-        template_name = "invoice.html"
+        template_name = "invoice_default.html"
     template = _init_jinja_env(custom_templates_dir).get_template(
         template_name
     )
@@ -451,6 +451,15 @@ def html_to_md(html: str) -> str:
     md_table = markdown[markdown.find("![]()") + 5 :]
     md_table = re.sub(r"\n{2,}", "\n\n", md_table)
     return md_table
+
+
+def invoice_template_themes():
+    invoice_template_dir = Path(__file__).parent / "invoice_templates"
+    template_themes = []
+    for invoice_file in invoice_template_dir.iterdir():
+        if invoice_file.stem.startswith("invoice_"):
+            template_themes.append(invoice_file.stem.replace("invoice_", ""))
+    return template_themes
 
 
 def extract_table_data_from_docx(docx_path: str) -> List[List[str]]:
@@ -550,6 +559,7 @@ def parse_sql_update_query(sql_query):
 
 
 if __name__ == "__main__":
-    stmt = "SET amount_paid=2222 WHERE client_id=1 AND date_received='2023-04-22' AND job_number='JOB001'"
-    s, w = parse_sql_update_query(stmt)
-    print(s, w)
+    # stmt = "SET amount_paid=2222 WHERE client_id=1 AND date_received='2023-04-22' AND job_number='JOB001'"
+    # s, w = parse_sql_update_query(stmt)
+    # print(s, w)
+    print(list(invoice_template_names()))
