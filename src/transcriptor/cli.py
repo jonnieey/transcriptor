@@ -235,6 +235,12 @@ delete_client_parser.add_argument(
 delete_client_parser.add_argument(
     "-P", "--purge", action="store_true", help="Purge client data"
 )
+delete_client_parser.add_argument(
+    "-N",
+    "--no-confirm",
+    action="store_true",
+    help="Delete without confirmation",
+)
 
 delete_jobs_parser = delete_subparsers.add_parser("jobs", help="delete job")
 delete_jobs_parser.add_argument(
@@ -251,6 +257,12 @@ delete_jobs_parser.add_argument(
 )
 delete_jobs_parser.add_argument(
     "-P", "--purge", action="store_true", help="Purge job data"
+)
+delete_jobs_parser.add_argument(
+    "-N",
+    "--no-confirm",
+    action="store_true",
+    help="Delete without confirmation",
 )
 
 invoice_parser = base_subparsers.add_parser(
@@ -295,10 +307,14 @@ purge_parser.add_argument("-r", "--raw", help="Raw sql query")
 class TranscriptorCMD(cmd2.Cmd):
     prompt = "(trans5) "
 
-    def __init__(self, app: None = None):
-        self.app = app if app is not None else Transcriptor()
-        history_file = self.app.base_dir.joinpath(".history")
-        alias_script = self.app.CONFIG_DIR.joinpath(".cmd2rc")
+    def __init__(self, app: None = None, history=True, alias=True):
+        self.app = app or Transcriptor()
+        history_file = (
+            self.app.base_dir.joinpath(".history") if history else None
+        )
+        alias_script = (
+            self.app.CONFIG_DIR.joinpath(".cmd2rc") if alias else None
+        )
         super().__init__(
             persistent_history_file=history_file,
             persistent_history_length=500,
@@ -667,30 +683,49 @@ class TranscriptorCMD(cmd2.Cmd):
             self.poutput("No clients found")
             return
 
-        for client in clients:
+        if args.no_confirm:
+            if args.purge:
+                self.poutput(
+                    "\n** DELETING CLIENTS WILL DELETE ALL CLIENT DATA (NO CONFIRMATION)**\n"
+                )
             to_delete = prompt(
-                f"Are you sure you want to delete {client['name']}? (y/n): ",
+                "Are you sure you want to delete clients (NO CONFIRM)  (y/n): ",
                 validator=yes_no_validator,
             )
-
-            if to_delete.startswith("y") or to_delete.startswith("Y"):
-                self.poutput(
-                    "\n** DELETING CLIENT WILL DELETE CLIENT'S JOBS AND RATES **\n"
+            if to_delete.lower().startswith("y"):
+                self.app.delete_clients(
+                    conditions=conditions,
+                    raw_sql_stmt=args.raw,
+                    purge=args.purge,
                 )
-                if args.purge:
-                    self.poutput(
-                        "\n** DELETING CLIENT WILL DELETE ALL CLIENT DATA**\n"
-                    )
-                confirm_delete = prompt(f"TYPE {client['name']} to confirm: ")
+        else:
+            for client in clients:
+                client_name = client["name"]
+                to_delete = prompt(
+                    f"Are you sure you want to delete {client_name}? (y/n): ",
+                    validator=yes_no_validator,
+                )
 
-                if confirm_delete == client["name"]:
-                    self.app.delete_clients(
-                        conditions={"name": [("=", client["name"])]},
-                        purge=args.purge,
+                if to_delete.lower().startswith("y"):
+                    self.poutput(
+                        "\n** DELETING CLIENT WILL DELETE CLIENT'S JOBS AND RATES **\n"
                     )
-                else:
-                    self.poutput("Operation aborted")
-                    return
+                    if args.purge:
+                        self.poutput(
+                            "\n** DELETING CLIENT WILL DELETE ALL CLIENT DATA**\n"
+                        )
+                    confirm_delete = prompt(
+                        f"TYPE {client_name} to confirm: "
+                    )
+
+                    if confirm_delete == client_name:
+                        self.app.delete_clients(
+                            conditions={"name": [("=", client_name)]},
+                            purge=args.purge,
+                        )
+                    else:
+                        self.poutput("Operation aborted")
+                        return
 
     delete_client_parser.set_defaults(func=delete_clients)
 
@@ -709,20 +744,38 @@ class TranscriptorCMD(cmd2.Cmd):
             self.poutput("No jobs found")
             return
 
-        for job in jobs:
+        if args.no_confirm:
+            if args.purge:
+                self.poutput(
+                    "\n** DELETING CLIENTS WILL DELETE ALL CLIENT DATA (NO CONFIRMATION)**\n"
+                )
             confirm_delete = prompt(
-                f"""Are you sure you want to delete {job['job_number']}? (y/n):
-                """,
+                f"Are you sure you want to delete jobs (NO CONFIRMATION)? (y/n): ",
                 validator=yes_no_validator,
             )
+            if confirm_delete.lower().startswith("y"):
+                self.app.delete_jobs(
+                    conditions=conditions,
+                    raw_sql_stmt=args.raw,
+                    purge=args.purge,
+                )
+        else:
+            for job in jobs:
+                confirm_delete = prompt(
+                    f"""Are you sure you want to delete {job['job_number']}? (y/n):
+                    """,
+                    validator=yes_no_validator,
+                )
 
-            if confirm_delete.startswith("y") or confirm_delete.startswith(
-                "Y"
-            ):
-                self.app.delete_jobs(conditions=conditions, purge=args.purge)
-            else:
-                self.poutput("Operation aborted")
-                return
+                if confirm_delete.lower().startswith("y"):
+                    self.app.delete_jobs(
+                        conditions=conditions,
+                        raw_sql_stmt=args.raw,
+                        purge=args.purge,
+                    )
+                else:
+                    self.poutput("Operation aborted")
+                    return
 
     delete_jobs_parser.set_defaults(func=delete_jobs)
 
@@ -836,9 +889,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 "Are you sure you want to delete (y/n) :",
                 validator=yes_no_validator,
             )
-            if confirm_delete.startswith("y") or confirm_delete.startswith(
-                "Y"
-            ):
+            if confirm_delete.lower().startswith("y"):
                 self.app.purge_job_files(jobs)
 
     purge_parser.set_defaults(func=purge)
