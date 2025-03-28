@@ -14,6 +14,7 @@ from typing import (
     Union,
 )
 
+import docx  # type: ignore
 from audioread import audio_open  # type: ignore
 from bs4.element import Tag
 from jinja2 import (
@@ -454,7 +455,6 @@ def html_to_md(html: str) -> str:
 
 def extract_table_data_from_docx(docx_path: str) -> List[List[str]]:
     try:
-        import docx  # type: ignore
 
         docx_file = docx.Document(docx_path)
     except ImportError:
