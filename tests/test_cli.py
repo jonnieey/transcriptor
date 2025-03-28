@@ -113,7 +113,7 @@ def test_do_add_client(cli_app, mock_transcriptor):
     """Test 'add client' command"""
     # Mock user input
     with patch(
-        "transcriptor.cli.prompt",
+        "transcriptor.cli.PromptSession.prompt",
         side_effect=["Test Client", "test@example.com"],
     ):
         result = cli_app.onecmd(
@@ -150,7 +150,9 @@ def test_do_add_job(cli_app, mock_transcriptor):
         "note": "'Cannot be late'",
     }
 
-    with patch("transcriptor.cli.prompt", side_effect=input_sequence):
+    with patch(
+        "transcriptor.cli.PromptSession.prompt", side_effect=input_sequence
+    ):
         with patch("transcriptor.cli.Path") as mock_path:
             mock_path.return_value.exists.return_value = True
             mock_path.return_value.is_file.return_value = True
@@ -186,7 +188,10 @@ def test_do_delete_clients(cli_app, mock_transcriptor):
         {"id": 1, "name": "Test Client"}
     ]
 
-    with patch("transcriptor.cli.prompt", side_effect=["y", "Test Client"]):
+    with patch(
+        "transcriptor.cli.PromptSession.prompt",
+        side_effect=["y", "Test Client"],
+    ):
         result = cli_app.onecmd("delete clients -w name=Test")
         assert result is False
         mock_transcriptor.return_value.delete_clients.assert_called_once()
@@ -204,7 +209,7 @@ def test_do_invoice(cli_app, mock_transcriptor):
         "Test Client",
     )
 
-    with patch("transcriptor.cli.prompt", return_value="1"):
+    with patch("transcriptor.cli.PromptSession.prompt", return_value="1"):
         result = cli_app.onecmd("invoice -c 1 -w client_id=1")
         assert result is False
         cli_app.app.generate_invoice.assert_called_once()
@@ -222,7 +227,7 @@ def test_do_invoice_summary(cli_app, mock_transcriptor):
         "Test Client",
     )
 
-    with patch("transcriptor.cli.prompt", return_value="1"):
+    with patch("transcriptor.cli.PromptSession.prompt", return_value="1"):
         result = cli_app.onecmd("invoice -c 1 -S")
         assert result is False
         cli_app.app.generate_summary_invoice.assert_called_once()
@@ -233,7 +238,7 @@ def test_do_purge(cli_app, mock_transcriptor):
     mock_jobs = [{"id": 1, "job_path": "test/path"}]
     mock_transcriptor.return_value.api.get_jobs.return_value = mock_jobs
 
-    with patch("transcriptor.cli.prompt", return_value="y"):
+    with patch("transcriptor.cli.PromptSession.prompt", return_value="y"):
         result = cli_app.onecmd("purge -w id=1")
         assert result is False
         mock_transcriptor.return_value.purge_job_files.assert_called_once_with(
