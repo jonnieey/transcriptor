@@ -11,7 +11,7 @@ from transcriptor.models import Client, Job
 
 # Constants for testing
 TEST_BASE_DIR = Path(__file__).parent / "test_data"
-DB_FILE_NAME = "transcriptor5.db"
+DB_FILE_NAME = "transcriptor.db"
 
 
 @pytest.fixture(scope="module")
