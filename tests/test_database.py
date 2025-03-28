@@ -1,48 +1,53 @@
-import unittest
-from unittest.mock import MagicMock, patch
+import os
 
-from sqlalchemy.exc import SQLAlchemyError
+import pytest
+from sqlalchemy import inspect, text
 
 from transcriptor.database import Database
 
 
-class TestDatabase(unittest.TestCase):
-    @patch("transcriptor.database.Base.metadata.create_all")
-    @patch("transcriptor.database.sqlite3.connect")
-    def test_init_db_successful(self, mock_connect, mock_create_all):
-        # Setup mock connection and metadata
-        mock_conn = MagicMock()
-        mock_connect.return_value = mock_conn
-
-        # Initialize Database
-        db = Database("test.db")
-
-        # Test init_db
+# Test models needed for testing (simplified)
+class TestDatabase:
+    @pytest.fixture
+    def memory_db(self):
+        """Fixture for in-memory database"""
+        db = Database(":memory:")
         db.init_db()
+        return db
 
-        # Assertions
-        mock_connect.assert_called_once_with("test.db")
-        mock_create_all.assert_called_once_with(mock_conn)
+    @pytest.fixture
+    def file_db(self, tmp_path):
+        """Fixture for file-based database with temporary path"""
+        db_file = tmp_path / "test.db"
+        db = Database(str(db_file))
+        db.init_db()
+        yield db
+        # Cleanup
+        if os.path.exists(db_file):
+            os.unlink(db_file)
 
-    @patch("transcriptor.database.Base.metadata.create_all")
-    @patch("transcriptor.database.sqlite3.connect")
-    def test_init_db_failure(self, mock_connect, mock_create_all):
-        # Setup mock to raise an exception
-        mock_conn = MagicMock()
-        mock_connect.return_value = mock_conn
-        mock_create_all.side_effect = SQLAlchemyError("Error creating tables")
+    def test_init_memory_db(self, memory_db):
+        """Test initialization with in-memory database"""
+        assert memory_db.db_file == ":memory:"
+        assert memory_db.engine is not None
 
-        # Initialize Database
-        db = Database("test.db")
+        # Verify tables are created
+        inspector = inspect(memory_db.engine)
+        assert "clients" in inspector.get_table_names()
 
-        # Test init_db
-        with self.assertRaises(SQLAlchemyError):
-            db.init_db()
+    def test_init_file_db(self, file_db, tmp_path):
+        """Test initialization with file-based database"""
+        db_file = tmp_path / "test.db"
+        assert str(db_file) == file_db.db_file
+        assert os.path.exists(db_file)
+        assert file_db.engine is not None
 
-        # Assertions
-        mock_connect.assert_called_once_with("test.db")
-        mock_create_all.assert_called_once_with(mock_conn)
+        # Verify tables are created
+        inspector = inspect(file_db.engine)
+        assert "clients" in inspector.get_table_names()
 
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_foreign_keys_enabled(self, memory_db):
+        """Test that foreign key constraints are enabled"""
+        with memory_db.engine.connect() as conn:
+            result = conn.execute(text("PRAGMA foreign_keys")).fetchone()
+            assert result[0] == 1  # Should be enabled
