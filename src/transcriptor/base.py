@@ -44,47 +44,133 @@ DEFAULT_CONFIG = {
 
 
 class Transcriptor:
-    CONFIG_DIR = Path(user_config_dir(APP_NAME))
-    if not CONFIG_DIR.exists():
-        CONFIG_DIR.mkdir(parents=True)
-    CONFIG_FILE = CONFIG_DIR / CONFIG_FILE_NAME
+    def __init__(
+        self,
+        api: Optional[API] = None,
+        config: Optional[Config] = None,
+        config_file: Optional[Union[str, Path]] = None,
+    ) -> None:
+        """Initialize Transcriptor with optional configuration.
 
-    def __init__(self, api: None = None, config: None = None):
+        Args:
+            api: Optional API instance to use
+            config: Optional Config object
+            config_file: Optional path to config file
+        """
+        self._init_config(config, config_file)
+        self._init_profile()
+        self._init_api(api)
+
+    def _init_config(
+        self,
+        config: Optional[Config],
+        config_file: Optional[Union[str, Path]],
+    ) -> None:
+        """Initialize configuration from file or defaults."""
+        self.CONFIG_DIR, self.CONFIG_FILE = self._get_config_paths(
+            config_file
+        )
+
         if config is None:
-            if (
-                not self.CONFIG_FILE.exists()
-                or self.CONFIG_FILE.stat().st_size == 0
-            ):
+            if not self._config_file_exists():
                 self.config = Config(**DEFAULT_CONFIG)
-                self.config.write(self.CONFIG_FILE)  # type: ignore
+                self._write_config()
             else:
-                self.config = Config.from_yaml(
-                    self.CONFIG_FILE
-                )  # type: ignore
+                self.config = self._load_config()
         else:
             self.config = config
+            self._write_config()
 
         self.base_dir = Path(self.config.base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.date_format = self.config.date_format
 
-        self.PROFILE_FILE = self.base_dir / "profile.yaml"
-        if (
-            not self.PROFILE_FILE.exists()
-            or self.PROFILE_FILE.stat().st_size == 0
-        ):
-            self.profile = Profile()
-            self.profile.write(self.PROFILE_FILE)  # type: ignore
+    def _get_config_paths(
+        self, config_file: Optional[Union[str, Path]]
+    ) -> tuple[Path, Path]:
+        """Determine config directory and file paths."""
+        if config_file is None:
+            config_dir = Path(user_config_dir(APP_NAME))
+            config_file = config_dir / CONFIG_FILE_NAME
         else:
-            self.profile = Profile.from_yaml(self.PROFILE_FILE)  # type: ignore
+            config_file = Path(config_file)
+            config_dir = config_file.parent
+            if not config_dir.exists():
+                config_dir.mkdir(parents=True)
+        return config_dir, config_file
 
+    def _config_file_exists(self) -> bool:
+        """Check if config file exists and is not empty."""
+        return (
+            self.CONFIG_FILE.exists() and self.CONFIG_FILE.stat().st_size > 0
+        )
+
+    def _write_config(self) -> None:
+        """Write current config to file."""
+        try:
+            self.config.write(self.CONFIG_FILE)
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to write config to {self.CONFIG_FILE}"
+            ) from e
+
+    def _load_config(self) -> Config:
+        """Load config from file."""
+        try:
+            return Config.from_yaml(self.CONFIG_FILE)
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to load config from {self.CONFIG_FILE}"
+            ) from e
+
+    def _init_profile(self) -> None:
+        """Initialize profile from file or defaults."""
+        self.PROFILE_FILE = self.base_dir / "profile.yaml"
+
+        if not self._profile_file_exists():
+            self.profile = Profile()
+            self._write_profile()
+        else:
+            self.profile = self._load_profile()
+
+    def _profile_file_exists(self) -> bool:
+        """Check if profile file exists and is not empty."""
+        return (
+            self.PROFILE_FILE.exists()
+            and self.PROFILE_FILE.stat().st_size > 0
+        )
+
+    def _write_profile(self) -> None:
+        """Write current profile to file."""
+        try:
+            self.profile.write(self.PROFILE_FILE)
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to write profile to {self.PROFILE_FILE}"
+            ) from e
+
+    def _load_profile(self) -> Profile:
+        """Load profile from file."""
+        try:
+            return Profile.from_yaml(self.PROFILE_FILE)
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to load profile from {self.PROFILE_FILE}"
+            ) from e
+
+    def _init_api(self, api: Optional[API]) -> None:
+        """Initialize API instance."""
         self.api = api if api is not None else API(base_dir=self.base_dir)
 
-    def save_config(self):
-        self.config.write(self.CONFIG_FILE)
+    def save_config(self, yaml_file=None):
+        if not yaml_file:
+            yaml_file = self.CONFIG_FILE
+        self.config.write(yaml_file)
 
-    def save_profile(self):
-        self.profile.write(self.PROFILE_FILE)
+    def save_profile(self, yaml_file=None):
+        if not yaml_file:
+            yaml_file = self.PROFILE_FILE
+        self.profile.write(yaml_file)
 
     def create_client(
         self, name: str, email: str, rates_dict: Optional[dict] = None
@@ -693,11 +779,13 @@ class Transcriptor:
         return cutoffs
 
     def select_cutoff_period(
-        self, deposit_date_idx: int
+        self, deposit_date_idx: int, cutoffs=None
     ) -> Tuple[Union[str, date, None], Union[str, date]]:
-        cutoff_deposit_pairs = self.load_cutoffs()
-
-        cutoff_deposit_pairs = self.load_cutoffs()[1:]
+        if cutoffs is None:
+            cutoff_deposit_pairs = self.load_cutoffs()
+            cutoff_deposit_pairs = self.load_cutoffs()[1:]
+        else:
+            cutoff_deposit_pairs = cutoffs
 
         deposit_date_idx = max(deposit_date_idx - 1, 0)
 
@@ -709,7 +797,7 @@ class Transcriptor:
                 previous_year_cutoffs = self.load_cutoffs(year=previous_year)[
                     1:
                 ]
-                if previous_year_cutoffs:
+                if previous_year_cutoffs is not None:
                     previous_cutoff_date = previous_year_cutoffs[-1][0]
             except Exception:
                 pass
