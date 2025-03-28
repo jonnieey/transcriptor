@@ -5,10 +5,9 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.engine.row import RowMapping
 
 from transcriptor.api import API
-from transcriptor.models import Client, Job, Rate
+from transcriptor.models import Client, Job
 
 # Constants for testing
 TEST_BASE_DIR = Path("test_data")

@@ -3,10 +3,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from cmd2 import CommandResult
 
 from transcriptor.api import API
-from transcriptor.base import Transcriptor
 from transcriptor.cli import TranscriptorCMD
 from transcriptor.models import Config, Profile
 

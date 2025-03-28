@@ -8,7 +8,7 @@ import yaml
 
 from transcriptor.api import API
 from transcriptor.base import Transcriptor
-from transcriptor.models import Config, Profile
+from transcriptor.models import Config
 
 # Constants for testing
 TEST_BASE_DIR = Path(__file__).parent / "test_transcriptor_data"

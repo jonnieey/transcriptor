@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 from sqlalchemy import and_
 from sqlalchemy import delete as sql_delete
 from sqlalchemy import select, text
-from sqlalchemy import update as sql_update
 from sqlalchemy.engine.row import RowMapping
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql.dml import Delete, Update
