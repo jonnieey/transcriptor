@@ -131,10 +131,10 @@ class TranscriptorView:
                         amount_paid_column = columns.index("amount_paid")
 
                         summary_row = [""] * len(columns)
-                        summary_row[amount_column] = str(total_amount)
-                        summary_row[amount_paid_column] = str(
-                            total_amount_paid
-                        )
+                        summary_row[amount_column] = f"{total_amount:.2f}"
+                        summary_row[
+                            amount_paid_column
+                        ] = f"{total_amount_paid:.2f}"
 
                         self.table.add_row(*summary_row)
                     except (TypeError, KeyError, AttributeError):
@@ -144,10 +144,10 @@ class TranscriptorView:
                         amount_paid_column = columns.index("amount_paid")
 
                         summary_row = [""] * len(columns)
-                        summary_row[amount_column] = str(total_amount)
-                        summary_row[amount_paid_column] = str(
-                            total_amount_paid
-                        )
+                        summary_row[amount_column] = f"{total_amount:.2f}"
+                        summary_row[
+                            amount_paid_column
+                        ] = f"{total_amount_paid:2f}"
                         self.table.add_row(*summary_row)
 
                 except AttributeError:
