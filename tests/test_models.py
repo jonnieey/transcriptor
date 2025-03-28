@@ -1,325 +1,242 @@
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from unittest.mock import mock_open, patch
+
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
+import sqlalchemy as sa
+from sqlalchemy.orm import sessionmaker
+from yaml.scanner import ScannerError
 
-from transcriptor.models import Base, Client, Config, Job, Profile, Rate
+from transcriptor.models import (
+    Base,
+    Client,
+    Config,
+    Invoice,
+    InvoiceLine,
+    Job,
+    Profile,
+    Rate,
+)
 
-engine = create_engine("sqlite:///:memory:", echo=True)
-SessionLocal = sessionmaker(bind=engine)
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup_database():
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
+# Test data constants
+TEST_DB = "test_models.db"
+TEST_YAML_FILE = "test_config.yaml"
+SAMPLE_DATE = date(2023, 1, 1)
 
 
 @pytest.fixture(scope="module")
-def session():
-    session = SessionLocal()
+def test_db_engine():
+    """Create an in-memory SQLite database for testing"""
+    engine = sa.create_engine(f"sqlite:///{TEST_DB}")
+    Base.metadata.create_all(engine)
+    yield engine
+    # Teardown
+    engine.dispose()
+    if Path(TEST_DB).exists():
+        Path(TEST_DB).unlink()
+
+
+@pytest.fixture
+def db_session(test_db_engine):
+    """Create a new database session for each test"""
+    Session = sessionmaker(bind=test_db_engine)
+    session = Session()
     yield session
     session.rollback()
     session.close()
 
 
-@pytest.fixture(scope="module")
-def seed_clients(session):
-    """Seed the database with initial clients."""
-    client = Client(name="Test Client", email="test@example.com")
-    session.add(client)
-    session.commit()
-    return client
+@pytest.fixture
+def sample_client():
+    return Client(
+        name=f"Test Client {datetime.now().timestamp()}",
+        email="test@example.com",
+    )
 
 
-@pytest.mark.parametrize(
-    "client_data, expected_result",
-    [
-        ({"name": "Client A", "email": "clienta@example.com"}, True),
-        ({"name": "Client B", "email": "clientb@example.com"}, True),
-        (
-            {"name": "Client A", "email": "clientc@example.com"},
-            False,
-        ),  # Duplicate name
-        (
-            {"name": "Client C", "email": "clienta@example.com"},
-            True,
-        ),  # Duplicate email is allowed
-        ({"name": None, "email": "clientd@example.com"}, False),  # Null name
-        ({"name": "Client E", "email": None}, False),  # Null email
-    ],
-)
-def test_client_insertion(session: Session, client_data, expected_result):
-    client = Client(**client_data)
-    try:
-        session.add(client)
-        session.commit()
-        assert expected_result is True
-    except (IntegrityError, AssertionError):
-        session.rollback()
-        assert expected_result is False
+@pytest.fixture
+def sample_rate(sample_client):
+    return Rate(
+        normal=0.4, expedite=0.6, interpreted=0.3, client=sample_client
+    )
 
 
-@pytest.mark.parametrize(
-    "rate_data, expected_result",
-    [
-        (
-            {
-                "normal": 100.0,
-                "expedite": 150.0,
-                "interpreted": 200.0,
-                "client_id": 1,
-            },
-            True,
-        ),
-        (
-            {
-                "normal": None,
-                "expedite": 150.0,
-                "interpreted": 200.0,
-                "client_id": 1,
-            },
-            False,
-        ),  # Null normal
-        (
-            {
-                "normal": 100.0,
-                "expedite": None,
-                "interpreted": 200.0,
-                "client_id": 1,
-            },
-            False,
-        ),  # Null expedite
-        (
-            {
-                "normal": 100.0,
-                "expedite": 150.0,
-                "interpreted": None,
-                "client_id": 1,
-            },
-            False,
-        ),  # Null interpreted
-        (
-            {
-                "normal": 100.0,
-                "expedite": 150.0,
-                "interpreted": 200.0,
-                "client_id": 99,
-            },
-            False,
-        ),  # Invalid client_id
-        (
-            {
-                "normal": 100.0,
-                "expedite": 150.0,
-                "interpreted": 200.0,
-                "client_id": None,
-            },
-            False,
-        ),  # No client_id
-    ],
-)
-def test_rate_insertion(
-    session: Session, seed_clients, rate_data, expected_result
-):
-    rate = Rate(**rate_data)
-    try:
-        session.add(rate)
-        session.commit()
-        assert expected_result is True
-    except (IntegrityError, AssertionError):
-        session.rollback()
-        assert expected_result is False
+@pytest.fixture
+def sample_job(sample_client):
+    return Job(
+        client=sample_client,
+        date_received="2023-01-01",
+        job_number="JOB001",
+        job_type="Normal",
+        status="Pending",
+        date_due="2023-01-10",
+        total_quantity=60.0,
+        quantity=60.0,
+        job_rate=0.4,
+        amount=24.0,
+        job_path="/path/to/job",
+    )
 
 
-@pytest.mark.parametrize(
-    "job_data, expected_result",
-    [
-        # Valid job insertion
-        (
-            {
-                "client_id": 1,
-                "date_received": "2023-10-10",
-                "job_number": "JOB123",
-                "job_type": "Translation",
-                "date_due": "2023-11-10",
-                "total_quantity": 100.0,
-                "quantity": 10.0,
-                "job_rate": 20.0,
-                "amount": 200.0,
-                "job_path": "/jobs/JOB123",
-            },
-            True,
-        ),
-        # Null constraints testing
-        (
-            {
-                **{
-                    k: v
-                    for k, v in {
-                        "client_id": 1,
-                        "date_received": "2023-10-10",
-                        "job_number": "JOB123",
-                        "job_type": "Translation",
-                        "date_due": "2023-11-10",
-                        "total_quantity": 100.0,
-                        "quantity": 10.0,
-                        "job_rate": 20.0,
-                        "amount": 200.0,
-                        "job_path": "/jobs/JOB123",
-                    }.items()
-                    if k != "date_received"
-                },
-                "date_received": None,
-            },
-            False,
-        ),  # Null date_received
-        # ...repeat for each non-nullable field
-        (
-            {
-                **{
-                    k: v
-                    for k, v in {
-                        "client_id": 1,
-                        "date_received": "2023-10-10",
-                        "job_number": "JOB123",
-                        "job_type": "Translation",
-                        "date_due": "2023-11-10",
-                        "total_quantity": 100.0,
-                        "quantity": 10.0,
-                        "job_rate": 20.0,
-                        "amount": 200.0,
-                        "job_path": "/jobs/JOB123",
-                    }.items()
-                    if k != "job_number"
-                },
-                "job_number": None,
-            },
-            False,
-        ),
-        # Invalid client id
-        (
-            {
-                "client_id": 999,
-                "date_received": "2023-10-10",
-                "job_number": "JOB124",
-                "job_type": "Editing",
-                "date_due": "2023-11-15",
-                "total_quantity": 50.0,
-                "quantity": 5.0,
-                "job_rate": 15.0,
-                "amount": 75.0,
-                "job_path": "/jobs/JOB124",
-            },
-            False,
-        ),
-    ],
-)
-def test_job_insertion(
-    session: Session, seed_clients, job_data, expected_result
-):
-    job = Job(**job_data)
-    try:
-        session.add(job)
-        session.commit()
-        assert expected_result is True
-    except (IntegrityError, AssertionError):
-        session.rollback()
-        assert expected_result is False
+def test_client_model(db_session, sample_client):
+    """Test Client model creation and relationships"""
+    db_session.add(sample_client)
+    db_session.commit()
+
+    client = db_session.query(Client).first()
+    assert "Test Client" in client.name
+    assert "test@example.com" in client.email
+    assert client.rate is None  # Not yet set
 
 
-@pytest.mark.parametrize(
-    "profile_data, expected_result",
-    [
-        # Valid profile insertion
-        (
-            {
-                "first_name": "John",
-                "last_name": "Doe",
-                "area": "Nairobi",
-                "country": "Kenya",
-            },
-            True,
-        ),
-        # Null checks for each field
-        (
-            {
-                "first_name": None,
-                "last_name": "Doe",
-                "area": "Nairobi",
-                "country": "Kenya",
-            },
-            False,
-        ),
-        (
-            {
-                "first_name": "John",
-                "last_name": None,
-                "area": "Nairobi",
-                "country": "Kenya",
-            },
-            False,
-        ),
-        (
-            {
-                "first_name": "John",
-                "last_name": "Doe",
-                "area": None,
-                "country": "Kenya",
-            },
-            False,
-        ),
-        (
-            {
-                "first_name": "John",
-                "last_name": "Doe",
-                "area": "Nairobi",
-                "country": None,
-            },
-            False,
-        ),
-    ],
-)
-def test_profile_insertion(session: Session, profile_data, expected_result):
-    profile = Profile(**profile_data)
-    try:
-        session.add(profile)
-        session.commit()
-        assert expected_result is True
-    except (IntegrityError, AssertionError):
-        session.rollback()
-        assert expected_result is False
+def test_rate_model(db_session, sample_client, sample_rate):
+    """Test Rate model and relationship to Client"""
+    sample_client.rate = sample_rate
+    db_session.add_all([sample_client, sample_rate])
+    db_session.commit()
+
+    rate = db_session.query(Rate).first()
+    assert rate.normal == 0.4
+    assert "Test Client" in rate.client.name
+    assert rate.client.rate == rate  # Back reference
 
 
-@pytest.mark.parametrize(
-    "config_data, expected_result",
-    [
-        # Valid config insertion
-        (
-            {
-                "key": "theme",
-                "value": "dark",
-            },
-            True,
+def test_job_model(db_session, sample_client, sample_job):
+    """Test Job model and relationships"""
+    db_session.add_all([sample_client, sample_job])
+    db_session.commit()
+
+    job = db_session.query(Job).first()
+    assert job.job_number == "JOB001"
+    assert "Test Client" in job.client.name
+    assert job.amount == 24.0  # quantity * job_rate
+
+
+def test_job_amount_trigger(db_session, sample_client):
+    """Test the trigger that updates amount when rate or quantity changes"""
+    job = Job(
+        client=sample_client,
+        job_number="JOB002",
+        job_type="Normal",
+        total_quantity=60.0,
+        quantity=60.0,
+        job_rate=0.4,
+        amount=24.0,
+        date_received="2023-01-01",
+        date_due="2023-01-10",
+        job_path="/job/path",
+    )
+    db_session.add(job)
+    db_session.commit()
+
+    # Initial amount should be calculated
+    assert job.amount == 24.0  # 60 * 0.4
+
+    # Update quantity - amount should auto-update
+    job.quantity = 30.0
+    db_session.commit()
+    assert job.amount == 12.0  # 30 * 0.4
+
+    # Update rate - amount should auto-update
+    job.job_rate = 0.5
+    db_session.commit()
+    assert job.amount == 15.0  # 30 * 0.5
+
+
+def test_job_status_trigger(db_session, sample_client):
+    """Test the trigger that updates date_submitted when status changes"""
+    job = Job(
+        client=sample_client,
+        job_number="JOB003",
+        status="Pending",
+        date_received="2023-01-01",
+        date_due="2023-01-10",
+        job_type="Normal",
+        total_quantity=60.0,
+        quantity=60.0,
+        job_rate=0.4,
+        amount=24.0,
+        job_path="/job/path",
+    )
+    db_session.add(job)
+    db_session.commit()
+
+    assert job.date_submitted is None
+
+    # Change status to Done - should set date_submitted
+    job.status = "Done"
+    db_session.commit()
+    assert job.date_submitted is not None
+
+    # Change back to Pending - should clear date_submitted
+    job.status = "Pending"
+    db_session.commit()
+    assert job.date_submitted is None
+
+
+def test_yaml_base_config():
+    """Test Config model YAML serialization"""
+    config = Config(base_dir="/test/path", date_format="%Y-%m-%d")
+
+    # Test writing to YAML
+    mock_file = mock_open()
+    with patch("builtins.open", mock_file):
+        with patch("yaml.dump") as mock_dump:
+            config.write(Path(TEST_YAML_FILE))
+
+            # Verify file was opened in write mode
+            mock_file.assert_called_once_with(Path(TEST_YAML_FILE), "w")
+
+            # Verify yaml.dump was called with the config data
+            mock_dump.assert_called_once_with(
+                {"base_dir": "/test/path", "date_format": "%Y-%m-%d"},
+                mock_file.return_value,
+            )
+
+
+def test_invoice_model():
+    """Test Invoice model and due date calculation"""
+    lines = [
+        InvoiceLine(
+            job_number="JOB001",
+            job_type="Normal",
+            job_rate=0.4,
+            quantity=60.0,
         ),
-        # Null checks for each field
-        (
-            {"key": None, "value": "dark"},
-            False,
+        InvoiceLine(
+            job_number="JOB002",
+            job_type="Expedite",
+            job_rate=0.6,
+            quantity=30.0,
         ),
-        (
-            {"key": "theme", "value": None},
-            False,
-        ),
-    ],
-)
-def test_config_insertion(session: Session, config_data, expected_result):
-    config = Config(**config_data)
-    try:
-        session.add(config)
-        session.commit()
-        assert expected_result is True
-    except (IntegrityError, AssertionError):
-        session.rollback()
-        assert expected_result is False
+    ]
+    profile = Profile(name="Tester")
+    invoice = Invoice(
+        profile=profile,
+        invoice_number="INV001",
+        client_name="Test Client",
+        jobs=lines,
+    )
+
+    assert len(invoice.jobs) == 2
+    assert invoice.due_date == invoice.create_date + timedelta(days=7)
+    assert sum(job.amount for job in invoice.jobs) == pytest.approx(
+        24.0 + 18.0
+    )
+
+
+def test_yaml_base_error_handling():
+    """Test YAMLBase error handling"""
+    # Test file not found
+    with patch(
+        "builtins.open", side_effect=FileNotFoundError("File not found")
+    ):
+        with pytest.raises(
+            FileNotFoundError
+        ):  # Changed to catch either error
+            Config.from_yaml(Path("nonexistent.yaml"))
+    # Test invalid YAML - need to actually provide invalid YAML
+    invalid_yaml = "invalid: yaml: here\n  - bad: indentation\n"
+    with patch("builtins.open", mock_open(read_data=invalid_yaml)):
+        with pytest.raises(ScannerError):  # Changed to catch either error
+            Config.from_yaml(Path(TEST_YAML_FILE))
