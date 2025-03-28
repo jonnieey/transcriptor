@@ -97,7 +97,7 @@ update_date_trigger = DDL(
         AFTER UPDATE OF status ON Jobs
     BEGIN
         UPDATE Jobs
-        SET 
+        SET
             date_submitted = CASE
                 WHEN NEW.status = 'Pending' THEN NULL
                 WHEN NEW.status = 'Done' AND NEW.date_submitted IS NULL THEN DATE("NOW", 'localtime')
@@ -120,7 +120,7 @@ update_status_trigger = DDL(
         AFTER UPDATE OF date_submitted ON Jobs
     BEGIN
         UPDATE Jobs
-        SET 
+        SET
             status = CASE
                 WHEN NEW.date_submitted IS NULL THEN 'Pending'
                 WHEN NEW.date_submitted IS '' THEN 'Pending'
@@ -144,7 +144,7 @@ limit_amount_paid_trigger = DDL(
         UPDATE Jobs
         SET
             amount_paid = (
-                CASE 
+                CASE
                     WHEN NEW.amount_paid > Jobs.amount THEN Jobs.amount
                     ELSE NEW.amount_paid
                 END
@@ -160,7 +160,7 @@ event.listen(
 )
 
 update_job_rates_trigger = DDL(
-    """ 
+    """
     CREATE TRIGGER IF NOT EXISTS update_job_rates
         AFTER UPDATE OF client_id ON Jobs
     BEGIN
@@ -190,22 +190,20 @@ class YAMLBase(BaseModel):
                 data = yaml.safe_load(file)
             return cls(**data)
         except FileNotFoundError:
-            print(f"Error: YAML file '{yaml_file}' not found.")
-            return None
-        except yaml.YAMLError as e:
-            print(f"Error parsing YAML file: {e}")
-            return None
+            raise
+        except yaml.YAMLError:
+            raise
 
     def write(self, yaml_file: Path) -> Any:
         try:
             with open(yaml_file, "w") as file:
                 yaml.dump(self.model_dump(), file)
         except FileNotFoundError:
-            print(f"Error: File not found, YAML file '{yaml_file}'")
+            raise
         except yaml.YAMLError:
-            print(f"Error writing YAML file: {yaml_file}")
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            raise
+        except Exception:
+            raise
 
 
 class Config(YAMLBase):
