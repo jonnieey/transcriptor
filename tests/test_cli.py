@@ -1,159 +1,278 @@
-from datetime import date
+import shutil
 from pathlib import Path
-from tempfile import mkdtemp
+from unittest.mock import MagicMock, patch
 
-import cmd2_ext_test
 import pytest
+from cmd2 import CommandResult
 
+from transcriptor.api import API
 from transcriptor.base import Transcriptor
 from transcriptor.cli import TranscriptorCMD
-from transcriptor.utils import str_to_date as std
+from transcriptor.models import Config, Profile
 
-today = date.today()
+# Constants for testing
+TEST_BASE_DIR = Path("test_cli_data")
+CONFIG_FILE = TEST_BASE_DIR / "config5.yaml"
+PROFILE_FILE = TEST_BASE_DIR / "profile.yaml"
+HISTORY_FILE = TEST_BASE_DIR / ".history"
 
 
-class TranscriptorTester(cmd2_ext_test.ExternalTestMixin, TranscriptorCMD):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+@pytest.fixture(scope="module")
+def test_base_dir():
+    # Setup
+    test_dir = TEST_BASE_DIR
+    test_dir.mkdir(exist_ok=True)
+    yield test_dir
+    # Teardown
+    shutil.rmtree(test_dir, ignore_errors=True)
 
 
 @pytest.fixture
-def transcriptor_app():
-    config = {"base_dir": mkdtemp(), "date_format": "%Y-%m-%d"}
-    app = TranscriptorTester(Transcriptor(config=config))
-    app.fixture_setup()
+def mock_transcriptor(test_base_dir):
+    # Create a mock Transcriptor instance
+    config = Config(base_dir=str(test_base_dir), date_format="%Y-%m-%d")
+    profile = Profile()
+
+    with patch("transcriptor.cli.Transcriptor", autospec=True) as mock:
+        mock.return_value.config = config
+        mock.return_value.profile = profile
+        mock.return_value.base_dir = test_base_dir
+        mock.return_value.CONFIG_DIR = test_base_dir
+        mock.return_value.api = MagicMock(spec=API)
+        yield mock
+
+
+@pytest.fixture
+def cli_app(mock_transcriptor, test_base_dir):
+    # Mock the persistent history file operations
+    app = TranscriptorCMD(
+        history=False, alias=True
+    )  # Disable history for tests
     yield app
-    app.fixture_teardown()
+
+    # Clean up after test
+    if hasattr(app, "app"):
+        del app.app
 
 
-def test_show_config(transcriptor_app):
-    out = transcriptor_app.app_cmd("show config")
-    assert "Date Format" in str(out.stdout).strip()
-    assert "Base Dir" in str(out.stdout).strip()
-
-    # update config
-    cmd = "update config -b /tmp/testing -d %Y=%m=%d"
-    transcriptor_app.app_cmd(cmd)
-    out = transcriptor_app.app_cmd("show config")
-    assert "testing" in str(out.stdout).strip()
-    assert "%Y=%m=%d" in str(out.stdout).strip()
+def test_cli_initialization(cli_app, mock_transcriptor):
+    """Test CLI application initialization"""
+    assert isinstance(cli_app, TranscriptorCMD)
+    mock_transcriptor.assert_called_once()
+    assert hasattr(cli_app, "app")
+    assert cli_app.debug is True
 
 
-def test_show_profile(transcriptor_app):
-    out = transcriptor_app.app_cmd("show profile")
-    assert "First Name" in str(out.stdout).strip()
-    assert "Country" in str(out.stdout).strip()
-    assert "Area" in str(out.stdout).strip()
+def test_do_show_config(cli_app, mock_transcriptor):
+    """Test 'show config' command"""
+    # Mock the view's print_table method
+    with patch("transcriptor.cli.TranscriptorView.print_table") as mock_print:
+        result = cli_app.onecmd("show config")
+        assert result is False
+        mock_print.assert_called_once_with(
+            mock_transcriptor.return_value.config.__dict__
+        )
 
-    cmd = (
-        "update profile -f TestFName -l TestLName -a TestArea -c TestCountry"
+
+def test_do_show_profile(cli_app, mock_transcriptor):
+    """Test 'show profile' command"""
+    with patch("transcriptor.cli.TranscriptorView.print_table") as mock_print:
+        result = cli_app.onecmd("show profile")
+        assert result is False
+        mock_print.assert_called_once_with(
+            mock_transcriptor.return_value.profile.__dict__
+        )
+
+
+def test_do_show_clients(cli_app, mock_transcriptor):
+    """Test 'show clients' command"""
+    mock_clients = [
+        {"id": 1, "name": "Test Client", "email": "test@example.com"}
+    ]
+    mock_transcriptor.return_value.api.get_clients.return_value = mock_clients
+
+    with patch("transcriptor.cli.TranscriptorView.print_table") as mock_print:
+        result = cli_app.onecmd("show clients")
+        assert result is False
+        mock_print.assert_called_once_with(
+            mock_clients, orientation="horizontal"
+        )
+
+
+def test_do_show_clients_with_conditions(cli_app, mock_transcriptor):
+    """Test 'show clients' with conditions"""
+    mock_transcriptor.return_value.api.get_clients.return_value = []
+
+    with patch("transcriptor.cli.parse_conditions") as mock_parse:
+        mock_parse.return_value = {"name": [("=", "Test")]}
+        cli_app.onecmd("show clients -w name=Test")
+        mock_transcriptor.return_value.api.get_clients.assert_called_once_with(
+            conditions={"name": [("=", "Test")]}
+        )
+
+
+def test_do_add_client(cli_app, mock_transcriptor):
+    """Test 'add client' command"""
+    # Mock user input
+    with patch(
+        "transcriptor.cli.prompt",
+        side_effect=["Test Client", "test@example.com"],
+    ):
+        result = cli_app.onecmd(
+            "add client -n 'Test Client' -e 'test@example.com'"
+        )
+        assert result is False
+        cli_app.app.create_client.assert_called_once()
+
+
+def test_do_add_job(cli_app, mock_transcriptor):
+    """Test 'add job' command"""
+    # Setup mocks
+    mock_client = MagicMock()
+    mock_client.id = 1
+    mock_client.name = "Test Client"
+    mock_client.email = "test@example.com"
+
+    cli_app.app.api.get_clients.return_value = [mock_client]
+
+    # Mock file operations
+    mock_file = MagicMock()
+    mock_file.name = "test_file.mp3"
+
+    # Mock user input
+    input_sequence = {
+        "client_id": "1",
+        "job_number": "JOB001",
+        "date_received": "2023-01-01",
+        "date_due": "2023-01-10",
+        "work_on_file": "y",
+        "job_type": "Normal",
+        "quantity": "60",
+        "job_template": "zd",
+        "note": "'Cannot be late'",
+    }
+
+    with patch("transcriptor.cli.prompt", side_effect=input_sequence):
+        with patch("transcriptor.cli.Path") as mock_path:
+            mock_path.return_value.exists.return_value = True
+            mock_path.return_value.is_file.return_value = True
+            mock_path.return_value.parent = MagicMock()
+
+            command = "add job -f test_file.mp3 -c {} -j {} -r {} -d {} -w {} -t {} -q {} -T {} -N {}".format(
+                *[v for k, v in input_sequence.items()]
+            )
+            result = cli_app.onecmd(command)
+            assert result is False
+            cli_app.app.create_job.assert_called_once()
+
+
+def test_do_update_config(cli_app, mock_transcriptor):
+    """Test 'update config' command"""
+    result = cli_app.onecmd("update config --date-format %d-%m-%Y")
+    assert result is False
+    assert mock_transcriptor.return_value.config.date_format == "%d-%m-%Y"
+    mock_transcriptor.return_value.save_config.assert_called_once()
+
+
+def test_do_update_profile(cli_app, mock_transcriptor):
+    """Test 'update profile' command"""
+    result = cli_app.onecmd("update profile --name 'Test User'")
+    assert result is False
+    assert mock_transcriptor.return_value.profile.name == "Test User"
+    mock_transcriptor.return_value.save_profile.assert_called_once()
+
+
+def test_do_delete_clients(cli_app, mock_transcriptor):
+    """Test 'delete clients' command"""
+    mock_transcriptor.return_value.api.get_clients.return_value = [
+        {"id": 1, "name": "Test Client"}
+    ]
+
+    with patch("transcriptor.cli.prompt", side_effect=["y", "Test Client"]):
+        result = cli_app.onecmd("delete clients -w name=Test")
+        assert result is False
+        mock_transcriptor.return_value.delete_clients.assert_called_once()
+
+
+def test_do_invoice(cli_app, mock_transcriptor):
+    """Test 'invoice' command"""
+    mock_client = MagicMock()
+    mock_client.id = 1
+    mock_client.name = "Test Client"
+
+    cli_app.app.api.get_clients.return_value = [mock_client]
+    cli_app.app.generate_invoice.return_value = (
+        "<html>Test</html>",
+        "Test Client",
     )
-    transcriptor_app.app_cmd(cmd)
-    out = transcriptor_app.app_cmd("show profile")
-    assert "TestFName" in str(out.stdout).strip()
-    assert "TestLName" in str(out.stdout).strip()
-    assert "TestArea" in str(out.stdout).strip()
-    assert "TestCountry" in str(out.stdout).strip()
+
+    with patch("transcriptor.cli.prompt", return_value="1"):
+        result = cli_app.onecmd("invoice -c 1 -w client_id=1")
+        assert result is False
+        cli_app.app.generate_invoice.assert_called_once()
 
 
-def test_show_rates(transcriptor_app):
-    cmd = "add client -n Anderson -e Anderson@gmail.com -r 0.3 0.4 0.5"
-    transcriptor_app.app_cmd(cmd)
-    out = transcriptor_app.app_cmd("show rates")
-    assert "Expedite" in str(out.stdout).strip()
-    assert "0.3" in str(out.stdout).strip()
-    assert "Anderson" in str(out.stdout).strip()
+def test_do_invoice_summary(cli_app, mock_transcriptor):
+    """Test summary invoice generation"""
+    mock_client = MagicMock()
+    mock_client.id = 1
+    mock_client.name = "Test Client"
 
-
-def test_add_clients(transcriptor_app):
-    # create clients
-    out = transcriptor_app.app_cmd("show clients")
-    assert "" == str(out.stdout).strip()
-    cmd = "add client -n TestClient -e TestClient@gmail.com -r 0.3 0.4 0.5"
-    transcriptor_app.app_cmd(cmd)
-    out = transcriptor_app.app_cmd("show clients")
-    assert "Client" in str(out.stdout).strip()
-    assert "Email" in str(out.stdout).strip()
-    assert "TestClient" in str(out.stdout).strip()
-    assert "0.4" in str(out.stdout).strip()
-
-    # update clients
-    cmd = "update client -w name=TestClient -s name=TestNameClient email=TestEmail@gmail.com"
-    transcriptor_app.app_cmd(cmd)
-    out = transcriptor_app.app_cmd("show clients")
-    assert "TestClient" not in str(out.stdout).strip()
-    assert "TestNameClient" in str(out.stdout).strip()
-    assert "TestEmail@gmail.com" in str(out.stdout).strip()
-    assert "TestClient@gmail.com" not in str(out.stdout).strip()
-
-    # delete clients
-    cmd = "delete client -w client_id=1 -P"
-    out = transcriptor_app.app_cmd(cmd)
-    out = transcriptor_app.app_cmd("show clients")
-    assert "TestClient" not in str(out.stdout).strip()
-    assert "" == str(out.stdout).strip()
-
-
-def test_add_job(transcriptor_app):
-    # TODO use mocks
-    cmd = "add client -n TestClient -e TestClient@gmail.com -r 0.3 0.4 0.5"
-    transcriptor_app.app_cmd(cmd)
-    cmd = "add job -c 1 -f '/home/kamikaze/.python/projects/transcriptor/tests/media_files/488460 BACKUP - 22 MINS.m4a' -r 2023-05-12 -d 2023-05-17 -w Yes -t Normal -T zd -N 'Testing one 2' -q 50"
-    transcriptor_app.app_cmd(cmd)
-    out = transcriptor_app.app_cmd("show jobs")
-    assert "2023-05-12" in str(out.stdout).strip()
-    assert "50" in str(out.stdout).strip()
-
-    # update job
-    cmd = "update jobs -s date_submitted=2023-05-16  status=Done -w 'id=1'"
-    transcriptor_app.app_cmd(cmd)
-    out = transcriptor_app.app_cmd("show jobs -a")
-    # print(str(out.stdout).strip())
-    assert today.strftime("%Y-%m-%d") not in str(out.stdout).strip()
-    assert "2023-05-12" in str(out.stdout).strip()
-    assert "Done" in str(out.stdout).strip()
-
-    # delete job
-    cmd = "delete jobs -w 'id>=1' -P"
-    out = transcriptor_app.app_cmd(cmd)
-    out = transcriptor_app.app_cmd("show jobs -a")
-    assert "2023-05-16" not in str(out.stdout).strip()
-    assert "2023-05-12" not in str(out.stdout).strip()
-    assert "Done" not in str(out.stdout).strip()
-
-
-def test_purge_jobs_delete_client(transcriptor_app):
-    # TODO use mocks
-    cmd = "add client -n TestClient -e TestClient@gmail.com -r 0.3 0.4 0.5"
-    transcriptor_app.app_cmd(cmd)
-    cmd = "add job -c 1 -f '/home/kamikaze/.python/projects/transcriptor/tests/media_files/488460 BACKUP - 22 MINS.m4a' -r 2023-05-12 -d 2023-05-17 -w Yes -t Normal -T zd -N 'Testing one 2' -q 50"
-    transcriptor_app.app_cmd(cmd)
-    cmd = "delete client -w client_id=1 -P"
-    transcriptor_app.app_cmd(cmd)
-    out = transcriptor_app.app_cmd("show clients")
-    assert "TestClient" not in str(out.stdout).strip()
-    assert "" == str(out.stdout).strip()
-    out = transcriptor_app.app_cmd("show jobs")
-    assert "2023-05-12" not in str(out.stdout).strip()
-    assert "" == str(out.stdout).strip()
-
-
-def test_purge_files(transcriptor_app):
-    cmd = "add client -n TestClient -e TestClient@gmail.com -r 0.3 0.4 0.5"
-    transcriptor_app.app_cmd(cmd)
-    cmd = "add job -c 1 -f '/home/kamikaze/.python/projects/transcriptor/tests/media_files/488460 BACKUP - 22 MINS.m4a' -r 2023-05-12 -d 2023-05-17 -w Yes -t Normal -T zd -N 'Testing one 2' -q 50"
-    transcriptor_app.app_cmd(cmd)
-    date_r = std("2023-05-12", "%Y-%m-%d")
-    date_d = std("2023-05-17", "%Y-%m-%d")
-    job_file = Path(transcriptor_app.app.config.base_dir).joinpath(
-        "clients",
-        "TestClient",
-        f"{date_r.year}",
-        f'{date_r.strftime("%B")}',
-        f"{date_r.strftime('%d_%a')}_488460_DUE_{date_d.strftime('%d_%a')}",
-        "488460 BACKUP - 22 MINS.m4a",
+    cli_app.app.api.get_clients.return_value = [mock_client]
+    cli_app.app.generate_summary_invoice.return_value = (
+        "<html>Summary</html>",
+        "Test Client",
     )
-    assert job_file.exists() is True
-    cmd = "purge -P -w 'job_id>=1'"
-    transcriptor_app.app_cmd(cmd)
-    assert job_file.exists() is False
+
+    with patch("transcriptor.cli.prompt", return_value="1"):
+        result = cli_app.onecmd("invoice -c 1 -S")
+        assert result is False
+        cli_app.app.generate_summary_invoice.assert_called_once()
+
+
+def test_do_purge(cli_app, mock_transcriptor):
+    """Test 'purge' command"""
+    mock_jobs = [{"id": 1, "job_path": "test/path"}]
+    mock_transcriptor.return_value.api.get_jobs.return_value = mock_jobs
+
+    with patch("transcriptor.cli.prompt", return_value="y"):
+        result = cli_app.onecmd("purge -w id=1")
+        assert result is False
+        mock_transcriptor.return_value.purge_job_files.assert_called_once_with(
+            mock_jobs
+        )
+
+
+def test_do_exit(cli_app):
+    """Test exit command"""
+    with patch("transcriptor.cli.TranscriptorCMD.poutput"):
+        result = cli_app.onecmd("exit")
+        assert result is True
+
+
+def test_do_quit(cli_app):
+    """Test quit command"""
+    with patch("transcriptor.cli.TranscriptorCMD.poutput"):
+        result = cli_app.onecmd("quit")
+        assert result is True
+
+
+def test_do_EOF(cli_app):
+    """Test EOF command"""
+    with patch("transcriptor.cli.TranscriptorCMD.poutput"):
+        result = cli_app.onecmd("EOF")
+        assert result is True
+
+
+def test_emptyline(cli_app):
+    """Test empty line input"""
+    result = cli_app.emptyline()
+    assert result is None
+
+
+def test_do_clear(cli_app):
+    """Test clear command"""
+    with patch("transcriptor.cli.os.system") as mock_system:
+        result = cli_app.onecmd("clear")
+        assert result is False
+        mock_system.assert_called_once_with("clear")
