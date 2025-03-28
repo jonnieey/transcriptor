@@ -9,7 +9,7 @@ from transcriptor.cli import TranscriptorCMD
 from transcriptor.models import Config, Profile
 
 # Constants for testing
-TEST_BASE_DIR = Path("test_cli_data")
+TEST_BASE_DIR = Path(__file__).parent / "test_cli_data"
 CONFIG_FILE = TEST_BASE_DIR / "config5.yaml"
 PROFILE_FILE = TEST_BASE_DIR / "profile.yaml"
 HISTORY_FILE = TEST_BASE_DIR / ".history"
