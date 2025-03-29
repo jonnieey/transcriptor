@@ -1,16 +1,13 @@
 [tool.poetry]
 name = "transcriptor"
-version = "1.4.0"
-description = ""  # Add your project description here
+version = "1.4.2"
+description = "Manage transcription jobs"
 authors = ["Jonnieey <johnjahi55@gmail.com>"]
 readme = "README.md"
-license = "MIT"  # Or your actual license
-# homepage = ""  # Optional project website URL
-# repository = ""  # Optional project repository URL
+license = "MIT"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"
-appdirs = "~=1.4.4"
 audioread = "~=3.0.0"
 cmd2 = "~=2.4.3"
 Jinja2 = "~=3.1.2"
@@ -19,7 +16,6 @@ prompt-toolkit = "~=3.0.36"
 python-docx = "~=0.8.11"
 PyYAML = "~=6.0"
 rich = "~=13.3.1"
-textual = "~=0.33.0"
 weasyprint = ">=62.0"
 sqlalchemy = ">=2.0.0"
 pydantic = ">= 2.11.0b1"
@@ -44,11 +40,6 @@ trans5 = "transcriptor.main:main"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-# [tool.poetry.build]
-# includes = ["src.transcriptor"]
-# Note: You might need to add more files/directories to `includes`
-# if your project has additional data or resource files
-
 [tool.pytest.ini_options]  # Same as before
 testpaths = "tests"
 pythonpath = [".", "src"]
@@ -58,19 +49,17 @@ filterwarnings = [
 ]
 addopts = "-p no:unraisableexception"
 
-
-[tool.mypy]  # Same as before
+[tool.mypy]
 files = ["transcriptor"]
 warn_unused_configs = true
 ignore_missing_imports = true
 python_version = "3.10"
 
 
-[tool.black]  # Same as before
+[tool.black]
 line-length = 78
 
-[tool.isort]   # Same as before
-# line-length = 78
+[tool.isort]
 multi_line_output = 3
 force_single_line = false
 balanced_wrapping = true
