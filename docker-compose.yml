@@ -1,0 +1,8 @@
+services:
+  transcriptor:
+    build:
+      context: .
+    container_name: transcriptor
+    volumes:
+      - .:/app
+      - ./.trans_docker_data:/root/.local/share/transcriptor/
