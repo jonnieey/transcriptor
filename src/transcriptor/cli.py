@@ -215,6 +215,12 @@ update_jobs_parser.add_argument(
     action="append",
     help='Specify values in the format "field=value", e.g., -v id=1 -v amount=100',
 )
+update_jobs_parser.add_argument(
+    "-T", "--table", action="store_true", help="Print cutoffs table"
+)
+update_jobs_parser.add_argument(
+    "-c", "--client_id", type=int, help="Client ID"
+)
 
 delete_parser = base_subparsers.add_parser("delete", help="delete object")
 delete_subparsers = delete_parser.add_subparsers(
@@ -664,14 +670,55 @@ class TranscriptorCMD(cmd2.Cmd):
     update_rates_parser.set_defaults(func=update_rates)
 
     def update_job(self, args: Namespace):
+        if args.table:
+            if not args.client_id:
+                self.show_clients(args=None)
+                client_id = int(
+                    self.session.prompt(
+                        "Enter client id: ",
+                        validator=positive_number_validator,
+                    )
+                )
+                args.client_id = client_id  # Update the original args
+            cutoffs = self.app.load_cutoffs(as_str=True)
+            cutoffs = [
+                ["index" if row == 0 else str(idx)] + row
+                for idx, row in enumerate(cutoffs)
+            ]
+            TranscriptorView().print_table(cutoffs)
+            cutoff_idx = self.session.prompt(
+                "select deposit date. Use index number: ",
+                validator=positive_number_validator,
+            )
+            previous_cutoff, cutoff = self.app.select_cutoff_period(
+                int(cutoff_idx)
+            )
+            raw_cutoff_condition = f""" date_submitted > '{previous_cutoff}'
+                  AND date_submitted <= '{cutoff}' AND client_id = {args.client_id}
+                  """
+            cutoff_condition = [
+                f"date_submitted>{previous_cutoff}",
+                f"date_submitted<={cutoff}",
+                f"client_id={args.client_id}",
+            ]
+
         if args.raw:
+            if args.table:
+                args.raw = args.raw + f" AND {raw_cutoff_condition}"
             self.app.update_jobs(raw_sql_stmt=args.raw)
         elif args.where and args.values:
+            if args.table:
+                args.where = args.where + cutoff_condition
             where = parse_conditions(args.where)
             values = parse_conditions_as_dict(args.values)
             self.app.update_jobs(conditions=where, values=values)
         else:
-            self.poutput("Please provide conditions and values")
+            if args.table:
+                conditions = parse_conditions(cutoff_condition)
+                values = parse_conditions_as_dict(args.values)
+                self.app.update_jobs(conditions=conditions, values=values)
+            else:
+                self.poutput("Please provide conditions and values")
             return
 
     update_jobs_parser.set_defaults(func=update_job)
