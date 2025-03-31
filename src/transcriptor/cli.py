@@ -50,7 +50,9 @@ show_jobs_parser = show_subparsers.add_parser("jobs", help="show jobs")
 show_cutoffs_parser = show_subparsers.add_parser(
     "cutoffs", help="show cutoffs"
 )
-
+show_version_parser = show_subparsers.add_parser(
+    "version", help="show version"
+)
 
 show_clients_parser.add_argument(
     "-w",
@@ -440,6 +442,11 @@ class TranscriptorCMD(cmd2.Cmd):
         TranscriptorView().print_table(cutoffs, orientation="vertical")
 
     show_cutoffs_parser.set_defaults(func=show_cutoffs)
+
+    def show_version(self, args: Namespace):
+        self.poutput(f"Version: {self.app.version}")
+
+    show_version_parser.set_defaults(func=show_version)
 
     @cmd2.with_argparser(show_parser)
     def do_show(self, args: Namespace):

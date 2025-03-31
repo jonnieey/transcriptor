@@ -22,6 +22,7 @@ from transcriptor.utils import (
     TEMPLATE_MAPPING,
     extract_table_data_from_docx,
     get_media_files,
+    get_version,
     html_to_md,
     htmlstr_to_pdf,
     next_non_existent_file,
@@ -85,6 +86,7 @@ class Transcriptor:
         self.base_dir = Path(self.config.base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.date_format = self.config.date_format
+        self.version = get_version()
 
     def _get_config_paths(
         self, config_file: Optional[Union[str, Path]]
@@ -835,6 +837,5 @@ class Transcriptor:
                         )  # Handle potential errors during unlinking
 
 
-# if __name__ == "__main__":
-# trans5 = Transcriptor()
-# print(trans5.generate_summary_invoice(client_id=1))
+if __name__ == "__main__":
+    trans5 = Transcriptor()

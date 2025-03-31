@@ -558,8 +558,30 @@ def parse_sql_update_query(sql_query):
     return set_assignments, where_assignments
 
 
+def get_version():
+    try:
+        init_file_path = Path(__file__).parent / "__init__.py"
+        with open(init_file_path, "r") as fd:
+            init_content = fd.read()
+
+            version_match = re.search(
+                r"^__version__\s*=\s*[\"']([^\"']*)[\"']",
+                init_content,
+                re.MULTILINE,
+            )
+
+            if version_match:
+                return version_match.group(1)
+            else:
+                raise ValueError("Could not determine version")
+    except FileNotFoundError:
+        raise FileNotFoundError(f"__init__.py not found at {init_file_path}")
+    except ValueError as e:
+        raise ValueError(f"Error determining version: {e}")
+
+
 if __name__ == "__main__":
     # stmt = "SET amount_paid=2222 WHERE client_id=1 AND date_received='2023-04-22' AND job_number='JOB001'"
     # s, w = parse_sql_update_query(stmt)
     # print(s, w)
-    print(list(invoice_template_names()))
+    print(get_version())
