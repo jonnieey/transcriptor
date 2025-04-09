@@ -371,7 +371,7 @@ job_type_validator = ValidatorWrapper(
 )
 template_validator = ValidatorWrapper(
     is_valid_template,
-    f"Invalid template name, expects {','.join(list(template_mapping.keys()))}",
+    f"Invalid template name, expects {' '.join(list(template_mapping.keys()))}",
 )
 
 
