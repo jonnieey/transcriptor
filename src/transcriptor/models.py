@@ -209,6 +209,7 @@ class YAMLBase(BaseModel):
 class Config(YAMLBase):
     base_dir: str
     date_format: str
+    invoice_theme: str
 
 
 class Profile(YAMLBase):

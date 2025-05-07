@@ -41,6 +41,7 @@ CONFIG_FILE_NAME = "config.yaml"
 DEFAULT_CONFIG = {
     "base_dir": f"{user_data_dir(APP_NAME)}",
     "date_format": "%Y-%m-%d",
+    "invoice_theme": "default",
 }
 
 
@@ -625,6 +626,8 @@ class Transcriptor:
             client_name=client_name,
             jobs=invoice_lines,
         )
+        if invoice_theme is None:
+            invoice_theme = self.config.invoice_theme
         html = render_invoice(
             invoice=invoice, template_name=f"invoice_{invoice_theme}.html"
         )

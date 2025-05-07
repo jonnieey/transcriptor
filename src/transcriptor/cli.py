@@ -32,7 +32,7 @@ from transcriptor.view import TranscriptorView
 style = Style.from_dict(
     {
         "": "#FFA500 bg:#2A2B3C",
-        "space": "bg:#000000",
+        "space": "bg:#2A2B3C",
         "prompt": "#8BE9FD bg:#2A2B3C",
     }
 )
@@ -313,7 +313,7 @@ invoice_parser.add_argument(
     "-t",
     "--invoice_template",
     help="Select invoice template",
-    default="default",
+    default=None,
     choices=invoice_template_themes(),
 )
 
