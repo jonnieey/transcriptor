@@ -734,6 +734,11 @@ class TranscriptorCMD(cmd2.Cmd):
                     )
                 )
                 args.client_id = client_id  # Update the original args
+
+            if not args.values:
+                self.poutput("Please provide values to be updated.")
+                return
+
             cutoffs = self.app.load_cutoffs(as_str=True)
             cutoffs = [
                 ["index" if row == 0 else str(idx)] + row
