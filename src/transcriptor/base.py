@@ -575,12 +575,12 @@ class Transcriptor:
             with open(invoice_num_counter_file, "w") as file:
                 file.write(f"{invoice_number:05}")
 
-    def generate_invoice(
+    # def generate_invoice(
+    def get_invoice_jobs(
         self,
         client_id: str,
         conditions: Optional[Dict[str, List[Tuple[str, Any]]]] = None,
         raw_sql_stmt: None = None,
-        invoice_theme: Optional[str] = None,
     ) -> Tuple[str, Union[int, Any, str, float, None]]:
         if client_id is None:
             print("CLIENT ID CANNOT BE NONE")
@@ -603,6 +603,11 @@ class Transcriptor:
         jobs = self.api.get_jobs(
             conditions=conditions, raw_sql_stmt=raw_sql_stmt
         )  # type: ignore
+        if not jobs:
+            return None
+        return jobs
+
+    def generate_invoice(self, jobs, invoice_theme: Optional[str] = None):
         if not jobs:
             print("No jobs found")
             return ("", "")
@@ -634,7 +639,7 @@ class Transcriptor:
 
         return html, client_name
 
-    def generate_summary_invoice(
+    def get_summary_invoice_jobs(
         self, client_id: str, previous_year_cutoff: None = None
     ) -> Tuple[str, Union[int, Any, str, float, None]]:
         client_name = None
@@ -643,10 +648,12 @@ class Transcriptor:
         if client_id is None:
             print("CLIENT ID CANNOT BE NONE")
             return ("", "")
-
-        jobs_by_month: dict[str, list[Any]] = {
-            str(i): [] for i in range(1, 13)
-        }
+        # jobs_by_month: dict[str, list[Any]] = {
+        #     str(i): [] for i in range(1, 13)
+        # }
+        jobs_by_month = {}
+        summary_invoice_list = []
+        summary_invoice_dict = {}
 
         cutoffs_list = list(cutoffs[1:])
 
@@ -678,8 +685,26 @@ class Transcriptor:
                     client_name = (
                         client.name if hasattr(client, "name") else client
                     )  # type: ignore
-                month_idx = std(deposit_date, "%Y-%m-%d").month
-                jobs_by_month[str(month_idx)].extend(jobs)
+                month_name = std(deposit_date, "%Y-%m-%d").strftime("%B")
+                job_count = len(jobs)
+                total = round(sum(job["amount_paid"] for job in jobs), 2)
+                bs_by_month["month"] = month_name
+                jobs_by_month["job_count"] = job_count or 0
+                jobs_by_month["total"] = total or 0
+            summary_invoice_list.append(jobs_by_month)
+
+        summary_invoice_dict[client_name] = summary_invoice_list
+        if summary_invoice_dict:
+            return summary_invoice_dict
+        return {}
+
+        # {'client_name': [{"month": "Jan", "job_count": 0, "total": 0.0}]}
+
+    def generate_summary_invoice(self, summary_invoice_dict):
+        client_name = list(summary_invoice_dict.keys())[0]
+        jobs_by_month = summary_invoice_dict[client_name]
+        print(client_name)
+        print(jobs_by_month)
 
         months_summary_list = []
         for idx in range(1, 13):

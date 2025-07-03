@@ -316,6 +316,9 @@ invoice_parser.add_argument(
     default=None,
     choices=invoice_template_themes(),
 )
+invoice_parser.add_argument(
+    "-m", "--markdown", action="store_true", help="Preview markdown invoice"
+)
 
 purge_parser = base_subparsers.add_parser(
     "purge", help="purge job media files, ex. m4a, mp3, mp4"
@@ -977,9 +980,12 @@ class TranscriptorCMD(cmd2.Cmd):
             )
             args.client_id = client_id  # Update the original args
         if args.summary:
-            html, client_name = self.app.generate_summary_invoice(
+            invoice_jobs = self.app.get_summary_invoice_jobs(
                 client_id=args.client_id,
                 previous_year_cutoff=args.previous_year_cutoff,
+            )
+            html, client_name = self.app.generate_summary_invoice(
+                invoice_jobs
             )
         if args.table:
             cutoffs = self.app.load_cutoffs(as_str=True)
@@ -1011,35 +1017,48 @@ class TranscriptorCMD(cmd2.Cmd):
         if args.raw:
             if args.table:
                 args.raw = args.raw + f" AND {raw_cutoff_condition}"
-            html, client_name = self.app.generate_invoice(
+            invoice_jobs = self.app.get_invoice_jobs(
                 client_id=args.client_id,
                 raw_sql_stmt=args.raw,
+            )
+
+            html, client_name = self.app.generate_invoice(
+                invoice_jobs,
                 invoice_theme=args.invoice_template,
             )
         elif args.where:
             if args.table:
                 args.where = args.where + cutoff_condition
             conditions = parse_conditions(args.where)
-            html, client_name = self.app.generate_invoice(
+            invoice_jobs = self.app.get_invoice_jobs(
                 client_id=args.client_id,
                 conditions=conditions,
-                invoice_theme=args.invoice_template,
+            )
+            html, client_name = self.app.generate_invoice(
+                invoice_jobs, invoice_theme=args.invoice_template
             )
         else:
-            if args.table:
+            if args.table and not args.summary:
                 conditions = parse_conditions(cutoff_condition)
-                html, client_name = self.app.generate_invoice(
+                invoice_jobs = self.app.get_invoice_jobs(
                     client_id=args.client_id,
                     conditions=conditions,
-                    invoice_theme=args.invoice_template,
+                )
+                html, client_name = self.app.generate_invoice(
+                    invoice_jobs, invoice_theme=args.invoice_template
                 )
         if args.print:
             self.app.html_to_pdf(
                 html, client_name, summary_invoice=args.summary
             )
-        else:
+        if args.markdown:
             md = self.app.to_md(html)
             TranscriptorView().console.print(md)
+
+        else:
+            TranscriptorView().print_table(
+                invoice_jobs, orientation="horizontal"
+            )
 
     invoice_parser.set_defaults(func=invoice)
 
