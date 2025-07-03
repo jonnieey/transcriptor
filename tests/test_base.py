@@ -48,7 +48,11 @@ def clean_profile(test_base_dir):
 
 @pytest.fixture
 def default_config():
-    return {"base_dir": str(TEST_BASE_DIR), "date_format": "%Y-%m-%d"}
+    return {
+        "base_dir": str(TEST_BASE_DIR),
+        "date_format": "%Y-%m-%d",
+        "invoice_theme": "default",
+    }
 
 
 @pytest.fixture
@@ -275,9 +279,12 @@ def test_generate_invoice(transcriptor):
     transcriptor.api.add_job(job_data)
 
     # Generate invoice
-    html, client_name = transcriptor.generate_invoice(
+    invoice_jobs = transcriptor.get_invoice_jobs(
         client_id=client_id,
         conditions={"amount_paid": [("=", 0)]},
+    )
+    html, client_name = transcriptor.generate_invoice(
+        invoice_jobs,
         invoice_theme="blue",
     )
 

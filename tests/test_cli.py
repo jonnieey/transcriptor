@@ -28,7 +28,11 @@ def test_base_dir():
 @pytest.fixture
 def mock_transcriptor(test_base_dir):
     # Create a mock Transcriptor instance
-    config = Config(base_dir=str(test_base_dir), date_format="%Y-%m-%d")
+    config = Config(
+        base_dir=str(test_base_dir),
+        date_format="%Y-%m-%d",
+        invoice_theme="default",
+    )
     profile = Profile()
 
     with patch("transcriptor.cli.Transcriptor", autospec=True) as mock:
@@ -199,6 +203,7 @@ def test_do_invoice(cli_app, mock_transcriptor):
     mock_client.name = "Test Client"
 
     cli_app.app.api.get_clients.return_value = [mock_client]
+    cli_app.app.get_invoice_jobs.return_value = []
     cli_app.app.generate_invoice.return_value = (
         "<html>Test</html>",
         "Test Client",
@@ -217,6 +222,7 @@ def test_do_invoice_summary(cli_app, mock_transcriptor):
     mock_client.name = "Test Client"
 
     cli_app.app.api.get_clients.return_value = [mock_client]
+    cli_app.app.get_invoice_jobs.return_value = []
     cli_app.app.generate_summary_invoice.return_value = (
         "<html>Summary</html>",
         "Test Client",

@@ -176,7 +176,9 @@ def test_job_status_trigger(db_session, sample_client):
 
 def test_yaml_base_config():
     """Test Config model YAML serialization"""
-    config = Config(base_dir="/test/path", date_format="%Y-%m-%d")
+    config = Config(
+        base_dir="/test/path", date_format="%Y-%m-%d", invoice_theme="default"
+    )
 
     # Test writing to YAML
     mock_file = mock_open()
@@ -189,7 +191,11 @@ def test_yaml_base_config():
 
             # Verify yaml.dump was called with the config data
             mock_dump.assert_called_once_with(
-                {"base_dir": "/test/path", "date_format": "%Y-%m-%d"},
+                {
+                    "base_dir": "/test/path",
+                    "date_format": "%Y-%m-%d",
+                    "invoice_theme": "default",
+                },
                 mock_file.return_value,
             )
 
