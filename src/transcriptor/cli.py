@@ -332,6 +332,12 @@ purge_parser.add_argument(
 purge_parser.add_argument("-r", "--raw", help="Raw sql query")
 
 
+backup_parser = base_subparsers.add_parser("backup", help="backup database")
+restore_parser = base_subparsers.add_parser(
+    "restore", help="restore database"
+)
+
+
 class TranscriptorCMD(cmd2.Cmd):
     prompt = "(trans5) "
 
@@ -1109,6 +1115,44 @@ class TranscriptorCMD(cmd2.Cmd):
             func(self, args)
         else:
             self.do_help("base")
+
+    @cmd2.with_argparser(backup_parser)
+    def do_backup(self, args: Namespace):
+        """Create a backup of the database."""
+        try:
+            backup_path = self.app.backup.create_backup()
+            self.poutput(f"Backup created successfully: {backup_path}")
+        except Exception as e:
+            self.poutput(f"Error creating backup: {e}")
+
+    @cmd2.with_argparser(restore_parser)
+    def do_restore(self, args: Namespace):
+        """Restore the database from a backup."""
+        backups = self.app.backup.list_backups()
+        if not backups:
+            self.poutput("No backups found.")
+            return
+
+        self.poutput("Available backups:")
+        for i, backup in enumerate(backups):
+            self.poutput(f"{i + 1}: {backup.name}")
+
+        try:
+            selection = int(
+                prompt("Enter the number of the backup to restore: ")
+            )
+            if 1 <= selection <= len(backups):
+                backup_to_restore = backups[selection - 1]
+                self.app.backup.restore_backup(backup_to_restore)
+                self.poutput(
+                    f"Database restored from {backup_to_restore.name}"
+                )
+            else:
+                self.poutput("Invalid selection.")
+        except ValueError:
+            self.poutput("Invalid input. Please enter a number.")
+        except Exception as e:
+            self.poutput(f"Error restoring backup: {e}")
 
 
 def main():

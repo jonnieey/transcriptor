@@ -10,6 +10,7 @@ from platformdirs import user_config_dir, user_data_dir
 from sqlalchemy.engine.row import RowMapping
 
 from transcriptor.api import API
+from transcriptor.backup import Backup
 from transcriptor.models import (
     Config,
     Invoice,
@@ -62,6 +63,8 @@ class Transcriptor:
         self._init_config(config, config_file)
         self._init_profile()
         self._init_api(api)
+        self._init_backup()
+        self.auto_backup()
 
     def _init_config(
         self,
@@ -165,6 +168,17 @@ class Transcriptor:
     def _init_api(self, api: Optional[API]) -> None:
         """Initialize API instance."""
         self.api = api if api is not None else API(base_dir=self.base_dir)
+
+    def _init_backup(self) -> None:
+        """Initialize Backup instance."""
+        self.backup = Backup(base_dir=self.base_dir)
+
+    def auto_backup(self) -> None:
+        """Automatically create a backup if needed."""
+        if self.backup.should_auto_backup():
+            print("Creating automatic backup...")
+            backup_path = self.backup.create_backup()
+            print(f"Backup created at: {backup_path}")
 
     def save_config(self, yaml_file=None):
         if not yaml_file:
@@ -624,7 +638,6 @@ class Transcriptor:
         INVOICE_NUM_COUNTER_FILE = INVOICE_DIR / "invoice_number_counter"
 
         invoice_number = self.read_invoice_counter(INVOICE_NUM_COUNTER_FILE)
-
         invoice = Invoice(
             profile=self.profile,
             invoice_number=f"{invoice_number + 1:05}",
@@ -688,7 +701,7 @@ class Transcriptor:
                 month_name = std(deposit_date, "%Y-%m-%d").strftime("%B")
                 job_count = len(jobs)
                 total = round(sum(job["amount_paid"] for job in jobs), 2)
-                bs_by_month["month"] = month_name
+                jobs_by_month["month"] = month_name
                 jobs_by_month["job_count"] = job_count or 0
                 jobs_by_month["total"] = total or 0
             summary_invoice_list.append(jobs_by_month)
