@@ -766,6 +766,44 @@ class Transcriptor:
             INVOICE_NUM_COUNTER_FILE = INVOICE_DIR / "invoice_number_counter"
             self.increase_invoice_counter(INVOICE_NUM_COUNTER_FILE)
 
+    def generate_csv_invoice(self, jobs, client_name):
+        if not jobs:
+            print("No jobs found")
+            return
+
+        INVOICE_DIR = self.base_dir / "clients" / sc(client_name) / "invoices"
+        CSV_DIR = INVOICE_DIR / "csv"
+        CSV_DIR.mkdir(parents=True, exist_ok=True)
+
+        date_str = date.today().strftime("%Y-%m-%d")
+        client_name_sc = sc(client_name)
+        csv_file_path = CSV_DIR / f"{date_str}_{client_name_sc}_invoice.csv"
+
+        invoice_lines = [InvoiceLine.parse_obj(job) for job in jobs]
+
+        with open(csv_file_path, "w", newline="") as csvfile:
+            fieldnames = [
+                "job_number",
+                "job_type",
+                "job_rate",
+                "quantity",
+                "amount",
+            ]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+            writer.writeheader()
+            for line in invoice_lines:
+                writer.writerow(
+                    {
+                        "job_number": line.job_number,
+                        "job_type": line.job_type,
+                        "job_rate": line.job_rate,
+                        "quantity": line.quantity,
+                        "amount": line.amount,
+                    }
+                )
+        print(f"CSV invoice generated at: {csv_file_path}")
+
     def to_md(self, html: str) -> str:
         return html_to_md(html)
 

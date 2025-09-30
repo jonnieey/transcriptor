@@ -319,6 +319,9 @@ invoice_parser.add_argument(
 invoice_parser.add_argument(
     "-m", "--markdown", action="store_true", help="Preview markdown invoice"
 )
+invoice_parser.add_argument(
+    "--csv", action="store_true", help="Generate csv invoice"
+)
 
 purge_parser = base_subparsers.add_parser(
     "purge", help="purge job media files, ex. m4a, mp3, mp4"
@@ -1057,6 +1060,8 @@ class TranscriptorCMD(cmd2.Cmd):
             self.app.html_to_pdf(
                 html, client_name, summary_invoice=args.summary
             )
+        if args.csv:
+            self.app.generate_csv_invoice(invoice_jobs, client_name)
         if args.markdown:
             md = self.app.to_md(html)
             TranscriptorView().console.print(md)
