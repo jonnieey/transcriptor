@@ -6,14 +6,12 @@ from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.screen import ModalScreen
+from textual.widgets import Button, Checkbox, DataTable, Footer, Header, Input
+from textual.widgets import Label
+from textual.widgets import Label as ListLabel
 from textual.widgets import (
-    Button,
-    Checkbox,
-    DataTable,
-    Footer,
-    Header,
-    Input,
-    Label,
+    ListItem,
+    ListView,
     Markdown,
     Select,
     Static,
@@ -128,6 +126,99 @@ class ClientSelectionScreen(ModalScreen):
         self.dismiss()
 
 
+class JobContextMenu(ModalScreen):
+    """Context menu for job actions"""
+
+    def __init__(self, job_data: Dict, from_dashboard: bool = False):
+        super().__init__()
+        self.job_data = job_data
+        self.from_dashboard = from_dashboard
+
+    def compose(self) -> ComposeResult:
+        with Container(id="context-menu"):
+            yield Label(
+                f"Job: {self.job_data.get('job_number', '')}",
+                classes="context-title",
+            )
+            with ListView(id="action-list"):
+                yield ListItem(ListLabel("📝 Edit Job"), id="edit-job")
+                yield ListItem(ListLabel("🗑️ Delete Job"), id="delete-job")
+                yield ListItem(
+                    ListLabel("🧾 Generate Invoice"), id="generate-invoice"
+                )
+                yield ListItem(ListLabel("❌ Cancel"), id="cancel-context")
+
+    @on(ListView.Selected)
+    def handle_action_selection(self, event: ListView.Selected):
+        action = event.item.id
+        job_id = self.job_data.get("id")
+
+        if action == "edit-job":
+            self.dismiss()
+            # Push the edit screen
+            if hasattr(self.job_data, "__dict__"):
+                job_dict = self.job_data.__dict__
+            else:
+                job_dict = dict(self.job_data)
+            self.app.push_screen(JobEditScreen(job_dict))
+
+        elif action == "delete-job":
+            self.dismiss()
+            # Confirm and delete
+            if self.app.confirm_delete("job"):
+                self.app.transcriptor.delete_jobs(
+                    conditions={"id": [("=", job_id)]}
+                )
+                self.app.notify("Job deleted successfully!")
+                # Refresh the appropriate table
+                if self.from_dashboard:
+                    self.app.load_dashboard()
+                else:
+                    self.app.load_all_jobs()
+
+        elif action == "generate-invoice":
+            self.dismiss()
+            # Generate invoice for this single job
+            selected_jobs_data = []
+            if hasattr(self.job_data, "__dict__"):
+                job_dict = self.job_data.__dict__
+            else:
+                job_dict = dict(self.job_data)
+
+            # Extract client name
+            if hasattr(self.job_data, "client"):
+                client_name = (
+                    self.job_data.client.name
+                    if hasattr(self.job_data.client, "name")
+                    else str(self.job_data.client)
+                )
+                job_dict["client_name"] = client_name
+            else:
+                job_dict["client_name"] = job_dict.get(
+                    "client_name", "Unknown"
+                )
+
+            selected_jobs_data.append(job_dict)
+
+            # Generate invoice
+            html, client_name = self.app.transcriptor.generate_invoice(
+                selected_jobs_data
+            )
+            if html and client_name:
+                self.app.push_screen(
+                    InvoicePreviewScreen(
+                        html, client_name, selected_jobs_data
+                    )
+                )
+            else:
+                self.app.notify(
+                    "Failed to generate invoice!", severity="error"
+                )
+
+        elif action == "cancel-context":
+            self.dismiss()
+
+
 class JobEditScreen(ModalScreen):
     """Screen for editing job properties with all attributes"""
 
@@ -158,15 +249,19 @@ class JobEditScreen(ModalScreen):
                         id="client_id",
                     )
 
-                    yield Label("Date Received:")
-                    yield Input(
-                        value=self.job_data.get("date_received", ""),
-                        id="date_received",
+                    yield Label("Status:")
+                    statuses = ["Pending", "Done"]
+                    current_status = self.job_data.get("status", "Pending")
+                    yield Select(
+                        [(s, s) for s in statuses],
+                        value=current_status,
+                        id="status",
                     )
 
-                    yield Label("Date Due:")
+                    yield Label("Amount Paid:")
                     yield Input(
-                        value=self.job_data.get("date_due", ""), id="date_due"
+                        value=str(self.job_data.get("amount_paid", "")),
+                        id="amount_paid",
                     )
 
                     yield Label("Job Type:")
@@ -185,25 +280,11 @@ class JobEditScreen(ModalScreen):
                         id="job_type",
                     )
 
-                    yield Label("Status:")
-                    statuses = ["Pending", "Done"]
-                    current_status = self.job_data.get("status", "Pending")
-                    yield Select(
-                        [(s, s) for s in statuses],
-                        value=current_status,
-                        id="status",
-                    )
-
-                    yield Label("Total Quantity:")
+                    yield Label("Date Submitted:")
+                    date_submitted = self.job_data.get("date_submitted", "")
                     yield Input(
-                        value=str(self.job_data.get("total_quantity", "")),
-                        id="total_quantity",
-                    )
-
-                    yield Label("Quantity:")
-                    yield Input(
-                        value=str(self.job_data.get("quantity", "")),
-                        id="quantity",
+                        value=date_submitted if date_submitted else "",
+                        id="date_submitted",
                     )
 
                     yield Label("Job Rate:")
@@ -212,23 +293,33 @@ class JobEditScreen(ModalScreen):
                         id="job_rate",
                     )
 
+                    yield Label("Date Received:")
+                    yield Input(
+                        value=self.job_data.get("date_received", ""),
+                        id="date_received",
+                    )
+
+                    yield Label("Date Due:")
+                    yield Input(
+                        value=self.job_data.get("date_due", ""), id="date_due"
+                    )
+
+                    yield Label("Quantity:")
+                    yield Input(
+                        value=str(self.job_data.get("quantity", "")),
+                        id="quantity",
+                    )
+
+                    yield Label("Total Quantity:")
+                    yield Input(
+                        value=str(self.job_data.get("total_quantity", "")),
+                        id="total_quantity",
+                    )
+
                     yield Label("Amount:")
                     yield Input(
                         value=str(self.job_data.get("amount", "")),
                         id="amount",
-                    )
-
-                    yield Label("Amount Paid:")
-                    yield Input(
-                        value=str(self.job_data.get("amount_paid", "")),
-                        id="amount_paid",
-                    )
-
-                    yield Label("Date Submitted:")
-                    date_submitted = self.job_data.get("date_submitted", "")
-                    yield Input(
-                        value=date_submitted if date_submitted else "",
-                        id="date_submitted",
                     )
 
                     yield Label("Job Path:")
@@ -300,9 +391,6 @@ class JobEditScreen(ModalScreen):
 
         # Update job in database
         job_id = self.job_data.get("id")
-        print(">>>>>> updated values")
-        print(updated_values)
-        print(">>>>>> updated values")
         if job_id:
             conditions = {"id": [("=", job_id)]}
             self.app.transcriptor.update_jobs(
@@ -750,19 +838,16 @@ class TranscriptorTUI(App):
         self.load_config_display()
 
     def load_dashboard(self):
-        """Load pending jobs for dashboard"""
+        """Load pending jobs for dashboard with menu icons"""
         table = self.query_one("#pending-jobs-table", DataTable)
         table.clear(columns=True)
-
         table.add_columns(
-            "ID",
+            ("⋮", "⋮"),
+            ("ID", "ID"),
             "Job Number",
             "Client",
-            "Date Received",
             "Date Due",
             "Job Type",
-            "Status",
-            "Date Submitted",
             "Quantity",
             "Amount",
         )
@@ -770,6 +855,8 @@ class TranscriptorTUI(App):
         jobs = self.transcriptor.api.get_jobs(
             conditions={"status": [("=", "Pending")]}
         )
+        self.dashboard_jobs_data = jobs  # Store for reference
+
         for job in jobs:
             client_name = (
                 job.get("client").name
@@ -777,33 +864,29 @@ class TranscriptorTUI(App):
                 else str(job.get("client"))
             )
             table.add_row(
+                "⋯",  # Menu icon (three dots)
                 str(job.get("id")),
                 job.get("job_number"),
                 client_name,
-                job.get("date_received"),
                 job.get("date_due"),
                 job.get("job_type"),
-                job.get("status"),
-                job.get("date_submitted"),
                 str(job.get("quantity")),
                 f"${job.get('amount', 0):.2f}",
             )
 
     def load_all_jobs(self):
-        """Load all jobs with checkboxes"""
+        """Load all jobs with checkboxes and menu icons"""
         table = self.query_one("#all-jobs-table", DataTable)
         table.clear(columns=True)
-
         table.add_columns(
+            ("⋮", "menu"),
             ("Select", "select"),
             ("ID", "id"),
             ("Job Number", "job number"),
             ("Client", "client"),
-            ("Date Received", "date received"),
+            ("Status", "status"),
             ("Date Due", "date due"),
             ("Job Type", "job type"),
-            ("Status", "status"),
-            ("Date Submitted", "date submitted"),
             ("Quantity", "quantity"),
             ("Amount", "amount"),
         )
@@ -818,15 +901,14 @@ class TranscriptorTUI(App):
                 else str(job.get("client"))
             )
             table.add_row(
+                "⋯",  # Menu icon (three dots)
                 "□",  # Checkbox placeholder
                 str(job.get("id")),
                 job.get("job_number"),
                 client_name,
-                job.get("date_received"),
+                job.get("status"),
                 job.get("date_due"),
                 job.get("job_type"),
-                job.get("status"),
-                job.get("date_submitted"),
                 str(job.get("quantity")),
                 f"${job.get('amount', 0):.2f}",
                 key=str(job_idx),
@@ -836,52 +918,67 @@ class TranscriptorTUI(App):
         self.selected_jobs = []
         self.update_jobs_selection_info()
 
-    def update_jobs_selection_info(self):
-        """Update the selection info display"""
-        info = self.query_one("#jobs-selection-info", Static)
-        info.update(f"Selected: {len(self.selected_jobs)} jobs")
-
-    @on(DataTable.RowSelected, "#pending-jobs-table")
-    def handle_dashboard_job_selection(self, event: DataTable.RowSelected):
-        """Handle job selection in dashboard for editing"""
+    @on(DataTable.CellSelected, "#pending-jobs-table")
+    def handle_dashboard_menu_click(self, event: DataTable.CellSelected):
+        """Handle menu icon click in dashboard"""
         table = event.data_table
-        row_key = event.row_key
+        row_key = event.cell_key.row_key
+        column_key = event.cell_key.column_key
 
-        if row_key is not None:
-            # Get the job ID from the selected row
+        # Only handle clicks in the menu column (first column)
+        if column_key == "⋮":
+            # Find the job data for this row
             job_id_cell = table.get_cell(row_key, "ID")
             if job_id_cell:
                 try:
                     job_id = int(job_id_cell)
-                    # Get the full job data
-                    jobs = self.transcriptor.api.get_jobs(
-                        conditions={"id": [("=", job_id)]}
-                    )
-                    if jobs:
-                        job_data = jobs[0]
-                        if hasattr(job_data, "__dict__"):
-                            job_data = job_data.__dict__
-                        else:
-                            job_data = dict(job_data)
-                        self.push_screen(JobEditScreen(job_data))
-                except (ValueError, IndexError):
-                    self.notify(
-                        "Could not select job for editing", severity="error"
-                    )
+                    # Find the job in our stored data
+                    job_data = None
+                    for job in self.dashboard_jobs_data:
+                        if job.get("id") == job_id:
+                            job_data = job
+                            break
+
+                    if job_data:
+                        self.push_screen(
+                            JobContextMenu(job_data, from_dashboard=True)
+                        )
+                except (ValueError, KeyError):
+                    self.notify("Could not find job data", severity="error")
 
     @on(DataTable.CellSelected, "#all-jobs-table")
-    def handle_job_selection(self, event: DataTable.CellSelected):
-        """Handle job selection when checkbox cell is clicked"""
-        if event.coordinate.column == 0:  # Checkbox column
-            table = event.data_table
-            row_key = str(event.coordinate.row)
+    def handle_all_jobs_cell_click(self, event: DataTable.CellSelected):
+        """Handle cell clicks in all jobs table"""
+        table = event.data_table
+        row_key = event.cell_key.row_key
+        column_key = event.cell_key.column_key
 
+        if column_key == "menu":  # Menu icon column
+            # Find the job data for this row
+            job_id_cell = table.get_cell(row_key, "id")
+            if job_id_cell:
+                try:
+                    job_id = int(job_id_cell)
+                    # Find the job in our stored data
+                    job_data = None
+                    for job in self.all_jobs_data:
+                        if job.get("id") == job_id:
+                            job_data = job
+                            break
+
+                    if job_data:
+                        self.push_screen(
+                            JobContextMenu(job_data, from_dashboard=False)
+                        )
+                except (ValueError, KeyError):
+                    self.notify("Could not find job data", severity="error")
+
+        elif column_key == "select":  # Checkbox column
             # Get job ID from the row
-            job_id = int(table.get_cell(row_key, "id"))  # Column 1 is ID
+            job_id = int(table.get_cell(row_key, "id"))
 
             # Toggle selection
             current_value = table.get_cell(row_key, "select")
-            print("current_value", current_value)
             if current_value == "□":
                 table.update_cell(row_key, "select", "✓")
                 if job_id not in self.selected_jobs:
@@ -892,6 +989,11 @@ class TranscriptorTUI(App):
                     self.selected_jobs.remove(job_id)
 
             self.update_jobs_selection_info()
+
+    def update_jobs_selection_info(self):
+        """Update the selection info display"""
+        info = self.query_one("#jobs-selection-info", Static)
+        info.update(f"Selected: {len(self.selected_jobs)} jobs")
 
     def get_selected_jobs_data(self):
         """Get full data for selected jobs"""
@@ -924,6 +1026,12 @@ class TranscriptorTUI(App):
                     )
                     selected_data.append(job_dict)
         return selected_data
+
+    def confirm_delete(self, item_type: str) -> bool:
+        """Simple confirmation dialog"""
+        # In a real implementation, you'd show a proper confirmation dialog
+        # For now, we'll assume confirmation
+        return True
 
     def load_cutoffs(self):
         """Load cutoff dates"""
