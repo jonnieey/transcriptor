@@ -1,0 +1,112 @@
+/* transcriptor_tui.css */
+
+/* Main app styling */
+Screen {
+    background: $surface;
+}
+
+/* Header and titles */
+.section-title {
+    text-style: bold;
+    color: $accent;
+    margin: 1;
+}
+
+.preview-title, .edit-title, .query-title, .config-title, .selection-title {
+    text-style: bold;
+    color: $accent;
+    text-align: center;
+    margin: 1;
+}
+
+.selection-subtitle {
+    margin: 1;
+    text-align: center;
+}
+
+/* Containers */
+.dashboard-container, .jobs-container, .cutoffs-container,
+.clients-container, .rates-container, .config-container, .sql-container {
+    margin: 1;
+    padding: 1;
+    border: solid $accent;
+}
+
+/* Modal screens */
+#invoice-preview, #job-edit, #sql-query, #config-edit, #client-selection {
+    width: 90%;
+    height: 90%;
+    border: double $accent;
+    background: $surface;
+}
+
+#invoice-markdown {
+    height: 1fr;
+    border: solid $panel;
+    margin: 1;
+    padding: 1;
+}
+
+/* Buttons */
+Button {
+    margin: 1;
+}
+
+#preview-buttons, #edit-buttons, #query-buttons, #config-buttons, #selection-buttons {
+    height: auto;
+    align: center middle;
+    margin: 1;
+}
+
+/* Toolbars */
+.jobs-toolbar, .clients-toolbar, .rates-toolbar {
+    height: auto;
+    margin: 1;
+}
+
+/* Data tables */
+DataTable {
+    height: 1fr;
+}
+
+/* SQL input */
+#sql-input {
+    height: 30%;
+    border: solid $panel;
+    margin: 1;
+}
+
+#sql-results {
+    height: 50%;
+    margin: 1;
+}
+
+/* Configuration display */
+#config-display {
+    margin: 1;
+    padding: 1;
+    border: solid $panel;
+    background: $panel;
+}
+/* Add these styles to your transcriptor_tui.css file */
+
+/* Job Edit Screen Styles */
+#job-edit {
+    width: 90%;
+    height: 90%;
+    border: double $accent;
+    background: $surface;
+    padding: 1;
+}
+
+#job-form-container {
+    height: 80%;
+    border: solid $panel;
+    margin: 1;
+    padding: 1;
+}
+
+/* Ensure proper spacing in the form */
+#job-form-container > Vertical {
+    height: auto;
+}
