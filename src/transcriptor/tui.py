@@ -1,3 +1,7 @@
+import shutil
+import zipfile
+from datetime import datetime
+from pathlib import Path
 from typing import Dict, List
 
 from textual import on
@@ -21,7 +25,16 @@ from textual.widgets import (
 )
 
 from transcriptor.base import Transcriptor
-from transcriptor.utils import invoice_template_themes
+from transcriptor.utils import (
+    TEMPLATE_MAPPING,
+    extract_date_due,
+    extract_job_number,
+    get_media_duration,
+    get_media_files,
+    invoice_template_themes,
+    sc,
+)
+from transcriptor.utils import str_to_date as std
 
 
 class InvoicePreviewScreen(ModalScreen):
@@ -217,6 +230,592 @@ class JobContextMenu(ModalScreen):
 
         elif action == "cancel-context":
             self.dismiss()
+
+
+# Add this to your tui6.py file
+class AddJobScreen(ModalScreen):
+    """Screen for adding new jobs following CLI workflow"""
+
+    def __init__(self):
+        super().__init__()
+        self.step = 1  # Track current step
+        self.job_data = {}
+        self.media_files = []
+        self.current_media_index = 0
+
+    def compose(self) -> ComposeResult:
+        with Container(id="add-job-screen"):
+            yield Label("Add New Job", classes="add-job-title")
+            yield Static("Step 1/4: Select Job File", id="add-job-step-info")
+
+            # Initial form for step 1
+            with Container(id="add-job-form"):
+                yield Label("Job File Path:")
+                yield Input(
+                    placeholder="Enter path to job file or folder",
+                    id="job-file-path",
+                )
+                yield Button("Browse", id="browse-file")
+
+            with Horizontal(id="add-job-buttons"):
+                yield Button(
+                    "Previous",
+                    variant="default",
+                    id="prev-step",
+                    disabled=True,
+                )
+                yield Button("Next", variant="primary", id="next-step")
+                yield Button("Cancel", variant="default", id="cancel-add-job")
+
+    def clear_form(self):
+        """Clear the form and remove all widgets to avoid duplicate IDs"""
+        form = self.query_one("#add-job-form", Container)
+        # Remove all children from the form
+        for child in list(form.children):
+            child.remove()
+
+    def load_step_1(self):
+        """Step 1: Job file selection"""
+        self.step = 1
+        self.clear_form()
+
+        step_info = self.query_one("#add-job-step-info", Static)
+        step_info.update("Step 1/4: Select Job File")
+
+        form = self.query_one("#add-job-form", Container)
+        form.mount(
+            Label("Job File Path:"),
+            Input(
+                placeholder="Enter path to job file or folder",
+                id="job-file-path",
+            ),
+            Button("Browse", id="browse-file"),
+        )
+
+        self.update_button_states()
+        self.query_one("#job-file-path", Input).focus()
+        self.refresh(layout=True)
+
+    def load_step_2(self):
+        """Step 2: Job information"""
+        self.step = 2
+        self.clear_form()
+
+        step_info = self.query_one("#add-job-step-info", Static)
+        step_info.update("Step 2/4: Job Information")
+
+        # Get clients for selection
+        clients = self.app.transcriptor.api.get_clients()
+        client_options = [
+            (f"{client['name']} (ID: {client['id']})", str(client["id"]))
+            for client in clients
+        ]
+
+        # Extract job number and date due from file path
+        job_file = self.job_data.get("job_file", "")
+        job_number = self.extract_job_number(job_file)
+        date_due = self.extract_date_due(job_file)
+
+        date_format = self.app.transcriptor.config.date_format
+        today = datetime.now().strftime(date_format)
+
+        form = self.query_one("#add-job-form", Container)
+        form.mount(
+            Label("Client:"),
+            Select(
+                client_options, id="client-select", prompt="Select a client"
+            ),
+            Label("Job Number:"),
+            Input(
+                value=job_number,
+                id="job-number",
+                placeholder="Auto-extracted or enter manually",
+            ),
+            Label("Date Received:"),
+            Input(value=today, id="date-received", placeholder=date_format),
+            Label("Date Due:"),
+            Input(value=date_due, id="date-due", placeholder=date_format),
+        )
+
+        self.update_button_states()
+        self.query_one("#client-select", Select).focus()
+        self.refresh(layout=True)
+
+    def load_step_3(self):
+        """Step 3: Media file processing"""
+        self.step = 3
+
+        # Update step info
+        step_info = self.query_one("#add-job-step-info", Static)
+
+        # Get media files from the job directory
+
+        client_name = self.job_data.get("client_name", "")
+        job_number = self.job_data.get("job_number", "")
+        date_received = self.job_data.get("date_received", "")
+        date_due = self.job_data.get("date_due", "")
+
+        job_dir = self.create_job_dir(
+            client_name, job_number, date_received, date_due
+        )
+
+        job_file_path = Path(self.job_data.get("job_file", ""))
+
+        self.mv_extract_job_file(job_file_path, job_dir)
+        try:
+            self.media_files = list(get_media_files(job_dir))
+        except Exception as e:
+            self.media_files = []
+            self.app.notify(
+                f"Error scanning for media files: {str(e)}", severity="error"
+            )
+
+        if not self.media_files:
+            step_info.update("Step 3/4: No media files found")
+
+            # Clear and rebuild form
+            form = self.query_one("#add-job-form", Container)
+            form.remove_children()
+
+            form.mount(
+                Label("No audio/video files found in the job directory."),
+                Label("Please check the file path and try again."),
+            )
+
+            self.update_button_states()
+            self.refresh(layout=True)
+            return
+
+        step_info.update(
+            f"Step 3/4: Process Media Files ({len(self.media_files)} found)"
+        )
+        self.current_media_index = 0
+        self.load_current_media_form()
+
+    def mv_extract_job_file(
+        self, job_file: Path | str, job_dir: Path | str
+    ) -> None:
+        """
+        Move/Extract job file to jobs directory
+
+        Arguments:
+            job_file: Path object or path-like string to job file
+            job_dir: Path object or path-like string to job directory
+        """
+        job_file = Path(job_file)
+        if zipfile.is_zipfile(job_file):
+            try:
+                with zipfile.ZipFile(job_file) as zf:
+                    zf.extractall(job_dir)
+                job_file.unlink(missing_ok=True)
+            except Exception as e:
+                self.app.notify(
+                    f"Error extracting zip file: {str(e)}", severity="error"
+                )
+
+        else:
+            # shutil.move(job_file, job_dir)
+            shutil.copy(job_file, job_dir)
+
+    def load_current_media_form(self):
+        """Load form for current media file"""
+        if self.current_media_index >= len(self.media_files):
+            self.load_step_4()
+            return
+
+        self.clear_form()
+
+        current_file = self.media_files[self.current_media_index]
+        media_info = self.query_one("#add-job-step-info", Static)
+        media_info.update(
+            f"Step 3/4: Media File {self.current_media_index + 1} of {len(self.media_files)}"
+        )
+
+        # Calculate media duration
+        try:
+            duration = get_media_duration(current_file)
+            duration_text = f"{duration:.2f} minutes"
+        except Exception as e:
+            duration_text = f"Error: {str(e)}"
+            duration = 0.0
+
+        # Create unique IDs for this media file
+        media_suffix = f"-{self.current_media_index}"
+
+        form = self.query_one("#add-job-form", Container)
+        form.mount(
+            Label(f"File: {current_file.name}"),
+            Label(f"Duration: {duration_text}"),
+            Label(f"Path: {str(current_file)}"),
+            Checkbox(
+                "Process this file?",
+                value=True,
+                id=f"process-file{media_suffix}",
+            ),
+            Label("Job Type:"),
+            Select(
+                [
+                    ("Normal", "normal"),
+                    ("Expedite", "expedite"),
+                    ("Interpreted", "interpreted"),
+                ],
+                value="normal",
+                id=f"job-type{media_suffix}",
+            ),
+            Label("Quantity (minutes):"),
+            Input(value=f"{duration:.2f}", id=f"quantity{media_suffix}"),
+            Label("Template:"),
+            Select(
+                [
+                    (v.replace(".docx", ""), k)
+                    for k, v in TEMPLATE_MAPPING.items()
+                ],
+                value="zd",
+                id=f"job-template{media_suffix}",
+            ),
+            Label("Note:"),
+            TextArea(
+                "",
+                id=f"note{media_suffix}",
+                placeholder="Optional note for this task",
+            ),
+        )
+
+        self.update_button_states()
+        self.query_one(f"#process-file{media_suffix}", Checkbox).focus()
+        self.refresh(layout=True)
+
+    def load_step_4(self):
+        """Step 4: Review and confirmation"""
+        self.step = 4
+
+        # Update step info
+        step_info = self.query_one("#add-job-step-info", Static)
+        step_info.update("Step 4/4: Review and Confirm")
+
+        client_name = self.job_data.get("client_name", "N/A")
+        job_number = self.job_data.get("job_number", "N/A")
+        date_received = self.job_data.get("date_received", "N/A")
+        date_due = self.job_data.get("date_due", "N/A")
+        tasks = self.job_data.get("tasks", [])
+
+        # Clear and rebuild form
+        form = self.query_one("#add-job-form", Container)
+        form.remove_children()
+
+        # Build summary content
+        summary_widgets = [
+            Label("Job Summary:", classes="summary-title"),
+            Static(f"Client: {client_name}", classes="summary-item"),
+            Static(f"Job Number: {job_number}", classes="summary-item"),
+            Static(f"Date Received: {date_received}", classes="summary-item"),
+            Static(f"Date Due: {date_due}", classes="summary-item"),
+            Static(
+                f"Media Files Found: {len(self.media_files)}",
+                classes="summary-item",
+            ),
+            Static(f"Tasks to Create: {len(tasks)}", classes="summary-item"),
+        ]
+
+        if tasks:
+            summary_widgets.append(Label("Tasks:", classes="summary-title"))
+            for i, task in enumerate(tasks):
+                summary_widgets.append(
+                    Static(
+                        f"{i+1}. {task.get('file_name', 'N/A')} - {task.get('job_type', 'N/A')} ({task.get('quantity', 'N/A')} min)",
+                        classes="summary-item",
+                    )
+                )
+
+        # Mount all summary widgets
+        for widget in summary_widgets:
+            form.mount(widget)
+
+        # Update button states
+        self.update_button_states()
+
+        # Force refresh
+        self.refresh(layout=True)
+
+    def extract_job_number(self, file_path: str) -> str:
+        """Extract job number from file path"""
+        return extract_job_number(file_path)
+
+    def extract_date_due(self, file_path: str) -> str:
+        """Extract due date from file path"""
+        date_due = extract_date_due(file_path)
+        if date_due:
+            # Convert to proper date format
+            date_format = self.app.transcriptor.config.date_format
+            try:
+                # Try to parse various date formats
+                for fmt in ["%m/%d", "%m-%d", "%m.%d"]:
+                    try:
+                        date_obj = datetime.strptime(date_due, fmt)
+                        current_year = datetime.now().year
+                        full_date = date_obj.replace(year=current_year)
+                        return full_date.strftime(date_format)
+                    except ValueError:
+                        continue
+            except:
+                pass
+        return ""
+
+    def create_job_dir(
+        self,
+        client_name: str,
+        job_number: str,
+        date_received: str,
+        date_due: str,
+    ) -> Path:
+        """
+        Create a job directory
+
+        Arguments:
+            client_name: Client name
+            job_num: Job number
+            date_rec: Date received
+            date_due: Date due
+
+        Returns:
+            Job directory path object
+        """
+        date_format = self.app.transcriptor.config.date_format
+        date_received_obj = std(date_received, date_format)
+        date_due_obj = std(date_due, date_format)
+
+        job_dir = (
+            self.app.transcriptor.base_dir
+            / "clients"
+            / sc(client_name)
+            / f"{date_received_obj.year}"
+            / f"{date_received_obj.strftime('%B')}"
+            / f"{date_received_obj.strftime('%d_%a')}_{job_number}_DUE_{date_due_obj.strftime('%d_%a')}"
+        )
+        job_dir.mkdir(parents=True, exist_ok=True)
+        return job_dir
+
+    @on(Button.Pressed, "#browse-file")
+    def browse_file(self):
+        """Open file browser (placeholder - in real implementation, use textual-filebrowser)"""
+        # For now, we'll just focus on the input field
+        self.query_one("#job-file-path", Input).focus()
+
+    @on(Button.Pressed, "#prev-step")
+    def previous_step(self):
+        """Go to previous step"""
+        if self.step > 1:
+            self.step -= 1
+            if self.step == 1:
+                self.load_step_1()
+            elif self.step == 2:
+                self.load_step_2()
+            elif self.step == 3:
+                self.load_step_3()
+
+            # Update button states
+            self.update_button_states()
+
+    @on(Button.Pressed, "#next-step")
+    def next_step(self):
+        """Process current step and move to next"""
+        if self.step == 1:
+            if not self.process_step_1():
+                return
+            self.load_step_2()
+        elif self.step == 2:
+            if not self.process_step_2():
+                return
+            self.load_step_3()
+        elif self.step == 3:
+            if not self.process_step_3():
+                return
+            self.current_media_index += 1
+            self.load_current_media_form()
+        elif self.step == 4:
+            self.create_job()
+            return
+
+        self.update_button_states()
+
+    @on(Button.Pressed, "#cancel-add-job")
+    def cancel_add_job(self):
+        """Cancel job creation"""
+        self.dismiss()
+
+    def process_step_1(self) -> bool:
+        """Process step 1: Validate job file"""
+        file_input = self.query_one("#job-file-path", Input)
+        file_path = file_input.value.strip("'").strip('"').strip()
+
+        if not file_path:
+            self.app.notify("Please enter a job file path", severity="error")
+            return False
+
+        path = Path(file_path)
+        if not path.exists():
+            self.app.notify(
+                "File or directory does not exist", severity="error"
+            )
+            return False
+
+        self.job_data["job_file"] = file_path
+        return True
+
+    def process_step_2(self) -> bool:
+        """Process step 2: Validate job information"""
+        client_select = self.query_one("#client-select", Select)
+        job_number_input = self.query_one("#job-number", Input)
+        date_received_input = self.query_one("#date-received", Input)
+        date_due_input = self.query_one("#date-due", Input)
+
+        if not client_select.value:
+            self.app.notify("Please select a client", severity="error")
+            return False
+
+        if not job_number_input.value.strip():
+            self.app.notify("Please enter a job number", severity="error")
+            return False
+
+        # Basic date validation
+        date_format = self.app.transcriptor.config.date_format
+        try:
+            datetime.strptime(date_received_input.value, date_format)
+            datetime.strptime(date_due_input.value, date_format)
+        except ValueError:
+            self.app.notify(
+                f"Invalid date format. Use: {date_format}", severity="error"
+            )
+            return False
+
+        # Get client name
+        client_id = client_select.value
+        clients = self.app.transcriptor.api.get_clients(
+            conditions={"id": [("=", client_id)]}
+        )
+        client_name = clients[0]["name"] if clients else "Unknown"
+
+        self.job_data.update(
+            {
+                "client_id": client_id,
+                "client_name": client_name,
+                "job_number": job_number_input.value,
+                "date_received": date_received_input.value,
+                "date_due": date_due_input.value,
+            }
+        )
+
+        return True
+
+    def process_step_3(self) -> bool:
+        """Process step 3: Process current media file"""
+        if self.current_media_index >= len(self.media_files):
+            return True
+
+        # Use the current media index to get the right IDs
+        media_suffix = f"-{self.current_media_index}"
+
+        process_checkbox = self.query_one(
+            f"#process-file{media_suffix}", Checkbox
+        )
+        if not process_checkbox.value:
+            return True  # Skip this file
+
+        job_type_select = self.query_one(f"#job-type{media_suffix}", Select)
+        quantity_input = self.query_one(f"#quantity{media_suffix}", Input)
+        template_select = self.query_one(
+            f"#job-template{media_suffix}", Select
+        )
+        note_textarea = self.query_one(f"#note{media_suffix}", TextArea)
+
+        try:
+            quantity = float(quantity_input.value)
+        except ValueError:
+            self.app.notify("Invalid quantity value", severity="error")
+            return False
+
+        current_file = self.media_files[self.current_media_index]
+
+        task_data = {
+            "file_path": str(current_file),
+            "file_name": current_file.name,
+            "job_type": job_type_select.value,
+            "quantity": quantity,
+            "template": template_select.value,
+            "note": note_textarea.text,
+        }
+
+        if "tasks" not in self.job_data:
+            self.job_data["tasks"] = []
+        self.job_data["tasks"].append(task_data)
+
+        return True
+
+    def create_job(self):
+        """Create the job using the collected data"""
+        try:
+            # Prepare job_callback
+            def job_callback(job_file):
+                return {
+                    "client_id": self.job_data["client_id"],
+                    "job_number": self.job_data["job_number"],
+                    "date_received": self.job_data["date_received"],
+                    "date_due": self.job_data["date_due"],
+                }
+
+            # Prepare task_callback
+            task_mapping = {
+                task["file_path"]: task
+                for task in self.job_data.get("tasks", [])
+            }
+
+            def task_callback(task_file):
+                task_info = task_mapping.get(str(task_file))
+                if not task_info:
+                    return None
+
+                return {
+                    "work_on_file": "yes",  # Already filtered by process_step_3
+                    "job_type": task_info["job_type"],
+                    "total_quantity": task_info[
+                        "quantity"
+                    ],  # This would ideally be the actual media duration
+                    "quantity": task_info["quantity"],
+                    "job_template": task_info["template"],
+                    "note": task_info["note"],
+                }
+
+            # Create the job
+            self.app.transcriptor.create_job(
+                job_file=self.job_data["job_file"],
+                job_callback=job_callback,
+                task_callback=task_callback,
+            )
+
+            self.app.notify("Job created successfully!")
+            self.dismiss()
+
+        except Exception as e:
+            self.app.notify(f"Error creating job: {str(e)}", severity="error")
+
+    def update_button_states(self):
+        """Update button states based on current step"""
+        prev_button = self.query_one("#prev-step", Button)
+        next_button = self.query_one("#next-step", Button)
+
+        # Update previous button
+        prev_button.disabled = self.step == 1
+
+        # Update next button text
+        if (
+            self.step == 3
+            and self.current_media_index == len(self.media_files) - 1
+        ):
+            next_button.label = "Review"
+        elif self.step == 4:
+            next_button.label = "Create Job"
+        else:
+            next_button.label = "Next"
 
 
 class JobEditScreen(ModalScreen):
@@ -764,6 +1363,10 @@ class TranscriptorTUI(App):
         with TabbedContent(initial="dashboard"):
             with TabPane("Dashboard", id="dashboard"):
                 yield Container(
+                    Horizontal(
+                        Button("Add Job", id="add-job"),
+                        classes="dashboard-toolbar",
+                    ),
                     Label("Pending Jobs", classes="section-title"),
                     DataTable(id="pending-jobs-table"),
                     classes="dashboard-container",
@@ -1087,6 +1690,11 @@ Invoice Theme: {config.invoice_theme}
         """
         config_display.update(display_text)
 
+    @on(Button.Pressed, "#add-job")
+    def open_add_job_screen(self):
+        """Open the add job screen"""
+        self.push_screen(AddJobScreen())
+
     @on(Button.Pressed, "#edit-job")
     def edit_selected_job(self):
         """Edit the first selected job"""
@@ -1195,11 +1803,6 @@ Invoice Theme: {config.invoice_theme}
         self.load_rates()
         self.load_config_display()
         self.notify("All data refreshed!")
-
-    def confirm_delete(self, item_type: str) -> bool:
-        """Simple confirmation"""
-        # For production, you'd want a proper confirmation dialog
-        return True
 
 
 def main():

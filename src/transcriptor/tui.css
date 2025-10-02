@@ -110,3 +110,81 @@ DataTable {
 #job-form-container > Vertical {
     height: auto;
 }
+
+#add-job-screen {
+    width: 80%;
+    height: 90%;
+    border: double $accent;
+    background: $surface;
+    padding: 1;
+    layout: vertical;
+}
+
+.add-job-title {
+    text-style: bold;
+    color: $accent;
+    text-align: center;
+    margin: 1;
+    border-bottom: solid $accent;
+    padding-bottom: 1;
+}
+
+#add-job-step-info {
+    margin: 1;
+    padding: 1;
+    background: $panel;
+    text-align: center;
+    text-style: bold;
+}
+
+#add-job-form {
+    height: 1fr;
+    border: solid $panel;
+    margin: 1;
+    padding: 1;
+    overflow-y: auto;
+}
+
+#add-job-form Input,
+#add-job-form Select,
+#add-job-form TextArea,
+#add-job-form Checkbox {
+    margin-bottom: 1;
+    width: 100%;
+}
+
+#add-job-form Label {
+    margin-top: 1;
+    margin-bottom: 0;
+    color: $text;
+}
+
+#add-job-buttons {
+    height: auto;
+    align: center middle;
+    margin: 1;
+}
+
+/* Summary styles */
+.summary-title {
+    text-style: bold;
+    color: $accent;
+    margin-top: 2;
+    margin-bottom: 1;
+}
+
+.summary-item {
+    margin-left: 2;
+    margin-bottom: 1;
+}
+
+/* Ensure inputs are visible */
+Input, Select, TextArea {
+    background: $surface;
+    color: $text;
+    border: solid $panel;
+}
+
+Input:focus, Select:focus, TextArea:focus {
+    border: solid $accent;
+}
