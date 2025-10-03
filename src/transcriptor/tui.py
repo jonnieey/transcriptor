@@ -176,18 +176,22 @@ class JobContextMenu(ModalScreen):
             self.app.push_screen(JobEditScreen(job_dict))
 
         elif action == "delete-job":
-            self.dismiss()
             # Confirm and delete
-            if self.app.confirm_delete("job"):
-                self.app.transcriptor.delete_jobs(
-                    conditions={"id": [("=", job_id)]}
-                )
-                self.app.notify("Job deleted successfully!")
-                # Refresh the appropriate table
-                if self.from_dashboard:
-                    self.app.load_dashboard()
+            def check_confirm(confirm):
+                if confirm:
+                    self.app.transcriptor.delete_jobs(
+                        conditions={"id": [("=", job_id)]}
+                    )
+                    self.app.notify("Job deleted successfully!")
+                    if self.from_dashboard:
+                        self.app.load_dashboard()
+                    else:
+                        self.app.load_all_jobs()
+                    self.dismiss()
                 else:
-                    self.app.load_all_jobs()
+                    self.notify("Job deletion cancelled!")
+
+            self.app.push_screen(ConfirmDelete("job"), check_confirm)
 
         elif action == "generate-invoice":
             self.dismiss()
@@ -1341,6 +1345,37 @@ class ConfigurationScreen(ModalScreen):
         self.dismiss()
 
 
+class ConfirmDelete(ModalScreen[bool]):
+    def __init__(self, item_type):
+        self.item_type = item_type
+
+    def compose(self):
+        with Container(id="confirm-delete"):
+            with Horizontal(id="confirm-delete-buttons"):
+                yield Label(
+                    "Are you sure you want to delete this item?",
+                    classes="confirm-title",
+                )
+                yield Button(
+                    "Yes", variant="primary", id="confirm-delete-yes"
+                )
+                yield Button("No", variant="default", id="confirm-delete-no")
+
+    def on_mount(self):
+        self.query_one("#confirm-delete-no")
+
+    @on(Button.Pressed, "#confirm-delete-yes")
+    def confirm_delete(self):
+        self.dismiss(True)
+
+    @on(Button.Pressed, "#confirm-delete-no")
+    def cancel_delete(self):
+        self.dismiss(False)
+
+    def key_escape(self):
+        self.dismiss(False)
+
+
 # Update the main app class
 class TranscriptorTUI(App):
     """Main TUI application for Transcriptor"""
@@ -1629,11 +1664,11 @@ class TranscriptorTUI(App):
                     selected_data.append(job_dict)
         return selected_data
 
-    def confirm_delete(self, item_type: str) -> bool:
-        """Simple confirmation dialog"""
-        # In a real implementation, you'd show a proper confirmation dialog
-        # For now, we'll assume confirmation
-        return True
+    # async def confirm_delete(self, item_type: str) -> bool:
+    #     """Simple confirmation dialog"""
+    #     # In a real implementation, you'd show a proper confirmation dialog
+    #     # For now, we'll assume confirmation
+    #     res = await self.push_screen(ConfirmDelete(item_type))
 
     def load_cutoffs(self):
         """Load cutoff dates"""
@@ -1712,21 +1747,27 @@ Invoice Theme: {config.invoice_theme}
             self.push_screen(JobEditScreen(job_data))
 
     @on(Button.Pressed, "#delete-job")
-    def delete_selected_jobs(self):
+    async def delete_selected_jobs(self):
         """Delete selected jobs"""
         if not self.selected_jobs:
             self.notify("No jobs selected!", severity="error")
             return
 
+        def check_confirm(confirm):
+            if confirm:
+                for job_id in self.selected_jobs:
+                    self.transcriptor.delete_jobs(
+                        conditions={"id": [("=", job_id)]}
+                    )
+                self.selected_jobs.clear()
+                self.load_all_jobs()
+                self.notify("Jobs deleted successfully!")
+            else:
+                self.notify("Job deletion cancelled!")
+
+        self.push_screen(ConfirmDelete("job"), check_confirm)
+
         # Confirm deletion
-        if self.confirm_delete("jobs"):
-            for job_id in self.selected_jobs:
-                self.transcriptor.delete_jobs(
-                    conditions={"id": [("=", job_id)]}
-                )
-            self.selected_jobs.clear()
-            self.load_all_jobs()
-            self.notify("Jobs deleted successfully!")
 
     @on(Button.Pressed, "#generate-invoice-btn")
     def generate_invoice_from_button(self):

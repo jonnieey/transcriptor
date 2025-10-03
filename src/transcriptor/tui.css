@@ -219,3 +219,68 @@ Input, Select, TextArea {
 Input:focus, Select:focus, TextArea:focus {
     border: solid $accent;
 }
+
+/* Confirmation Dialog */
+#confirmation-dialog {
+    width: 50%;
+    height: auto;
+    border: double $error;
+    background: $surface;
+    padding: 2;
+}
+
+.dialog-title {
+    text-style: bold;
+    color: $error;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+.dialog-message {
+    text-align: center;
+    margin-bottom: 2;
+}
+
+#confirmation-buttons {
+    align: center middle;
+    width: 100%;
+}
+
+#confirmation-buttons > Button {
+    margin: 0 1;
+}
+
+#confirm-delete {
+    background: $error;
+}
+
+#confirm-delete:hover {
+    background: $error-darken-1;
+}
+
+#confirmation-dialog {
+    align: center middle;
+    width: 50%;
+    height: auto;
+    padding: 1 2;
+    border: thick $error 50%;
+    background: $surface;
+}
+
+.dialog-title {
+    width: 100%;
+    text-align: center;
+    padding-bottom: 1;
+    border-bottom: solid $error;
+    color: $error;
+}
+
+.dialog-message {
+    padding: 2 0;
+}
+
+#confirmation-buttons {
+    width: 100%;
+    align: center middle;
+    height: auto;
+}
