@@ -4,6 +4,10 @@
 Screen {
     background: $surface;
 }
+VerticalScroll {
+    scrollbar-size: 1 1;
+    scrollbar-color: $panel;
+}
 
 /* Header and titles */
 .section-title {
@@ -27,9 +31,16 @@ Screen {
 /* Containers */
 .dashboard-container, .jobs-container, .cutoffs-container,
 .clients-container, .rates-container, .config-container, .sql-container {
-    margin: 1;
     padding: 1;
     border: solid $accent;
+}
+
+.add-job-title {
+}
+
+#dashboard-toolbar {
+    height: auto;
+    margin: 1;
 }
 
 /* Modal screens */
@@ -47,15 +58,13 @@ Screen {
     padding: 1;
 }
 
-/* Buttons */
 Button {
-    margin: 1;
+    height: auto;
 }
 
 #preview-buttons, #edit-buttons, #query-buttons, #config-buttons, #selection-buttons {
     height: auto;
-    align: center middle;
-    margin: 1;
+    align: right top;
 }
 
 /* Toolbars */
@@ -67,6 +76,8 @@ Button {
 /* Data tables */
 DataTable {
     height: 1fr;
+    scrollbar-size: 1 1;
+    scrollbar-color: $panel;
 }
 
 /* SQL input */
@@ -92,8 +103,8 @@ DataTable {
 
 /* Job Edit Screen Styles */
 #job-edit {
-    width: 90%;
-    height: 90%;
+    width: 1fr;
+    height: 1fr;
     border: double $accent;
     background: $surface;
     padding: 1;
@@ -112,8 +123,8 @@ DataTable {
 }
 
 #add-job-screen {
-    width: 80%;
-    height: 90%;
+    width: 100%;
+    height:100%;
     border: double $accent;
     background: $surface;
     padding: 1;
@@ -121,25 +132,24 @@ DataTable {
 }
 
 .add-job-title {
+    width: 1fr;
+    align: center top;
     text-style: bold;
     color: $accent;
     text-align: center;
-    margin: 1;
     border-bottom: solid $accent;
-    padding-bottom: 1;
 }
 
 #add-job-step-info {
-    margin: 1;
-    padding: 1;
     background: $panel;
     text-align: center;
     text-style: bold;
+    border-bottom: solid $accent;
 }
 
 #add-job-form {
     height: 1fr;
-    border: solid $panel;
+    border: double $accent;
     margin: 1;
     padding: 1;
     overflow-y: auto;
@@ -151,18 +161,39 @@ DataTable {
 #add-job-form Checkbox {
     margin-bottom: 1;
     width: 100%;
+    height: auto;
 }
 
 #add-job-form Label {
     margin-top: 1;
     margin-bottom: 0;
-    color: $text;
+    color: cyan;
 }
 
 #add-job-buttons {
+    background: $panel;
+    align: center bottom;
+    width: 1fr;
     height: auto;
-    align: center middle;
-    margin: 1;
+    dock: bottom;
+}
+
+#add-job-buttons > Button {
+    margin: 0 2;
+    min-width: 20%;
+}
+
+#edit-buttons {
+    background: $panel;
+    align: center bottom;
+    width: 1fr;
+    height: auto;
+    dock: bottom;
+}
+
+#edit-buttons > Button {
+    margin: 0 2;
+    min-width: 20%;
 }
 
 /* Summary styles */

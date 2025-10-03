@@ -250,12 +250,7 @@ class AddJobScreen(ModalScreen):
 
             # Initial form for step 1
             with Container(id="add-job-form"):
-                yield Label("Job File Path:")
-                yield Input(
-                    placeholder="Enter path to job file or folder",
-                    id="job-file-path",
-                )
-                yield Button("Browse", id="browse-file")
+                pass
 
             with Horizontal(id="add-job-buttons"):
                 yield Button(
@@ -266,6 +261,9 @@ class AddJobScreen(ModalScreen):
                 )
                 yield Button("Next", variant="primary", id="next-step")
                 yield Button("Cancel", variant="default", id="cancel-add-job")
+
+    def on_mount(self):
+        self.load_step_1()
 
     def clear_form(self):
         """Clear the form and remove all widgets to avoid duplicate IDs"""
@@ -284,16 +282,20 @@ class AddJobScreen(ModalScreen):
 
         form = self.query_one("#add-job-form", Container)
         form.mount(
-            Label("Job File Path:"),
-            Input(
-                placeholder="Enter path to job file or folder",
-                id="job-file-path",
-            ),
-            Button("Browse", id="browse-file"),
+            Container(
+                Label("Job File Path:"),
+                Input(
+                    placeholder="Enter path to job file or folder",
+                    id="job-file-path",
+                ),
+                Button("Browse", id="browse-file"),
+            )
         )
 
         self.update_button_states()
-        self.query_one("#job-file-path", Input).focus()
+        self.call_after_refresh(
+            lambda: self.query_one("#job-file-path", Input).focus()
+        )
         self.refresh(layout=True)
 
     def load_step_2(self):
@@ -1363,10 +1365,7 @@ class TranscriptorTUI(App):
         with TabbedContent(initial="dashboard"):
             with TabPane("Dashboard", id="dashboard"):
                 yield Container(
-                    Horizontal(
-                        Button("Add Job", id="add-job"),
-                        classes="dashboard-toolbar",
-                    ),
+                    Button("Add Job", id="add-job"),
                     Label("Pending Jobs", classes="section-title"),
                     DataTable(id="pending-jobs-table"),
                     classes="dashboard-container",
