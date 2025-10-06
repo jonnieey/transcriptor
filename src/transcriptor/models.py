@@ -79,7 +79,7 @@ update_amount_trigger = DDL(
     AFTER UPDATE OF job_rate, quantity ON Jobs
     BEGIN
         UPDATE Jobs
-        SET amount = ROUND(NEW.quantity * NEW.job_rate, 2)
+        SET amount = CEIL((NEW.quantity * NEW.job_rate) / 0.5) * 0.5
         WHERE id = NEW.id;
     END;
     """
@@ -159,9 +159,9 @@ event.listen(
     limit_amount_paid_trigger.execute_if(dialect="sqlite"),
 )
 
-update_job_rates_trigger = DDL(
+update_client_job_rates_trigger = DDL(
     """
-    CREATE TRIGGER IF NOT EXISTS update_job_rates
+    CREATE TRIGGER IF NOT EXISTS update_client_job_rates
         AFTER UPDATE OF client_id ON Jobs
     BEGIN
         UPDATE Jobs
@@ -178,7 +178,30 @@ update_job_rates_trigger = DDL(
 event.listen(
     Job.__table__,
     "after_create",
-    update_job_rates_trigger.execute_if(dialect="sqlite"),
+    update_client_job_rates_trigger.execute_if(dialect="sqlite"),
+)
+
+update_job_rate_trigger = DDL(
+    """
+    CREATE TRIGGER IF NOT EXISTS update_job_rate
+    AFTER UPDATE OF job_type ON Jobs
+    BEGIN
+        UPDATE Jobs
+            SET job_rate =
+                CASE
+                    WHEN LOWER(NEW.job_type) = 'normal' THEN (SELECT normal FROM Rates WHERE Rates.id = NEW.client_id)
+                    WHEN LOWER(NEW.job_type) = 'expedite' THEN (SELECT expedite FROM Rates WHERE Rates.id = NEW.client_id)
+                    WHEN LOWER(NEW.job_type) = 'interpreted' THEN (SELECT interpreted FROM Rates WHERE Rates.id = NEW.client_id)
+                    ELSE NEW.job_rate
+                END
+        WHERE id = NEW.id;
+    END;
+    """
+)
+event.listen(
+    Job.__table__,
+    "after_create",
+    update_job_rate_trigger.execute_if(dialect="sqlite"),
 )
 
 
