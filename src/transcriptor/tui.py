@@ -34,6 +34,7 @@ from transcriptor.utils import (
     get_media_duration,
     get_media_files,
     invoice_template_themes,
+    round_up,
     sc,
 )
 from transcriptor.utils import str_to_date as std
@@ -647,6 +648,17 @@ class JobEditScreen(ModalScreen):
         self.job_data = job_data
         self.original_data = job_data.copy()
 
+    def on_mount(self):
+        """Load client rates when screen mounts"""
+        # Get client rates for calculations
+        client_id = self.job_data.get("client_id")
+        if client_id:
+            rates = self.app.transcriptor.api.get_rates(
+                conditions={"client_id": [("=", client_id)]}
+            )
+            if rates:
+                self.client_rates = rates[0]
+
     def compose(self) -> ComposeResult:
         with Container(id="job-edit"):
             yield Label(
@@ -689,11 +701,8 @@ class JobEditScreen(ModalScreen):
                         "normal",
                         "expedite",
                         "interpreted",
-                        "Normal",
-                        "Expedite",
-                        "Interpreted",
                     ]
-                    current_job_type = self.job_data.get("job_type", "Normal")
+                    current_job_type = self.job_data.get("job_type", "normal")
                     yield Select(
                         [(jt, jt) for jt in job_types],
                         value=current_job_type,
@@ -822,6 +831,50 @@ class JobEditScreen(ModalScreen):
     @on(Button.Pressed, "#cancel-edit")
     def cancel_edit(self):
         self.dismiss(False)
+
+    def calculate_amount(self) -> float:
+        """Calculate amount based on quantity and job_rate"""
+        try:
+            quantity = float(self.query_one("#quantity", Input).value or 0)
+            job_rate = float(self.query_one("#job_rate", Input).value or 0)
+            return round_up(quantity * job_rate)
+        except (ValueError, AttributeError):
+            return 0.0
+
+    def update_job_rate_from_type(self, job_type: str) -> None:
+        """Update job_rate based on job type using client rates"""
+        if not self.client_rates:
+            return
+
+        job_type_lower = job_type.lower()
+        rate_mapping = {
+            "normal": self.client_rates.get("normal", 0),
+            "expedite": self.client_rates.get("expedite", 0),
+            "interpreted": self.client_rates.get("interpreted", 0),
+        }
+        new_rate = rate_mapping.get(job_type_lower, 0)
+        if new_rate:
+            self.query_one("#job_rate", Input).value = str(new_rate)
+
+    @on(Input.Changed, "#job_rate")
+    def on_job_rate_changed(self, event: Input.Changed) -> None:
+        """Update amount when job_rate changes"""
+        new_amount = self.calculate_amount()
+        self.query_one("#amount", Input).value = f"{new_amount:.2f}"
+
+    @on(Input.Changed, "#quantity")
+    def on_quantity_changed(self, event: Input.Changed) -> None:
+        """Update amount when quantity changes"""
+        new_amount = self.calculate_amount()
+        self.query_one("#amount", Input).value = f"{new_amount:.2f}"
+
+    @on(Select.Changed, "#job_type")
+    def on_job_type_changed(self, event: Select.Changed) -> None:
+        """Update job_rate and amount when job type changes"""
+        if event.value:
+            self.update_job_rate_from_type(event.value)
+            new_amount = self.calculate_amount()
+            self.query_one("#amount", Input).value = f"{new_amount:.2f}"
 
 
 class AddJobScreen(ModalScreen):
