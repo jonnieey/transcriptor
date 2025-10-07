@@ -121,11 +121,16 @@ class Dashboard(Container):
         jobs = self.app.transcriptor.api.get_jobs(
             conditions={"id": [("=", job_id)]}
         )
+
+        def check_edit(confirm):
+            if confirm:
+                self.refresh_table()
+
         if jobs:
             job_data = jobs[0]
             if hasattr(job_data, "__dict__"):
                 job_data = job_data.__dict__
-            self.app.push_screen(JobEditScreen(job_data))
+            self.app.push_screen(JobEditScreen(job_data), check_edit)
 
     @on(DataTable.CellSelected, "#pending-jobs-table")
     def handle_all_jobs_cell_click(self, event: DataTable.CellSelected):
@@ -142,15 +147,13 @@ class Dashboard(Container):
                     job_id = int(job_id_cell)
                     # Find the job in our stored data
                     job_data = None
-                    for job in self.all_jobs_data:
+                    for job in self.dashboard_jobs_data:
                         if job.get("id") == job_id:
                             job_data = job
                             break
 
                     if job_data:
-                        self.push_screen(
-                            JobContextMenu(job_data, from_dashboard=False)
-                        )
+                        self.app.push_screen(JobContextMenu(job_data))
                 except (ValueError, KeyError):
                     self.notify("Could not find job data", severity="error")
 
@@ -179,7 +182,7 @@ class Dashboard(Container):
     def get_selected_jobs_data(self):
         """Get full data for selected jobs"""
         selected_data = []
-        for job in self.all_jobs_data:
+        for job in self.dashboard_jobs_data:
             if hasattr(job, "id"):
                 job_id = job.id
             else:
@@ -292,15 +295,13 @@ class JobsTable(Container):
                     job_id = int(job_id_cell)
                     # Find the job in our stored data
                     job_data = None
-                    for job in self.all_jobs_data:
+                    for job in self.jobs_data:
                         if job.get("id") == job_id:
                             job_data = job
                             break
 
                     if job_data:
-                        self.push_screen(
-                            JobContextMenu(job_data, from_dashboard=False)
-                        )
+                        self.app.push_screen(JobContextMenu(job_data))
                 except (ValueError, KeyError):
                     self.notify("Could not find job data", severity="error")
 
@@ -329,7 +330,7 @@ class JobsTable(Container):
     def get_selected_jobs_data(self):
         """Get full data for selected jobs"""
         selected_data = []
-        for job in self.all_jobs_data:
+        for job in self.jobs_data:
             if hasattr(job, "id"):
                 job_id = job.id
             else:
@@ -368,11 +369,16 @@ class JobsTable(Container):
         jobs = self.app.transcriptor.api.get_jobs(
             conditions={"id": [("=", job_id)]}
         )
+
+        def check_edit(confirm):
+            if confirm:
+                self.refresh_table()
+
         if jobs:
             job_data = jobs[0]
             if hasattr(job_data, "__dict__"):
                 job_data = job_data.__dict__
-            self.app.push_screen(JobEditScreen(job_data))
+            self.app.push_screen(JobEditScreen(job_data), check_edit)
 
 
 class Cutoffs(Container):
@@ -474,13 +480,10 @@ class ConfigurationScreen(ModalScreen):
                 # Fix: Import invoice_template_themes at the top
                 themes = invoice_template_themes()
                 select = Select(
-                    [(theme, theme) for theme in themes], id="invoice_theme"
+                    [(theme, theme) for theme in themes],
+                    id="invoice_theme",
+                    value=self.app.transcriptor.config.invoice_theme,
                 )
-                # Set current value
-                try:
-                    select.value = self.app.transcriptor.config.invoice_theme
-                except:
-                    pass
                 yield select
 
             with Horizontal(id="config-buttons"):
@@ -506,22 +509,23 @@ class ConfigurationScreen(ModalScreen):
         # Save to file
         self.app.transcriptor.save_config()
         self.app.notify("Configuration saved successfully!")
-        self.dismiss()
+        self.dismiss(True)
         # Refresh config display
-        self.app.load_config_display()
 
     @on(Button.Pressed, "#cancel-config")
     def cancel_config(self):
-        self.dismiss()
+        self.dismiss(True)
 
 
 class Configuration(Container):
 
     BINDINGS = [
         ("e", "edit_config", "Edit New Job (E)"),
+        ("r", "refresh_table", "Refresh Config (R)"),
     ]
 
     def compose(self) -> ComposeResult:
+        yield DataTable(id="config-table")
         yield Static(id="config-display")
 
     def on_mount(self):
@@ -539,16 +543,22 @@ Invoice Theme: {config.invoice_theme}
         config_display.update(display_text)
 
     def action_edit_config(self):
-        self.app.push_screen(ConfigurationScreen())
+        def check_edit(confirm):
+            if confirm:
+                self.refresh_table()
+
+        self.app.push_screen(ConfigurationScreen(), check_edit)
+
+    def action_refresh_table(self):
+        self.refresh_table()
 
 
 class JobContextMenu(ModalScreen):
     """Context menu for job actions"""
 
-    def __init__(self, job_data: Dict, from_dashboard: bool = False):
+    def __init__(self, job_data: Dict):
         super().__init__()
         self.job_data = job_data
-        self.from_dashboard = from_dashboard
 
     def compose(self) -> ComposeResult:
         with Container(id="context-menu"):
@@ -559,10 +569,15 @@ class JobContextMenu(ModalScreen):
             with ListView(id="action-list"):
                 yield ListItem(ListLabel("📝 Edit Job"), id="edit-job")
                 yield ListItem(ListLabel("🗑️ Delete Job"), id="delete-job")
-                yield ListItem(
-                    ListLabel("🧾 Generate Invoice"), id="generate-invoice"
-                )
                 yield ListItem(ListLabel("❌ Cancel"), id="cancel-context")
+
+    def check_edit(self, confirm):
+        if confirm:
+            dashboard = self.app.query_one("#dashboard-pane", Dashboard)
+            jobs_table = self.app.query_one("#jobstable-pane", JobsTable)
+            dashboard.refresh_table()
+            jobs_table.refresh_table()
+            self.dismiss()
 
     @on(ListView.Selected)
     def handle_action_selection(self, event: ListView.Selected):
@@ -570,13 +585,12 @@ class JobContextMenu(ModalScreen):
         job_id = self.job_data.get("id")
 
         if action == "edit-job":
-            self.dismiss()
             # Push the edit screen
             if hasattr(self.job_data, "__dict__"):
                 job_dict = self.job_data.__dict__
             else:
                 job_dict = dict(self.job_data)
-            # self.app.push_screen(JobEditScreen(job_dict))
+            self.app.push_screen(JobEditScreen(job_dict), self.check_edit)
 
         elif action == "delete-job":
             # Confirm and delete
@@ -586,55 +600,20 @@ class JobContextMenu(ModalScreen):
                         conditions={"id": [("=", job_id)]}
                     )
                     self.app.notify("Job deleted successfully!")
-                    if self.from_dashboard:
-                        self.app.load_dashboard()
-                    else:
-                        pass
-                        # self.app.load_all_jobs()
-                    self.dismiss()
+                    dashboard = self.app.query_one(
+                        "#dashboard-pane", Dashboard
+                    )
+                    jobs_table = self.app.query_one(
+                        "#jobstable-pane", JobsTable
+                    )
+                    dashboard.refresh_table()
+                    jobs_table.refresh_table()
+                    self.dismiss(True)
                 else:
                     self.notify("Job deletion cancelled!")
+                    self.dismiss(False)
 
             self.app.push_screen(ConfirmDelete("job"), check_confirm)
-
-        elif action == "generate-invoice":
-            self.dismiss()
-            # Generate invoice for this single job
-            selected_jobs_data = []
-            if hasattr(self.job_data, "__dict__"):
-                job_dict = self.job_data.__dict__
-            else:
-                job_dict = dict(self.job_data)
-
-            # Extract client name
-            if hasattr(self.job_data, "client"):
-                client_name = (
-                    self.job_data.client.name
-                    if hasattr(self.job_data.client, "name")
-                    else str(self.job_data.client)
-                )
-                job_dict["client_name"] = client_name
-            else:
-                job_dict["client_name"] = job_dict.get(
-                    "client_name", "Unknown"
-                )
-
-            selected_jobs_data.append(job_dict)
-
-            # Generate invoice
-            html, client_name = self.app.transcriptor.generate_invoice(
-                selected_jobs_data
-            )
-            if html and client_name:
-                self.app.push_screen(
-                    InvoicePreviewScreen(
-                        html, client_name, selected_jobs_data
-                    )
-                )
-            else:
-                self.app.notify(
-                    "Failed to generate invoice!", severity="error"
-                )
 
         elif action == "cancel-context":
             self.dismiss()
@@ -1649,6 +1628,10 @@ class TranscriptorTUI(App):
         event.tab.focus()
 
 
-if __name__ == "__main__":
+def main():
     app = TranscriptorTUI()
     app.run()
+
+
+if __name__ == "__main__":
+    main()
