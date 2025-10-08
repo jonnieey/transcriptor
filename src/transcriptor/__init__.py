@@ -11,4 +11,4 @@ formatter = logging.Formatter(log_format)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
