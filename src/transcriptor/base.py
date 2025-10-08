@@ -334,7 +334,8 @@ class Transcriptor:
             job_info["date_received"],
             job_info["date_due"],
         )
-        self.mv_extract_job_file(job_file, job_dir)
+        if Path(job_file).exists():
+            self.mv_extract_job_file(job_file, job_dir)
         task_files = get_media_files(job_dir)
 
         tasks = []
