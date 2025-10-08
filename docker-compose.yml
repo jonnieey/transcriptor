@@ -6,3 +6,4 @@ services:
     volumes:
       - .:/app
       - ./.trans_docker_data:/root/.local/share/transcriptor/
+    command: tail -f /dev/null

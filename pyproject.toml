@@ -1,9 +1,9 @@
 [project]
 name = "transcriptor"
-version = "1.4.2"
+version = "1.5.0"
 description = "Manage transcription jobs"
 authors = [{ name = "Jonnieey", email = "johnjahi55@gmail.com" }]
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.9,<3.13" #aifc module dropped in 3.13
 readme = "README.md"
 license = "MIT"
 dependencies = [
@@ -21,6 +21,7 @@ dependencies = [
     "platformdirs~=4.2.2",
     "cffi>=1.17.1",
     "gnureadline>=8.2.13",
+    "textual==6.2.0"
 ]
 
 [project.scripts]
