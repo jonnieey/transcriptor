@@ -1,137 +1,148 @@
-# Transcriptor: Transcription Job Management
+# Transcriptor
 
-Transcriptor is a command-line and TUI application built with Python for managing transcription jobs.  It allows you to track assigned jobs per client, generate invoices, and manage client and job data efficiently.
+A powerful, terminal-based application for managing transcription jobs, clients, and invoices.
 
-## Key Features
+## Features
 
-* **Job Tracking:** Track key job details such as date received, date due, job type, quantity, rate, status, amounts.
-* **Client Management:** Add, edit, delete, and view client information, including associated rates.
-* **Invoice Generation:** Generate invoices based on completed jobs, with customizable templates and the ability to select a previous cutoff date for summary invoices.
-* **CLI Interface:**  Interact with Transcriptor using a powerful and intuitive command-line interface built with `cmd2`.
-* **Database Integration:**  Persistent storage of data using SQLite, ensuring data persistence between sessions.
-* **Automated File Handling:**  Automatically creates directories for organizing client data, job files and invoices.
-
-
-## Technologies Used
-
-* **Python:** Programming language.
-* **SQLAlchemy:**  Object-Relational Mapper (ORM) for database interactions.
-* **SQLite:**  Lightweight and cross-platform database system.
-* **cmd2:**  Framework for creating advanced command-line applications.
-* **Textual:** Modern terminal UI framework.
-* **Jinja2:** Templating engine for invoice generation.
-* **WeasyPrint:** HTML to PDF rendering for invoices.
-* **Python-Docx:** For processing docx files.
-* **Other libraries:** `appdirs`, `audioread`, `markdownify`, `PyYAML`, `rich`, `pydantic`, `platformdirs`.
-
-
-## Prerequisites
-
-Before installing Transcriptor, ensure you have the following:
-
-* Python 3.9 or higher.
-* `poetry` installed (`pip install poetry`)
-
+- **Client Management:** Add, update, delete, and view client information.
+- **Job Tracking:** Keep track of all your transcription jobs, including details like job number, due dates, quantity, and status.
+- **Rate Management:** Assign different rates (normal, expedite, interpreted) to each client.
+- **Invoice Generation:** Generate professional invoices in both PDF and CSV formats.
+- **Interactive TUI:** A user-friendly Textual User Interface (TUI) for easy management of your data.
+- **Powerful CLI:** A command-line interface for scripting and advanced operations.
+- **Database Backup and Restore:** Keep your data safe with built-in backup and restore functionality.
+- **Configuration:** Customize the application to your needs through a simple configuration file.
 
 ## Installation
 
-1. **Clone the repository:**
+This project uses `uv` for package management.
+
+1.  **Clone the repository:**
+
+    ```bash
+    git clone https://github.com/your-username/transcriptor.git
+    cd transcriptor
+    ```
+
+2.  **Create a virtual environment and install dependencies:**
+
+    ```bash
+    uv venv
+    source .venv/bin/activate
+    uv pip install -e .
+    ```
+
+## Usage
+
+The application can be run in two modes: TUI (Textual User Interface) and CLI (Command-Line Interface).
+
+### TUI Mode
+
+The TUI mode provides an interactive and user-friendly interface for managing your transcription business.
+
+To start the TUI, run:
 
 ```bash
-git clone https://github.com/jonnieey/transcriptor.git
-cd transcriptor
+trans5 tui
 ```
 
-2. **Install dependencies:**
+The TUI has the following tabs:
+
+- **Dashboard:** Shows pending jobs.
+- **All Jobs:** Lists all jobs.
+- **Cutoffs:** Displays cutoff dates for invoicing.
+- **Clients:** Lists all your clients.
+- **Rates:** Shows the rates for each client.
+- **Configuration:** Allows you to view and edit the application's configuration.
+
+### CLI Mode
+
+The CLI mode is perfect for scripting and performing quick actions.
+
+To start the CLI, run:
 
 ```bash
-poetry install
+trans5
 ```
 
-3. **Run the application:**
+This will open an interactive shell. Here are some of the available commands:
+
+- `show`: Display clients, jobs, rates, and configuration.
+- `add`: Add new clients and jobs.
+- `update`: Update existing clients, jobs, and rates.
+- `delete`: Remove clients and jobs.
+- `invoice`: Generate invoices for clients.
+- `backup`: Create a backup of the database.
+- `restore`: Restore the database from a backup.
+
+For more detailed information on each command, use the `help` command within the CLI.
+
+**Examples:**
+
+- **Show all clients:**
+
+  ```bash
+  show clients
+  ```
+
+- **Add a new job:**
+
+  ```bash
+  add job -f /path/to/job/file.mp3
+  ```
+
+- **Generate an invoice for a client:**
+
+  ```bash
+  invoice -c 1 -w 'date_submitted > "2025-01-01"' -w 'date_submitted <= "2025-01-31"'
+  ```
+
+## Database
+
+The application uses an SQLite database to store all its data. The database file (`transcriptor.db`) is located in the base directory specified in the configuration.
+
+The database schema is defined in `src/transcriptor/models.py` and includes the following tables:
+
+- `clients`: Stores client information.
+- `jobs`: Stores job details.
+- `rates`: Stores the rates for each client.
+
+The database also uses triggers to automate certain tasks, such as updating the `amount` of a job when the `quantity` or `job_rate` changes.
+
+## Backup and Restore
+
+It's crucial to keep your data safe. The application provides simple commands for backing up and restoring the database.
+
+- **Create a backup:**
+
+  ```bash
+  backup
+  ```
+
+- **Restore from a backup:**
+
+  ```bash
+  restore
+  ```
+
+Backups are stored in the `backups` directory within the application's base directory.
+
+## Development
+
+To set up the development environment, install the development dependencies:
 
 ```bash
-poetry run trans5  #This will launch the CLI interface.
+uv pip install -e '.[dev]'
 ```
 
-4. **Install application**
+### Testing
+
+The project uses `pytest` for testing. To run the tests, use the following command:
 
 ```bash
-pipx install .
-```
-
-## Usage Examples (CLI)
-
-The Transcriptor CLI uses a simple command structure.  Here are some examples:
-
-* **Show Configuration:**  `show config`
-
-* **Show Profile:** `show profile`
-
-* **Add a Client:** `add client -n "Anderson" -e "anderson@example.com"`
-
-* **Add a Job:**
-
-```bash
-    add job --client_id 1 --file "/path/to/your/audio/file.mp3" --job_number 123456 --date_received '2024-03-01' --date_due 2024-03-08 --work_on_file y --job_type Normal --job_template zd --notes "some notes" --quantity 60
-```
-
-
-* **Show Clients:** `show clients`
-
-* **Show Jobs:** `show jobs -w status=Pending`
-
-* **Update a Job:** `update jobs -v status=Done -v amount_paid=25.0 -w id=1`
-
-* **Generate Invoice:** (Requires client_id and conditions for selecting jobs, or the -S flag for summary invoices)
-
-```bash
-    # generate a PDF file of invoice
-    invoice -c 1 -w date_submitted>="2024-01-01" -w date_submitted<="2024-01-31" -t blue
-
-    # generates summary invoice
-    invoice -c 1 -S
-```
-
-* **Delete a Client:**
-
-```bash
-    # Use with caution!  The `-P` flag will also delete associated files)
-    delete clients -w name=Anderson -P
-```
-
-* **Purge Job Files:**
-
-```bash
-    (Deletes media files and directories according to the given criteria)
-    purge -w status=Done
-```
-
-
-## Configuration
-
-The configuration file (`config.yaml`) located in the  `$XDG_CONFIG_DIR or ~/.config` directory, is in YAML format and contains the following options:
-
-* `base_dir`: The base directory for storing all data (default: user data directory).
-* `date_format`: The date format used throughout the application (default: "%Y-%m-%d").
-
-You can modify the configuration file directly or using the CLI command `update config`.
-
-
-## Project Structure
-
-```
-transcriptor/
-├── src/                      # Source code
-│   └── transcriptor/         # Main application module
-│       ├── ...               # Modules for API, models, UI
-│       └── invoice_templates # Contains HTML templates for invoice generations.
-├── tests/                    # Unit tests
-│   ├── ...                   # tests main application modules
-├── README.md                 # README file
-└── pyproject.toml            # Project settings file
+pytest
 ```
 
 ## License
 
-[MIT License](./LICENSE)
+This project is licensed under the MIT License. See the `LICENSE` file for more details.
