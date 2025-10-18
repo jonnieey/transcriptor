@@ -787,6 +787,22 @@ class TranscriptorCMD(cmd2.Cmd):
                 args.where = args.where + cutoff_condition
             where = parse_conditions(args.where)
             values = parse_conditions_as_dict(args.values)
+            if "date_submitted" in values:
+                jobs = self.app.api.get_jobs(conditions=where)
+                if jobs:
+                    for job in jobs:
+                        date_received = datetime.strptime(
+                            job["date_received"], self.app.config.date_format
+                        ).date()
+                        date_submitted = datetime.strptime(
+                            values["date_submitted"],
+                            self.app.config.date_format,
+                        ).date()
+                        if date_submitted < date_received:
+                            self.poutput(
+                                "Error: Date submitted cannot be earlier than date received."
+                            )
+                            return
             self.app.update_jobs(conditions=where, values=values)
         else:
             if args.table:

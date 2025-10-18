@@ -797,6 +797,24 @@ class JobEditScreen(ModalScreen):
         note_widget = self.query_one("#note", TextArea)
         updated_values["note"] = note_widget.text
 
+        # Date validation
+        if updated_values.get("date_submitted") and updated_values.get(
+            "date_received"
+        ):
+            date_format = self.app.transcriptor.config.date_format
+            date_submitted = datetime.strptime(
+                updated_values["date_submitted"], date_format
+            ).date()
+            date_received = datetime.strptime(
+                updated_values["date_received"], date_format
+            ).date()
+            if date_submitted < date_received:
+                self.app.notify(
+                    "Error: Date submitted cannot be earlier than date received.",
+                    severity="error",
+                )
+                return
+
         # Update job in database
         job_id = self.job_data.get("id")
         if job_id:

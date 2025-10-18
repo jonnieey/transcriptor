@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import yaml
 from pydantic import BaseModel, Field, root_validator
-from sqlalchemy import DDL, ForeignKey, String, event
+from sqlalchemy import DDL, CheckConstraint, ForeignKey, String, event
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -71,6 +71,13 @@ class Job(Base):
     job_path: Mapped[str] = mapped_column(nullable=False)
     note: Mapped[str] = mapped_column(nullable=False, default="")
     client: Mapped[Client] = relationship("Client", back_populates="jobs")
+
+    __table_args__ = (
+        CheckConstraint(
+            "date(date_submitted) >= date(date_received)",
+            name="check_date_submitted_not_earlier_than_date_received",
+        ),
+    )
 
 
 update_amount_trigger = DDL(
