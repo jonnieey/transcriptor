@@ -1,7 +1,9 @@
 from collections import OrderedDict
+from datetime import date, datetime
 from typing import Dict, List, Optional, Union
 
 from rich.console import Console
+from rich.style import Style
 from rich.table import Table
 from sqlalchemy.engine.row import RowMapping
 
@@ -103,19 +105,58 @@ class TranscriptorView:
 
             if isinstance(objects, (list, tuple)):
                 for obj in objects:
+                    style = None
                     try:
-                        rows = [
-                            [obj.__dict__[column] for column in columns]
-                            for obj in objects
+                        date_submitted = obj.date_submitted
+                        date_due = obj.date_due
+                    except AttributeError:
+                        date_submitted = obj.get("date_submitted")
+                        date_due = obj.get("date_due")
+
+                    if date_submitted:
+                        try:
+                            amount = obj.amount
+                            amount_paid = obj.amount_paid
+                        except AttributeError:
+                            amount = obj.get("amount")
+                            amount_paid = obj.get("amount_paid")
+
+                        if (
+                            amount is not None
+                            and amount_paid is not None
+                            and amount_paid < amount
+                        ):
+                            style = "blue"
+                        else:
+                            style = "white"
+                    elif date_due:
+                        if isinstance(date_due, str):
+                            try:
+                                date_due = datetime.strptime(
+                                    date_due, "%Y-%m-%d"
+                                ).date()
+                            except ValueError:
+                                # Handle other potential date formats if necessary
+                                pass
+                        if isinstance(date_due, datetime):
+                            date_due = date_due.date()
+                        days_left = (date_due - date.today()).days
+                        if days_left < 0:
+                            style = "purple"
+                        elif days_left < 2:
+                            style = "red"
+                        elif days_left < 4:
+                            style = "yellow"
+                        else:
+                            style = "green"
+
+                    try:
+                        row = [
+                            str(obj.__dict__[column]) for column in columns
                         ]
                     except AttributeError:
-                        rows = [
-                            [obj[column] for column in columns]  # type: ignore
-                            for obj in objects
-                        ]
-                for row in rows:
-                    row = list(map(str, row))
-                    self.table.add_row(*row)
+                        row = [str(obj.get(column, "")) for column in columns]
+                    self.table.add_row(*row, style=style)
 
                 self.table.add_section()
                 try:
