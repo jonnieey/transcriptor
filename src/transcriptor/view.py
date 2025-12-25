@@ -89,10 +89,13 @@ class TranscriptorView:
 
             for item in data_list:
                 style = self._get_item_style(item)
-                row = [
-                    str(self._get_attr(item, col, ""))
-                    for col in filtered_columns
-                ]
+                if isinstance(item, (list, tuple)):
+                    row = [str(x) for x in item]
+                else:
+                    row = [
+                        str(self._get_attr(item, col, ""))
+                        for col in filtered_columns
+                    ]
                 self.table.add_row(*row, style=style)
 
                 # Accumulate totals if columns exist

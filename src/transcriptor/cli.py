@@ -11,6 +11,7 @@ from prompt_toolkit import prompt
 from prompt_toolkit.styles import Style
 
 from transcriptor.base import Transcriptor
+from transcriptor.docx_utils import generate_cutoff_list_from_docx
 from transcriptor.input_handler import CLIInputHandler
 from transcriptor.utils import (
     date_validator,
@@ -401,7 +402,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def show_cutoffs(self, args: Namespace):
         cutoffs = self.app.load_cutoffs(as_str=True)
-        TranscriptorView().print_table(cutoffs, orientation="vertical")
+        TranscriptorView().print_table(cutoffs, orientation="horizontal")
 
     show_cutoffs_parser.set_defaults(func=show_cutoffs)
 
@@ -467,7 +468,7 @@ class TranscriptorCMD(cmd2.Cmd):
             ]
             args.file = prompt(message, style=style, validator=file_validator)
 
-        cutoffs = self.app.generate_cutoff_list_from_docx(
+        cutoffs = generate_cutoff_list_from_docx(
             docx_path=args.file, date_fmt=args.date_fmt
         )
         self.app.save_cutoffs(cutoffs, year=args.year)
