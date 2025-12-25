@@ -1,6 +1,9 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "transcriptor"
-version = "1.5.0"
 description = "Manage transcription jobs"
 authors = [{ name = "Jonnieey", email = "johnjahi55@gmail.com" }]
 requires-python = ">=3.9,<3.13" #aifc module dropped in 3.13
@@ -23,6 +26,7 @@ dependencies = [
     "gnureadline>=8.2.13",
     "textual==6.2.0"
 ]
+dynamic = ["version"]
 
 [project.scripts]
 trans5 = "transcriptor.main:main"
@@ -40,10 +44,6 @@ dev = [
     "types-PyYAML~=6.0.2",
     "pre-commit~=4.2.0",
 ]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 testpaths = "tests"
@@ -71,3 +71,6 @@ include_trailing_comma = true
 
 [tool.mypy-importlib_metadata]
 ignore_missing_imports = true
+
+[tool.hatch.version]
+path = "src/transcriptor/__about__.py"

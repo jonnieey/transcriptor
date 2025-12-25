@@ -2,7 +2,6 @@
 import os
 import sys
 from argparse import Namespace
-from copy import copy
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -12,6 +11,7 @@ from prompt_toolkit import prompt
 from prompt_toolkit.styles import Style
 
 from transcriptor.base import Transcriptor
+from transcriptor.input_handler import CLIInputHandler
 from transcriptor.utils import (
     date_validator,
     extract_date_due,
@@ -62,47 +62,28 @@ show_version_parser = show_subparsers.add_parser(
     "version", help="show version"
 )
 
-show_clients_parser.add_argument(
-    "-w",
-    "--where",
-    action="append",
-    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
-)
-show_clients_parser.add_argument(
-    "-r",
-    "--raw",
-    help="Raw sql query",
+show_jobs_parser.add_argument(
+    "-a", "--all", action="store_true", help="show all jobs"
 )
 
-show_rates_parser.add_argument(
-    "-r",
-    "--raw",
-    help="Raw sql query",
-)
-show_rates_parser.add_argument(
-    "-w",
-    "--where",
-    action="append",
-    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
-)
 
-show_jobs_parser.add_argument(
-    "-w",
-    "--where",
-    action="append",
-    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
-)
-show_jobs_parser.add_argument(
-    "-a",
-    "--all",
-    action="store_true",
-    help="Show all jobs",
-)
-show_jobs_parser.add_argument(
-    "-r",
-    "--raw",
-    help="Raw sql query",
-)
+def add_query_arguments(parser):
+    parser.add_argument(
+        "-w",
+        "--where",
+        action="append",
+        help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
+    )
+    parser.add_argument(
+        "-r",
+        "--raw",
+        help="Raw sql query",
+    )
+
+
+add_query_arguments(show_clients_parser)
+add_query_arguments(show_rates_parser)
+add_query_arguments(show_jobs_parser)
 
 
 add_parser = base_subparsers.add_parser("add", help="add object")
@@ -110,7 +91,6 @@ add_subparsers = add_parser.add_subparsers(
     title="subcommands", help="subcommand help"
 )
 add_client_parser = add_subparsers.add_parser("client", help="add client")
-
 add_client_parser.add_argument(
     "-n",
     "--name",
@@ -141,6 +121,7 @@ add_job_parser.add_argument("-w", "--work_on_file", help="Work On File")
 add_job_parser.add_argument("-t", "--job_type", help="Job Type")
 add_job_parser.add_argument("-T", "--job_template", help="Job Template")
 add_job_parser.add_argument("-N", "--note", help="Job Note")
+
 
 add_cutoffs_parser = add_subparsers.add_parser(
     "cutoffs", help="generate cutoffs file from docx"
@@ -175,54 +156,38 @@ update_profile_parser.add_argument("-a", "--area", help="area")
 update_profile_parser.add_argument("-c", "--country", help="country")
 
 
+def add_update_delete_query_arguments(parser):
+    parser.add_argument(
+        "-r",
+        "--raw",
+        help="Raw sql query",
+    )
+    parser.add_argument(
+        "-w",
+        "--where",
+        action="append",
+        help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
+    )
+    parser.add_argument(
+        "-v",
+        "--values",
+        action="append",
+        help='Specify values in the format "field=value", e.g., -v id=1 -v amount=100',
+    )
+
+
 update_client_parser = update_subparsers.add_parser(
     "client", help="update client"
 )
-update_client_parser.add_argument("-r", "--raw", help="Raw sql query")
-update_client_parser.add_argument(
-    "-w",
-    "--where",
-    action="append",
-    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
-)
-update_client_parser.add_argument(
-    "-v",
-    "--values",
-    action="append",
-    help='Specify values in the format "field=value", e.g., -v id=1 -v amount=100',
-)
+add_update_delete_query_arguments(update_client_parser)
 
 update_rates_parser = update_subparsers.add_parser(
     "rates", help="update rates"
 )
-update_rates_parser.add_argument("-r", "--raw", help="Raw sql query")
-update_rates_parser.add_argument(
-    "-w",
-    "--where",
-    action="append",
-    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
-)
-update_rates_parser.add_argument(
-    "-v",
-    "--values",
-    action="append",
-    help='Specify values in the format "field=value", e.g., -v id=1 -v amount=100',
-)
+add_update_delete_query_arguments(update_rates_parser)
 
 update_jobs_parser = update_subparsers.add_parser("jobs", help="update job")
-update_jobs_parser.add_argument("-r", "--raw", help="Raw sql query")
-update_jobs_parser.add_argument(
-    "-w",
-    "--where",
-    action="append",
-    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1 -w amount>0',
-)
-update_jobs_parser.add_argument(
-    "-v",
-    "--values",
-    action="append",
-    help='Specify values in the format "field=value", e.g., -v id=1 -v amount=100',
-)
+add_update_delete_query_arguments(update_jobs_parser)
 update_jobs_parser.add_argument(
     "-T", "--table", action="store_true", help="Print cutoffs table"
 )
@@ -237,19 +202,7 @@ delete_subparsers = delete_parser.add_subparsers(
 delete_client_parser = delete_subparsers.add_parser(
     "clients", help="delete client"
 )
-
-delete_client_parser.add_argument(
-    "-r",
-    "--raw",
-    help="Raw sql query",
-)
-
-delete_client_parser.add_argument(
-    "-w",
-    "--where",
-    action="append",
-    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1',
-)
+add_update_delete_query_arguments(delete_client_parser)
 delete_client_parser.add_argument(
     "-P", "--purge", action="store_true", help="Purge client data"
 )
@@ -261,18 +214,7 @@ delete_client_parser.add_argument(
 )
 
 delete_jobs_parser = delete_subparsers.add_parser("jobs", help="delete job")
-delete_jobs_parser.add_argument(
-    "-r",
-    "--raw",
-    help="Raw sql query",
-)
-
-delete_jobs_parser.add_argument(
-    "-w",
-    "--where",
-    action="append",
-    help='Specify conditions in the format "field[operator]value", e.g., -w id<=1',
-)
+add_update_delete_query_arguments(delete_jobs_parser)
 delete_jobs_parser.add_argument(
     "-P", "--purge", action="store_true", help="Purge job data"
 )
@@ -473,11 +415,7 @@ class TranscriptorCMD(cmd2.Cmd):
         """
         Show command help
         """
-        func = getattr(args, "func", None)
-        if func is not None:
-            func(self, args)
-        else:
-            self.do_help("base")
+        args.func(self, args)
 
     def add_client(self, args: Namespace):
         if args.name and args.email:
@@ -488,8 +426,10 @@ class TranscriptorCMD(cmd2.Cmd):
     add_client_parser.set_defaults(func=add_client)
 
     def add_job(self, args: Namespace):
+        job_file_path = None
         if args.file:
-            if not Path(args.file).exists():
+            job_file_path = Path(args.file)
+            if not job_file_path.exists():
                 self.poutput(f"File not found: {args.file}")
                 return
         else:
@@ -497,154 +437,21 @@ class TranscriptorCMD(cmd2.Cmd):
                 ("class:prompt", "Enter job file path:"),
                 ("class:space", "  "),
             ]
-            args.file = prompt(message, style=style, validator=file_validator)
+            file_path_str = prompt(
+                message, style=style, validator=file_validator
+            )
+            job_file_path = Path(file_path_str)
 
-        def job_callback(job_file):
-            tmp_args = copy(args)
+        if job_file_path:
+            job_info = self.input_handler.get_job_info(args, job_file_path)
+            task_info = self.input_handler.get_task_info(args, job_file_path)
 
-            client_id = tmp_args.client_id
-            job_number = tmp_args.job_number
-            date_received = tmp_args.date_received
-            date_due = tmp_args.date_due
-            date_format = self.app.config.date_format
-
-            if not client_id:
-                self.show_clients(args=None)
-                message = [
-                    ("class:prompt", "Enter client id:"),
-                    ("class:space", "  "),
-                ]
-                client_id = int(
-                    prompt(
-                        message,
-                        style=style,
-                        validator=positive_number_validator,
-                    )
+            if job_info and task_info:
+                self.app.create_job(job_file_path, job_info, task_info)
+            else:
+                self.poutput(
+                    "Job or task information could not be collected."
                 )
-                tmp_args.client_id = client_id  # Update the original args
-
-            if not job_number:
-                message = [
-                    ("class:prompt", "Enter job number:"),
-                    ("class:space", "  "),
-                ]
-                job_number = extract_job_number(str(job_file)) or prompt(
-                    message, style=style
-                )
-                tmp_args.job_number = job_number  # Update the original args
-
-            if not date_received:
-                message = [
-                    ("class:prompt", f"Enter date received [{date_format}]:"),
-                    ("class:space", "  "),
-                ]
-                date_received = prompt(
-                    message,
-                    style=style,
-                    default=str(datetime.now().strftime(date_format)),
-                    validator=date_validator,
-                )
-                tmp_args.date_received = (
-                    date_received  # Update the original args
-                )
-            if not date_due:
-                message = [
-                    ("class:prompt", f"Enter date due [{date_format}]:"),
-                    ("class:space", "  "),
-                ]
-                date_due = prompt(
-                    message,
-                    style=style,
-                    default=month_day_to_date(extract_date_due(args.file)),
-                    validator=date_validator,
-                )
-                tmp_args.date_due = date_due  # Update the original args
-
-            return {
-                "client_id": client_id,
-                "job_number": job_number,
-                "date_received": date_received,
-                "date_due": date_due,
-            }
-
-        def task_callback(task_file):
-            tmp_args = copy(args)
-
-            work_on_file = tmp_args.work_on_file
-            job_type = tmp_args.job_type
-            total_quantity = None
-            quantity = tmp_args.quantity
-            job_template = tmp_args.job_template
-            note = tmp_args.note
-
-            if not work_on_file:
-                message = [
-                    (
-                        "class:prompt",
-                        f"Enter work on file [ ...{'/'.join(task_file.parts[-2:])}]:",
-                    ),
-                    ("class:space", "  "),
-                ]
-                work_on_file = prompt(
-                    message,
-                    style=style,
-                    validator=yes_no_validator,
-                )
-                tmp_args.work_on_file = work_on_file
-            if not tmp_args.work_on_file.strip().lower().startswith("y"):
-                return
-
-            if not job_type:
-                message = [
-                    ("class:prompt", "Enter job type:"),
-                    ("class:space", "  "),
-                ]
-                job_type = prompt(
-                    message, style=style, validator=job_type_validator
-                )
-                tmp_args.job_type = job_type
-            total_quantity = get_media_duration(task_file)
-            if not quantity:
-                message = [
-                    ("class:prompt", "Enter quantity:"),
-                    ("class:space", "  "),
-                ]
-                quantity = prompt(
-                    message, style=style, default=str(total_quantity)
-                )
-                tmp_args.quantity = quantity
-
-            if not job_template:
-                message = [
-                    ("class:prompt", "Enter job template:"),
-                    ("class:space", "  "),
-                ]
-                job_template = prompt(
-                    message, style=style, validator=template_validator
-                )
-                tmp_args.job_template = job_template
-            if not note:
-                message = [
-                    ("class:prompt", "Enter note:"),
-                    ("class:space", "  "),
-                ]
-                note = prompt(message, style=style, default="")
-                tmp_args.notes = note
-
-            return {
-                "work_on_file": work_on_file,
-                "job_type": job_type.lower(),
-                "total_quantity": total_quantity,
-                "quantity": quantity,
-                "job_template": job_template,
-                "note": note,
-            }
-
-        self.app.create_job(
-            job_file=args.file,
-            job_callback=job_callback,
-            task_callback=task_callback,
-        )
 
     add_job_parser.set_defaults(func=add_job)
 
@@ -672,11 +479,7 @@ class TranscriptorCMD(cmd2.Cmd):
         """
         Add command help
         """
-        func = getattr(args, "func", None)
-        if func is not None:
-            func(self, args)
-        else:
-            self.do_help("base")
+        args.func(self, args)
 
     def update_config(self, args: Namespace):
         config = self.app.config
@@ -820,11 +623,7 @@ class TranscriptorCMD(cmd2.Cmd):
         """
         Update command help
         """
-        func = getattr(args, "func", None)
-        if func is not None:
-            func(self, args)
-        else:
-            self.do_help("base")
+        args.func(self, args)
 
     def delete_clients(self, args: Namespace):
         clients = None
@@ -908,7 +707,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     delete_client_parser.set_defaults(func=delete_clients)
 
-    def delete_jobs(self, args):
+    def delete_jobs(self, args: Namespace):
         jobs = None
         if args.raw:
             jobs = self.app.api.get_jobs(raw_sql_stmt=args.raw)
@@ -978,11 +777,7 @@ class TranscriptorCMD(cmd2.Cmd):
         """
         Delete command help
         """
-        func = getattr(args, "func", None)
-        if func is not None:
-            func(self, args)
-        else:
-            self.do_help("base")
+        args.func(self, args)
 
     def invoice(self, args: Namespace):
         if not any([args.raw, args.table, args.where, args.summary]):
@@ -1092,13 +887,9 @@ class TranscriptorCMD(cmd2.Cmd):
     @cmd2.with_argparser(invoice_parser)
     def do_invoice(self, args: Namespace):
         """
-        Delete command help
+        Invoice command help
         """
-        func = getattr(args, "func", None)
-        if func is not None:
-            func(self, args)
-        else:
-            self.do_help("base")
+        args.func(self, args)
 
     def purge(self, args):
         if not any([args.raw, args.where]):
@@ -1129,13 +920,9 @@ class TranscriptorCMD(cmd2.Cmd):
     @cmd2.with_argparser(purge_parser)
     def do_purge(self, args: Namespace):
         """
-        Delete command help
+        Purge command help
         """
-        func = getattr(args, "func", None)
-        if func is not None:
-            func(self, args)
-        else:
-            self.do_help("base")
+        args.func(self, args)
 
     @cmd2.with_argparser(backup_parser)
     def do_backup(self, args: Namespace):

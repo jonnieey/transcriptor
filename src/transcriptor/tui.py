@@ -1397,43 +1397,37 @@ class AddJobScreen(ModalScreen):
     def create_job(self):
         """Create the job using the collected data"""
         try:
-            # Prepare job_callback
-            def job_callback(job_file):
-                return {
-                    "client_id": self.job_data["client_id"],
-                    "job_number": self.job_data["job_number"],
-                    "date_received": self.job_data["date_received"],
-                    "date_due": self.job_data["date_due"],
-                }
-
-            # Prepare task_callback
-            task_mapping = {
-                task["file_path"]: task
-                for task in self.job_data.get("tasks", [])
+            job_info = {
+                "client_id": self.job_data["client_id"],
+                "job_number": self.job_data["job_number"],
+                "date_received": self.job_data["date_received"],
+                "date_due": self.job_data["date_due"],
             }
 
-            def task_callback(task_file):
-                task_info = task_mapping.get(str(task_file))
-                if not task_info:
-                    return None
+            # For now, Transcriptor.create_job applies one task_info to all media files found.
+            # If the TUI collected multiple tasks, we might need a loop or adjust base.py.
+            # Looking at base.py, it loops over media files and uses task_info for EACH.
+            # In TUI, we collected specific info per file.
+            # To preserve TUI behavior without breaking base.py, we might need to call
+            # create_job for each file if they have different settings,
+            # OR refactor base.py to accept a list of tasks.
 
-                return {
-                    "work_on_file": "yes",  # Already filtered by process_step_3
-                    "job_type": task_info["job_type"],
-                    "total_quantity": task_info[
-                        "quantity"
-                    ],  # This would ideally be the actual media duration
-                    "quantity": task_info["quantity"],
-                    "job_template": task_info["template"],
-                    "note": task_info["note"],
+            # Temporary fix: Use the first task's info if available
+            tasks = self.job_data.get("tasks", [])
+            if tasks:
+                task_info = {
+                    "job_type": tasks[0]["job_type"],
+                    "quantity": tasks[0]["quantity"],
+                    "job_template": tasks[0]["template"],
+                    "note": tasks[0]["note"],
+                    "total_quantity": tasks[0]["quantity"],
                 }
 
-            # Create the job
-            self.app.transcriptor.create_job(
-                job_file=self.job_data["job_file"],
-                job_callback=job_callback,
-                task_callback=task_callback,
-            )
+                self.app.transcriptor.create_job(
+                    job_file=self.job_data["job_file"],
+                    job_info=job_info,
+                    task_info=task_info,
+                )
 
             self.app.notify("Job created successfully!")
             self.dismiss()

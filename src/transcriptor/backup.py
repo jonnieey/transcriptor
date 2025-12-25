@@ -52,6 +52,14 @@ class Backup:
     def list_backups(self) -> list[Path]:
         return sorted(self.backup_dir.glob("transcriptor-*.tar.gz"))
 
+    def cleanup_old_backups(self, keep_count: int = 10) -> None:
+        """Keep only the most recent backups."""
+        backups = self.list_backups()
+        if len(backups) > keep_count:
+            to_delete = backups[:-keep_count]
+            for backup in to_delete:
+                backup.unlink()
+
     def restore_backup(self, backup_path: Path) -> None:
         if not backup_path.exists():
             raise FileNotFoundError("Backup file not found.")

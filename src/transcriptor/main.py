@@ -1,20 +1,46 @@
-from sys import argv, exit
+import argparse
+from sys import exit
 
-from transcriptor.cli import main as cli
-from transcriptor.tui import main as tui
+from transcriptor.cli import main as cli_main
+from transcriptor.tui import main as tui_main
 from transcriptor.utils import get_version
 
 
 def main():
-    if len(argv) > 1:
-        if argv[1] == "--version":
-            print(f"Version: {get_version()}")
-            exit()
-        if argv[1] == "tui":
-            tui()
-            exit()
+    parser = argparse.ArgumentParser(
+        description="Transcriptor CLI application. Transcribe audio files and manage transcriptions."
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {get_version()}"
+    )
+
+    subparsers = parser.add_subparsers(
+        dest="command", help="Available commands"
+    )
+
+    # TUI command
+    tui_parser = subparsers.add_parser(
+        "tui", help="Run the Terminal User Interface"
+    )
+    tui_parser.set_defaults(func=tui_main)
+
+    # Default CLI command (if no subcommand is given)
+    cli_parser = subparsers.add_parser(
+        "cli", help="Run the command-line interface (default)"
+    )
+    cli_parser.set_defaults(func=cli_main)
+
+    args = parser.parse_args()
+
+    if hasattr(args, "func"):
+        args.func()
+    elif (
+        args.command is None
+    ):  # If no subcommand is specified, run the default CLI
+        cli_main()
     else:
-        cli()
+        parser.print_help()
+        exit(1)
 
 
 if __name__ == "__main__":

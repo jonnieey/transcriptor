@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
@@ -28,8 +29,23 @@ class API:
 
         self.base_dir = base_dir
         self.db = Database(db_file=f"{base_dir}/{DB_FILE_NAME}")
-        self.session = sessionmaker(self.db.engine, expire_on_commit=False)
+        self._session_factory = sessionmaker(
+            self.db.engine, expire_on_commit=False
+        )
         self.db.init_db()
+
+    @contextmanager
+    def session_scope(self):
+        """Provide a transactional scope around a series of operations."""
+        session = self._session_factory()
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     def add(self, table: object, data: dict) -> int:
         """Adds a new record to the specified table.
@@ -42,10 +58,11 @@ class API:
             int: The ID of the newly created record.
         """
         obj = table(**data)  # type: ignore
-        with self.session() as session:
+        with self.session_scope() as session:
             session.add(obj)
-            session.commit()
-        return obj.id
+            # No need to commit here, session_scope handles it
+            session.flush()
+            return obj.id
 
     def add_client(self, client_dict: dict) -> int:
         """Adds a new client to the database.
@@ -93,9 +110,8 @@ class API:
             None
         """
         job_objects = [Job(**job_dict) for job_dict in jobs]
-        with self.session() as session:
+        with self.session_scope() as session:
             session.add_all(job_objects)
-            session.commit()
 
     def _build_statement_with_conditions(
         self,
@@ -259,169 +275,102 @@ class API:
 
     def get_clients(
         self,
-        conditions: Optional[Dict[str, List[Tuple[str, int]]]] = None,
+        conditions: Optional[Dict[str, List[Tuple[str, Any]]]] = None,
         raw_sql_stmt: Optional[str] = None,
-    ) -> Union[List[Dict[str, Any]], Sequence[RowMapping]]:
-        if raw_sql_stmt is not None:
-            raw_sql_stmt = f"""
-                SELECT id, name, email
-                FROM clients {raw_sql_stmt}"""
-            stmt = self.get(table=Client, raw_sql_stmt=raw_sql_stmt)
-            with self.session() as session:
-                return session.execute(stmt).mappings().all()
+    ) -> List[Dict[str, Any]]:
+        """Fetch clients based on conditions or raw SQL.
 
-        if conditions is None:
-            stmt = select(
-                Client.id,
-                Client.name,
-                Client.email,
-            )
-            with self.session() as session:
-                return session.execute(stmt).mappings().all()
+        Returns a list of dicts for consistency with existing view logic.
+        """
+        with self.session_scope() as session:
+            if raw_sql_stmt:
+                stmt = text(
+                    f"SELECT id, name, email FROM clients {raw_sql_stmt}"
+                )
+                return [dict(row) for row in session.execute(stmt).mappings()]
 
-        stmt = self.get(Client, conditions, raw_sql_stmt)
-        with self.session() as session:
-            scalars = session.scalars(stmt).all()
-            ordination = {"id", "name", "email"}
-            client_mappings = [
-                {col: getattr(client, col) for col in ordination}
-                for client in scalars
+            if conditions:
+                stmt = self._build_statement_with_conditions(
+                    Client, conditions
+                )
+                clients = session.scalars(stmt).all()
+            else:
+                stmt = select(Client)
+                clients = session.scalars(stmt).all()
+
+            return [
+                {"id": c.id, "name": c.name, "email": c.email}
+                for c in clients
             ]
-
-            return client_mappings
 
     def get_rates(
         self,
-        conditions: Optional[Dict[str, List[Tuple[str, int]]]] = None,
+        conditions: Optional[Dict[str, List[Tuple[str, Any]]]] = None,
         raw_sql_stmt: Optional[str] = None,
-    ) -> List[Dict[str, Union[int, float]]]:
-        if raw_sql_stmt is not None:
-            raw_sql_stmt = f"""
-                SELECT
-                    rates.id as rates_id, rates.normal, rates.expedite, rates.interpreted,
-                    clients.name as client_name
-                FROM
-                    rates
-                JOIN
-                    clients ON rates.client_id = clients.id
-                {raw_sql_stmt}
-                """
-            stmt = self.get(table=Client, raw_sql_stmt=raw_sql_stmt)
-            with self.session() as session:
-                return session.execute(stmt).mappings().all()
+    ) -> List[Dict[str, Any]]:
+        """Fetch rates with associated client names."""
+        with self.session_scope() as session:
+            if raw_sql_stmt:
+                stmt = text(
+                    f"SELECT rates.*, clients.name as client_name "
+                    f"FROM rates JOIN clients ON rates.client_id = clients.id {raw_sql_stmt}"
+                )
+                return [dict(row) for row in session.execute(stmt).mappings()]
 
-        ordination = [
-            "id",
-            "client_name",
-            "normal",
-            "expedite",
-            "interpreted",
-        ]
-        stmt = self.get(Rate, conditions, raw_sql_stmt)
-        with self.session() as session:
-            scalars = session.scalars(stmt).all()
+            stmt = self.get(Rate, conditions)
+            rates = session.scalars(stmt).all()
 
-            rate_mappings = [
+            return [
                 {
-                    col: (
-                        rate.client.name
-                        if col == "client_name"
-                        else getattr(rate, col, None)
-                    )
-                    for col in ordination
-                    if hasattr(rate, col) or col == "client_name"
+                    "id": r.id,
+                    "client_name": r.client.name,
+                    "normal": r.normal,
+                    "expedite": r.expedite,
+                    "interpreted": r.interpreted,
                 }
-                for rate in scalars
+                for r in rates
             ]
-            return rate_mappings
 
     def get_jobs(
         self,
-        conditions: Optional[
-            Dict[
-                str,
-                Union[
-                    List[
-                        Union[
-                            Tuple[str, str], Tuple[str, int], Tuple[str, date]
-                        ]
-                    ],
-                    List[Tuple[str, str]],
-                    List[Union[Tuple[str, str], Tuple[str, int]]],
-                ],
-            ]
-        ] = None,
-        raw_sql_stmt: None = None,
-    ) -> List[
-        Union[
-            Dict[str, Optional[Union[int, str, Client, float]]],
-            Dict[str, Union[int, str, Client, float]],
-            Any,
-        ]
-    ]:
-        ordination = [
-            "id",
-            "job_number",
-            "client",
-            "client_id",
-            "date_received",
-            "date_due",
-            "job_type",
-            "status",
-            "date_submitted",
-            "total_quantity",
-            "quantity",
-            "job_rate",
-            "amount",
-            "amount_paid",
-            "note",
-            "job_path",
-        ]
-        columns = ", ".join(
-            ["jobs." + col for col in ordination if col != "client"]
-        )
-
-        if raw_sql_stmt is not None:
-            raw_sql_stmt = f"""
-            SELECT
-                jobs.id as job_id, {columns},
-                clients.id AS client_id, clients.name AS client_name, clients.email AS client_email
-            FROM
-                jobs
-            JOIN
-                clients ON jobs.client_id = clients.id
-            {raw_sql_stmt}
-            """
-            stmt = self.get(table=Job, raw_sql_stmt=raw_sql_stmt)
-            with self.session() as session:
-                jobs = []
+        conditions: Optional[Dict[str, List[Tuple[str, Any]]]] = None,
+        raw_sql_stmt: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Fetch jobs with optional conditions or raw SQL."""
+        with self.session_scope() as session:
+            if raw_sql_stmt:
+                # Note: raw_sql_stmt here is usually expected to be a WHERE clause or similar
+                # depending on how it's called in base.py/cli.py
+                stmt = text(
+                    f"SELECT jobs.*, clients.name as client_name, clients.email as client_email "
+                    f"FROM jobs JOIN clients ON jobs.client_id = clients.id {raw_sql_stmt}"
+                )
                 rows = session.execute(stmt).mappings().all()
+                result = []
                 for row in rows:
-                    job = {
-                        col: row[col] for col in ordination if col != "client"
-                    }
-                    client = Client(
+                    job_dict = dict(row)
+                    # existing code expects a client object or name in some places
+                    job_dict["client"] = Client(
                         id=row["client_id"],
                         name=row["client_name"],
                         email=row["client_email"],
                     )
-                    job["client"] = client
-                    jobs.append(job)
+                    result.append(job_dict)
+                return result
 
-                return jobs
+            stmt = self.get(Job, conditions)
+            jobs = session.scalars(stmt).all()
 
-        stmt = self.get(Job, conditions)  # type: ignore
-        with self.session() as session:
-            scalars = session.scalars(stmt).all()
-            job_mappings = [
-                {
-                    col: getattr(job, col)
-                    for col in ordination
-                    if hasattr(job, col)
+            # Return a list of dicts that includes the client information
+            job_list = []
+            for j in jobs:
+                j_dict = {
+                    column.name: getattr(j, column.name)
+                    for column in j.__table__.columns
                 }
-                for job in scalars
-            ]
-            return job_mappings
+                j_dict["client"] = j.client
+                job_list.append(j_dict)
+            return job_list
 
     def update(
         self,
@@ -465,9 +414,8 @@ class API:
             values=values,
             raw_sql_stmt=raw_sql_stmt,
         )
-        with self.session() as session:
+        with self.session_scope() as session:
             session.execute(stmt)  # type: ignore
-            session.commit()
             return True
 
     def update_rates(
@@ -482,9 +430,8 @@ class API:
             values=values,
             raw_sql_stmt=raw_sql_stmt,
         )
-        with self.session() as session:
+        with self.session_scope() as session:
             session.execute(stmt)  # type: ignore
-            session.commit()
             return True
 
     def update_jobs(
@@ -503,9 +450,8 @@ class API:
         )
         if not raw_sql_stmt:
             stmt = stmt.returning(Job)
-        with self.session() as session:
+        with self.session_scope() as session:
             update_jobs = session.execute(stmt).mappings().all()  # type: ignore
-            session.commit()
             return update_jobs
 
     def delete(
@@ -562,9 +508,8 @@ class API:
             Client, conditions=conditions, raw_sql_stmt=raw_sql_stmt
         )
         stmt = stmt.returning(Client.id, Client.name)  # type: ignore
-        with self.session() as session:
+        with self.session_scope() as session:
             clients = session.execute(stmt).mappings().all()  # type: ignore
-            session.commit()
             return clients
 
     def delete_jobs(self, conditions=None, raw_sql_stmt=None):
@@ -572,9 +517,8 @@ class API:
             Job, conditions=conditions, raw_sql_stmt=raw_sql_stmt
         )
         stmt = stmt.returning(Job.job_path)
-        with self.session() as session:
+        with self.session_scope() as session:
             jobs = session.execute(stmt).mappings().all()
-            session.commit()
             return jobs
 
 

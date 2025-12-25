@@ -82,11 +82,23 @@ class Job(Base):
 
 update_amount_trigger = DDL(
     """
-    CREATE TRIGGER IF NOT EXISTS update_amount
-    AFTER UPDATE OF job_rate, quantity ON Jobs
+    CREATE TRIGGER IF NOT EXISTS update_amount_on_update
+    AFTER UPDATE OF job_rate, quantity ON jobs
     BEGIN
-        UPDATE Jobs
-        SET amount = CEIL((NEW.quantity * NEW.job_rate) / 0.5) * 0.5
+        UPDATE jobs
+        SET amount = (CAST((NEW.quantity * NEW.job_rate + 0.49) * 2 AS INTEGER)) / 2.0
+        WHERE id = NEW.id;
+    END;
+    """
+)
+
+update_amount_insert_trigger = DDL(
+    """
+    CREATE TRIGGER IF NOT EXISTS update_amount_on_insert
+    AFTER INSERT ON jobs
+    BEGIN
+        UPDATE jobs
+        SET amount = (CAST((NEW.quantity * NEW.job_rate + 0.49) * 2 AS INTEGER)) / 2.0
         WHERE id = NEW.id;
     END;
     """
@@ -97,17 +109,22 @@ event.listen(
     "after_create",
     update_amount_trigger.execute_if(dialect="sqlite"),
 )
+event.listen(
+    Job.__table__,
+    "after_create",
+    update_amount_insert_trigger.execute_if(dialect="sqlite"),
+)
 
 update_date_trigger = DDL(
     """
-    CREATE TRIGGER IF NOT EXISTS update_date
-        AFTER UPDATE OF status ON Jobs
+    CREATE TRIGGER IF NOT EXISTS update_date_on_update
+        AFTER UPDATE OF status ON jobs
     BEGIN
-        UPDATE Jobs
+        UPDATE jobs
         SET
             date_submitted = CASE
                 WHEN NEW.status = 'Pending' THEN NULL
-                WHEN NEW.status = 'Done' AND NEW.date_submitted IS NULL THEN DATE("NOW", 'localtime')
+                WHEN NEW.status = 'Done' AND (NEW.date_submitted IS NULL OR NEW.date_submitted = '') THEN DATE("NOW", 'localtime')
                 ELSE date_submitted
             END
             WHERE id = NEW.id;
@@ -123,16 +140,15 @@ event.listen(
 
 update_status_trigger = DDL(
     """
-    CREATE TRIGGER IF NOT EXISTS update_status
-        AFTER UPDATE OF date_submitted ON Jobs
+    CREATE TRIGGER IF NOT EXISTS update_status_on_update
+        AFTER UPDATE OF date_submitted ON jobs
     BEGIN
-        UPDATE Jobs
+        UPDATE jobs
         SET
             status = CASE
                 WHEN NEW.date_submitted IS NULL THEN 'Pending'
-                WHEN NEW.date_submitted IS '' THEN 'Pending'
-                WHEN DATE(NEW.date_submitted) IS NOT NULL THEN 'Done'
-                ELSE status
+                WHEN NEW.date_submitted = '' THEN 'Pending'
+                ELSE 'Done'
             END
             WHERE id = NEW.id;
     END;
@@ -145,18 +161,18 @@ event.listen(
 )
 limit_amount_paid_trigger = DDL(
     """
-    CREATE TRIGGER IF NOT EXISTS limit_amounts_paid
-        AFTER UPDATE OF amount_paid ON Jobs
+    CREATE TRIGGER IF NOT EXISTS limit_amounts_paid_on_update
+        AFTER UPDATE OF amount_paid ON jobs
     BEGIN
-        UPDATE Jobs
+        UPDATE jobs
         SET
             amount_paid = (
                 CASE
-                    WHEN NEW.amount_paid > Jobs.amount THEN Jobs.amount
+                    WHEN NEW.amount_paid > jobs.amount THEN jobs.amount
                     ELSE NEW.amount_paid
                 END
             )
-            WHERE Jobs.id = New.id;
+            WHERE jobs.id = New.id;
     END;
     """
 )
@@ -168,14 +184,14 @@ event.listen(
 
 update_client_job_rates_trigger = DDL(
     """
-    CREATE TRIGGER IF NOT EXISTS update_client_job_rates
-        AFTER UPDATE OF client_id ON Jobs
+    CREATE TRIGGER IF NOT EXISTS update_client_job_rates_on_update
+        AFTER UPDATE OF client_id ON jobs
     BEGIN
-        UPDATE Jobs
+        UPDATE jobs
             SET job_rate = CASE
-                WHEN LOWER(job_type) = 'normal' THEN (SELECT normal FROM Rates WHERE Rates.id = New.client_id)
-                WHEN LOWER(job_type) = 'expedite' THEN (SELECT expedite FROM Rates WHERE Rates.id = New.client_id)
-                WHEN LOWER(job_type) = 'interpreted' THEN (SELECT interpreted FROM Rates WHERE Rates.id = New.client_id)
+                WHEN LOWER(job_type) = 'normal' THEN (SELECT normal FROM rates WHERE client_id = New.client_id)
+                WHEN LOWER(job_type) = 'expedite' THEN (SELECT expedite FROM rates WHERE client_id = New.client_id)
+                WHEN LOWER(job_type) = 'interpreted' THEN (SELECT interpreted FROM rates WHERE client_id = New.client_id)
                 ELSE job_rate
             END
         WHERE id = NEW.id;
@@ -190,15 +206,15 @@ event.listen(
 
 update_job_rate_trigger = DDL(
     """
-    CREATE TRIGGER IF NOT EXISTS update_job_rate
-    AFTER UPDATE OF job_type ON Jobs
+    CREATE TRIGGER IF NOT EXISTS update_job_rate_on_update
+    AFTER UPDATE OF job_type ON jobs
     BEGIN
-        UPDATE Jobs
+        UPDATE jobs
             SET job_rate =
                 CASE
-                    WHEN LOWER(NEW.job_type) = 'normal' THEN (SELECT normal FROM Rates WHERE Rates.id = NEW.client_id)
-                    WHEN LOWER(NEW.job_type) = 'expedite' THEN (SELECT expedite FROM Rates WHERE Rates.id = NEW.client_id)
-                    WHEN LOWER(NEW.job_type) = 'interpreted' THEN (SELECT interpreted FROM Rates WHERE Rates.id = NEW.client_id)
+                    WHEN LOWER(NEW.job_type) = 'normal' THEN (SELECT normal FROM rates WHERE client_id = NEW.client_id)
+                    WHEN LOWER(NEW.job_type) = 'expedite' THEN (SELECT expedite FROM rates WHERE client_id = NEW.client_id)
+                    WHEN LOWER(NEW.job_type) = 'interpreted' THEN (SELECT interpreted FROM rates WHERE client_id = NEW.client_id)
                     ELSE NEW.job_rate
                 END
         WHERE id = NEW.id;

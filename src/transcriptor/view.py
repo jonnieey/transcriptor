@@ -1,6 +1,5 @@
-from collections import OrderedDict
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from rich.console import Console
 from rich.style import Style
@@ -21,178 +20,139 @@ class TranscriptorView:
             padding=(0, 0),
         )
 
+    def _get_attr(self, obj: Any, attr: str, default: Any = None) -> Any:
+        """Helper to get attribute from dict or object."""
+        if isinstance(obj, dict):
+            return obj.get(attr, default)
+        return getattr(obj, attr, default)
+
     def generate_table(
         self,
-        objects: Union[
-            Dict[str, str],
-            List[Dict[str, Optional[Union[int, str, Client, float]]]],
-            List[Dict[str, Union[int, float]]],
-            List[RowMapping],
-            List[List[str]],
-        ],
+        objects: Union[Dict, List, Tuple],
         orientation: str = "vertical",
-        ordination: None = None,
+        ordination: Optional[List[str]] = None,
     ):
         if not objects:
             return
 
+        # Prepare data for processing
         if isinstance(objects, dict):
-            object_dict = objects
-        elif isinstance(objects, (list, tuple)):
-            try:
-                object_dict = objects[0].__dict__
-            except AttributeError:
-                object_dict = objects[0]  # type: ignore
-
-        if ordination:
-            try:
-                object_dict = OrderedDict(
-                    [(key, object_dict[key]) for key in ordination]
-                )
-            except KeyError:
-                object_dict = OrderedDict(object_dict)
+            data_list = [objects]
         else:
-            try:
-                object_dict = OrderedDict(object_dict)
-            except ValueError:
-                pass
+            data_list = list(objects)
+
+        first_item = data_list[0]
+        if ordination:
+            columns = ordination
+        else:
+            if isinstance(first_item, dict):
+                columns = list(first_item.keys())
+            elif isinstance(first_item, (list, tuple)):
+                columns = first_item  # Header row
+                data_list = data_list[1:]
+            else:
+                columns = [
+                    c
+                    for c in first_item.__dict__.keys()
+                    if not c.startswith("_")
+                ]
 
         if orientation == "vertical":
-            if isinstance(objects, dict):
-                columns = ["Option", "Value"]
-                for column in columns:
-                    self.table.add_column(tc(column))
-                for option, value in object_dict.items():
-                    self.table.add_row(tc(option), value)
-
-            if isinstance(objects, (list, tuple)):
-                if isinstance(object_dict, dict):
-                    columns = list(object_dict.keys())
-                    for column in columns:
-                        self.table.add_column(tc(column))
-                    for obj in objects:
-                        row = [
-                            str(object_dict.get(column)) for column in columns
-                        ]
-                    self.table.add_row(*row)
-
-                elif isinstance(object_dict, (list, tuple)):
-                    columns = object_dict
-                    for column in columns:
-                        self.table.add_column(tc(column))
-                    for row in objects[1:]:
-                        self.table.add_row(*row)
+            self.table.add_column(tc("Option"))
+            self.table.add_column(tc("Value"))
+            # For vertical, show key-value pairs of the first item
+            for col in columns:
+                val = self._get_attr(first_item, col)
+                self.table.add_row(tc(col), str(val))
 
         elif orientation == "horizontal":
-            columns = [
-                column
-                for column in object_dict.keys()
-                if column
+            filtered_columns = [
+                col
+                for col in columns
+                if col
                 not in (
                     "_sa_instance_state",
                     "job_path",
                     "client",
                     "job",
                     "rate",
+                    "client_name",
+                    "client_email",
                 )
             ]
-            for column in columns:
-                self.table.add_column(tc(column))
+            for col in filtered_columns:
+                self.table.add_column(tc(col))
 
-            if isinstance(objects, dict):
-                row = [str(object_dict.get(column)) for column in columns]
-                self.table.add_row(*row)
+            total_amount = 0.0
+            total_paid = 0.0
+            has_totals = False
 
-            if isinstance(objects, (list, tuple)):
-                for obj in objects:
-                    style = None
-                    try:
-                        date_submitted = obj.date_submitted
-                        date_due = obj.date_due
-                    except AttributeError:
-                        date_submitted = obj.get("date_submitted")
-                        date_due = obj.get("date_due")
+            for item in data_list:
+                style = self._get_item_style(item)
+                row = [
+                    str(self._get_attr(item, col, ""))
+                    for col in filtered_columns
+                ]
+                self.table.add_row(*row, style=style)
 
-                    if date_submitted:
-                        try:
-                            amount = obj.amount
-                            amount_paid = obj.amount_paid
-                        except AttributeError:
-                            amount = obj.get("amount")
-                            amount_paid = obj.get("amount_paid")
+                # Accumulate totals if columns exist
+                amount = self._get_attr(item, "amount")
+                paid = self._get_attr(item, "amount_paid")
+                if amount is not None:
+                    total_amount += float(amount)
+                    has_totals = True
+                if paid is not None:
+                    total_paid += float(paid)
+                    has_totals = True
 
-                        if (
-                            amount is not None
-                            and amount_paid is not None
-                            and amount_paid < amount
-                        ):
-                            style = "blue"
-                        else:
-                            style = "white"
-                    elif date_due:
-                        if isinstance(date_due, str):
-                            try:
-                                date_due = datetime.strptime(
-                                    date_due, "%Y-%m-%d"
-                                ).date()
-                            except ValueError:
-                                # Handle other potential date formats if necessary
-                                pass
-                        if isinstance(date_due, datetime):
-                            date_due = date_due.date()
-                        days_left = (date_due - date.today()).days
-                        if days_left < 0:
-                            style = "purple"
-                        elif days_left < 2:
-                            style = "red"
-                        elif days_left < 4:
-                            style = "yellow"
-                        else:
-                            style = "green"
-
-                    try:
-                        row = [
-                            str(obj.__dict__[column]) for column in columns
-                        ]
-                    except AttributeError:
-                        row = [str(obj.get(column, "")) for column in columns]
-                    self.table.add_row(*row, style=style)
-
+            if has_totals:
                 self.table.add_section()
+                summary_row = [""] * len(filtered_columns)
+                if "amount" in filtered_columns:
+                    summary_row[
+                        filtered_columns.index("amount")
+                    ] = f"{total_amount:.2f}"
+                if "amount_paid" in filtered_columns:
+                    summary_row[
+                        filtered_columns.index("amount_paid")
+                    ] = f"{total_paid:.2f}"
+                self.table.add_row(*summary_row)
+
+    def _get_item_style(self, item: Any) -> Optional[str]:
+        date_submitted = self._get_attr(item, "date_submitted")
+        date_due = self._get_attr(item, "date_due")
+        amount = self._get_attr(item, "amount")
+        amount_paid = self._get_attr(item, "amount_paid")
+
+        if date_submitted:
+            if (
+                amount is not None
+                and amount_paid is not None
+                and float(amount_paid) < float(amount)
+            ):
+                return "blue"
+            return "white"
+
+        if date_due:
+            if isinstance(date_due, str):
                 try:
-                    try:
-                        total_amount = sum(
-                            [obj.get("amount") for obj in objects]  # type: ignore
-                        )
-                        total_amount_paid = sum(
-                            [obj.get("amount_paid") for obj in objects]  # type: ignore
-                        )
+                    date_due = datetime.strptime(date_due, "%Y-%m-%d").date()
+                except ValueError:
+                    return None
 
-                        amount_column = columns.index("amount")
-                        amount_paid_column = columns.index("amount_paid")
+            if isinstance(date_due, datetime):
+                date_due = date_due.date()
 
-                        summary_row = [""] * len(columns)
-                        summary_row[amount_column] = f"{total_amount:.2f}"
-                        summary_row[
-                            amount_paid_column
-                        ] = f"{total_amount_paid:.2f}"
-
-                        self.table.add_row(*summary_row)
-                    except (TypeError, KeyError, AttributeError):
-                        total_amount = sum([obj.amount for obj in objects])  # type: ignore
-                        total_amount_paid = sum([obj.amount_paid for obj in objects])  # type: ignore
-                        amount_column = columns.index("amount")
-                        amount_paid_column = columns.index("amount_paid")
-
-                        summary_row = [""] * len(columns)
-                        summary_row[amount_column] = f"{total_amount:.2f}"
-                        summary_row[
-                            amount_paid_column
-                        ] = f"{total_amount_paid:2f}"
-                        self.table.add_row(*summary_row)
-
-                except AttributeError:
-                    pass
+            if isinstance(date_due, date):
+                days_left = (date_due - date.today()).days
+                if days_left < 0:
+                    return "purple"
+                if days_left < 2:
+                    return "red"
+                if days_left < 4:
+                    return "yellow"
+                return "green"
+        return None
 
     def print_table(
         self,
