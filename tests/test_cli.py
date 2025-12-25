@@ -141,6 +141,30 @@ def test_do_add_job(cli_app, mock_transcriptor):
     mock_file = MagicMock()
     mock_file.name = "test_file.mp3"
 
+    # Mock input handler file path and info methods
+    mock_path = MagicMock()
+    mock_path.exists.return_value = True
+    cli_app.input_handler.get_job_file_path = MagicMock(
+        return_value=mock_path
+    )
+    cli_app.input_handler.get_job_info = MagicMock(
+        return_value={
+            "client_id": 1,
+            "job_number": "JOB001",
+            "date_received": "2023-01-01",
+            "date_due": "2023-01-10",
+        }
+    )
+    cli_app.input_handler.get_task_info = MagicMock(
+        return_value={
+            "job_template": "zd",
+            "job_type": "Normal",
+            "quantity": "60",
+            "note": "Cannot be late",
+            "total_quantity": 60,
+        }
+    )
+
     # Mock user input
     input_sequence = {
         "client_id": "1",
@@ -155,17 +179,12 @@ def test_do_add_job(cli_app, mock_transcriptor):
     }
 
     with patch("transcriptor.cli.prompt", side_effect=input_sequence):
-        with patch("transcriptor.cli.Path") as mock_path:
-            mock_path.return_value.exists.return_value = True
-            mock_path.return_value.is_file.return_value = True
-            mock_path.return_value.parent = MagicMock()
-
-            command = "add job -f test_file.mp3 -c {} -j {} -r {} -d {} -w {} -t {} -q {} -T {} -N {}".format(
-                *[v for k, v in input_sequence.items()]
-            )
-            result = cli_app.onecmd(command)
-            assert result is False
-            cli_app.app.create_job.assert_called_once()
+        command = "add job -f test_file.mp3 -c {} -j {} -r {} -d {} -w {} -t {} -q {} -T {} -N {}".format(
+            *[v for k, v in input_sequence.items()]
+        )
+        result = cli_app.onecmd(command)
+        assert result is False
+        cli_app.app.create_job.assert_called_once()
 
 
 def test_do_update_config(cli_app, mock_transcriptor):
@@ -222,7 +241,8 @@ def test_do_invoice_summary(cli_app, mock_transcriptor):
     mock_client.name = "Test Client"
 
     cli_app.app.api.get_clients.return_value = [mock_client]
-    cli_app.app.get_invoice_jobs.return_value = []
+    # Return a dict to emulate summary invoice structure
+    cli_app.app.get_summary_invoice_jobs.return_value = {"Test Client": []}
     cli_app.app.generate_summary_invoice.return_value = (
         "<html>Summary</html>",
         "Test Client",

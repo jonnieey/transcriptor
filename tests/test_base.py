@@ -294,7 +294,7 @@ def test_generate_invoice(transcriptor):
     assert "24.0" in html
 
 
-@patch("transcriptor.utils.HTML.write_pdf")
+@patch("transcriptor.invoice_utils.HTML.write_pdf")
 def test_html_to_pdf(mock_write_pdf, transcriptor, test_base_dir):
     """Test HTML to PDF conversion"""
     test_html = "<html><body>Test</body></html>"

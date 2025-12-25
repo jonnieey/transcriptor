@@ -4,43 +4,55 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from transcriptor.utils import (
-    TEMPLATE_MAPPING,
-    convert_case,
+from transcriptor.date_utils import (
     date_to_str,
     extract_date_due,
-    extract_job_number,
-    extract_table_data_from_docx,
-    get_media_duration,
+    month_day_to_date,
+    str_to_date,
+)
+from transcriptor.docx_utils import extract_table_data_from_docx
+from transcriptor.filesystem import (
     get_media_files,
+    mkdirp,
+    next_non_existent_file,
+    touch,
+)
+from transcriptor.invoice_utils import (
     html_to_md,
+    md,
+    render_invoice,
+    render_summary_invoice,
+    write_pdf,
+)
+from transcriptor.media_utils import (
+    get_media_duration,
+    round_up,
+    seconds_to_minutes,
+)
+from transcriptor.sql_parsers import (
+    parse_conditions,
+    parse_conditions_as_dict,
+    parse_sql_clause,
+    parse_sql_update_query,
+    type_convert,
+)
+from transcriptor.text_converters import (
+    convert_case,
+    extract_job_number,
+    kc,
+    nc,
+    sc,
+    tc,
+)
+from transcriptor.validators import (
     is_file,
     is_positive_number,
     is_valid_date,
     is_valid_job_type,
     is_valid_template,
     is_valid_yes_no,
-    kc,
-    md,
-    mkdirp,
-    month_day_to_date,
-    nc,
-    next_non_existent_file,
-    parse_conditions,
-    parse_conditions_as_dict,
-    parse_sql_clause,
-    parse_sql_update_query,
-    render_invoice,
-    render_summary_invoice,
-    round_up,
-    sc,
-    seconds_to_minutes,
-    str_to_date,
-    tc,
-    touch,
-    type_convert,
-    write_pdf,
 )
+from transcriptor.validators import template_mapping as TEMPLATE_MAPPING
 
 
 # Test data and fixtures
@@ -159,7 +171,7 @@ class TestDateOperations:
 
 
 class TestMediaOperations:
-    @patch("transcriptor.utils.mimetypes.guess_type")
+    @patch("transcriptor.filesystem.mimetypes.guess_type")
     def test_get_media_files(self, mock_guess, tmp_path):
         # Create a test file
         test_file = tmp_path / "test.mp3"
@@ -171,7 +183,7 @@ class TestMediaOperations:
         files = list(get_media_files(tmp_path))
         assert files == [test_file]
 
-    @patch("transcriptor.utils.audio_open")
+    @patch("transcriptor.media_utils.audio_open")
     def test_get_media_duration(self, mock_audio_open):
         mock_file = Path("test.mp3")
         mock_audio = mock_audio_open.return_value.__enter__.return_value
@@ -268,7 +280,7 @@ class TestValidation:
 
 
 class TestInvoiceRendering:
-    @patch("transcriptor.utils._init_jinja_env")
+    @patch("transcriptor.invoice_utils._init_jinja_env")
     def test_render_invoice(self, mock_init, sample_invoice):
         mock_template = mock_init.return_value.get_template.return_value
         mock_template.render.return_value = "<html>test</html>"
@@ -276,7 +288,7 @@ class TestInvoiceRendering:
         result = render_invoice(sample_invoice)
         assert result == "<html>test</html>"
 
-    @patch("transcriptor.utils._init_jinja_env")
+    @patch("transcriptor.invoice_utils._init_jinja_env")
     def test_render_summary_invoice(self, mock_init, sample_summary_invoice):
         mock_template = mock_init.return_value.get_template.return_value
         mock_template.render.return_value = "<html>summary</html>"
@@ -284,8 +296,8 @@ class TestInvoiceRendering:
         result = render_summary_invoice(sample_summary_invoice)
         assert result == "<html>summary</html>"
 
-    @patch("transcriptor.utils.htmlstr_to_pdf")
-    @patch("transcriptor.utils.render_invoice")
+    @patch("transcriptor.invoice_utils.htmlstr_to_pdf")
+    @patch("transcriptor.invoice_utils.render_invoice")
     def test_write_pdf(
         self, mock_render, mock_html_to_pdf, sample_invoice, tmp_file
     ):
@@ -311,7 +323,7 @@ class TestMarkdownConversion:
 
 
 class TestDocxOperations:
-    @patch("transcriptor.utils.docx.Document")
+    @patch("transcriptor.docx_utils.docx.Document")
     def test_extract_table_data_from_docx(self, mock_doc):
         # Create mock table structure
         mock_row = MagicMock()

@@ -115,7 +115,7 @@ def test_add_jobs(api, sample_client_data, sample_job_data):
 
     # Verify jobs were added
     stmt = api.get(Job)
-    with api.session() as session:
+    with api.session_scope() as session:
         result = session.execute(stmt).scalars().all()
     assert len(result) == 3
 
