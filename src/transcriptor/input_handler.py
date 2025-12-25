@@ -87,7 +87,7 @@ class CLIInputHandler:
             date_due = prompt(
                 message,
                 style=style,
-                default=month_day_to_date(extract_date_due(job_file)),
+                default=month_day_to_date(extract_date_due(str(job_file))),
                 validator=date_validator,
             )
             tmp_args.date_due = date_due
@@ -173,3 +173,45 @@ class CLIInputHandler:
             "job_template": job_template,
             "note": note,
         }
+
+    def get_client_info(self, args: Any) -> Dict[str, str]:
+        name = args.name
+        email = args.email
+
+        if not name:
+            message = [
+                ("class:prompt", "Enter client name:"),
+                ("class:space", "  "),
+            ]
+            name = prompt(message, style=style)
+
+        if not email:
+            message = [
+                ("class:prompt", "Enter client email:"),
+                ("class:space", "  "),
+            ]
+            email = prompt(message, style=style)
+
+        return {"name": name, "email": email}
+
+    def get_cutoff_file(self, args: Any) -> Path:
+        if args.file:
+            return Path(args.file)
+
+        message = [
+            ("class:prompt", "Enter cutoff file path:"),
+            ("class:space", "  "),
+        ]
+        file_path_str = prompt(message, style=style, validator=file_validator)
+        return Path(file_path_str)
+
+    def get_job_file_path(self, args: Any) -> Path:
+        if args.file:
+            return Path(args.file)
+
+        message = [
+            ("class:prompt", "Enter job file path:"),
+            ("class:space", "  "),
+        ]
+        file_path_str = prompt(message, style=style, validator=file_validator)
+        return Path(file_path_str)

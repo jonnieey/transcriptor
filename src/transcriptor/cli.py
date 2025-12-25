@@ -3,7 +3,6 @@ import os
 import sys
 from argparse import Namespace
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
 import cmd2
@@ -14,18 +13,10 @@ from transcriptor.base import Transcriptor
 from transcriptor.docx_utils import generate_cutoff_list_from_docx
 from transcriptor.input_handler import CLIInputHandler
 from transcriptor.utils import (
-    date_validator,
-    extract_date_due,
-    extract_job_number,
-    file_validator,
-    get_media_duration,
     invoice_template_themes,
-    job_type_validator,
-    month_day_to_date,
     parse_conditions,
     parse_conditions_as_dict,
     positive_number_validator,
-    template_validator,
     yes_no_validator,
 )
 from transcriptor.view import TranscriptorView
@@ -289,36 +280,53 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def __init__(self, app: None = None, history=True, alias=True):
         self.app = app or Transcriptor()
+
         history_file = (
             self.app.base_dir.joinpath(".history") if history else None
         )
+
         alias_script = (
             self.app.CONFIG_DIR.joinpath(".cmd2rc") if alias else None
         )
+
         super().__init__(
             persistent_history_file=history_file,
             persistent_history_length=500,
             allow_cli_args=False,
             startup_script=alias_script,
         )
+
         self.debug = True
+
         self.add_settable(cmd2.Settable("debug", bool, "debug", self))
+
+        self.input_handler = CLIInputHandler(
+            self.app.config, self.show_clients
+        )
 
     def do_EOF(self, arg):
         """
+
         Exit
+
         """
+
         self.poutput("\n** Exiting program, bye **")
+
         return True
 
     def do_exit(self, arg):
         """Exit"""
+
         self.poutput("\n** Exiting program, bye **")
+
         return True
 
     def do_quit(self, arg: str):
         """Exit"""
+
         self.poutput("\n** Exiting program, bye **")
+
         return True
 
     def emptyline(self):
@@ -326,25 +334,37 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def do_clear(self, arg):
         """Clear screen"""
+
         os.system("clear")
 
     def show_config(self, arg: Namespace):
         """
+
         Show configuration
+
         Ex.
+
            show config
+
         """
+
         config = self.app.config
+
         TranscriptorView().print_table(config.__dict__)
 
     show_config_parser.set_defaults(func=show_config)
 
     def show_profile(self, arg: Namespace):
         """
+
         Show profile
+
         Ex.
+
            show profile
+
         """
+
         if profile := self.app.profile:
             TranscriptorView().print_table(profile.__dict__)
 
@@ -352,20 +372,30 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def show_clients(self, args: Optional[Namespace]):
         """
+
         Show clients
+
         Ex.
+
            show clients
+
         """
+
         if args:
             if args.raw:
                 clients = self.app.api.get_clients(raw_sql_stmt=args.raw)
+
             elif args.where:
                 conditions = parse_conditions(args.where)
+
                 clients = self.app.api.get_clients(conditions=conditions)
+
             else:
                 clients = self.app.api.get_clients()
+
         else:
             clients = self.app.api.get_clients()
+
         TranscriptorView().print_table(clients, orientation="horizontal")
 
     show_clients_parser.set_defaults(func=show_clients)
@@ -373,11 +403,15 @@ class TranscriptorCMD(cmd2.Cmd):
     def show_rates(self, args: Namespace):
         if args.raw:
             rates = self.app.api.get_rates(raw_sql_stmt=args.raw)
+
         elif args.where:
             conditions = parse_conditions(args.where)
+
             rates = self.app.api.get_rates(conditions=conditions)
+
         else:
             rates = self.app.api.get_rates()
+
         TranscriptorView().print_table(rates, orientation="horizontal")
 
     show_rates_parser.set_defaults(func=show_rates)
@@ -386,11 +420,15 @@ class TranscriptorCMD(cmd2.Cmd):
         if args:
             if args.raw:
                 jobs = self.app.api.get_jobs(raw_sql_stmt=args.raw)
+
             elif args.where:
                 conditions = parse_conditions(args.where)
+
                 jobs = self.app.api.get_jobs(conditions=conditions)
+
             elif args.all:
                 jobs = self.app.api.get_jobs()
+
             else:
                 jobs = self.app.api.get_jobs(
                     conditions={"status": [("=", "Pending")]}
@@ -402,6 +440,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def show_cutoffs(self, args: Namespace):
         cutoffs = self.app.load_cutoffs(as_str=True)
+
         TranscriptorView().print_table(cutoffs, orientation="horizontal")
 
     show_cutoffs_parser.set_defaults(func=show_cutoffs)
@@ -414,41 +453,46 @@ class TranscriptorCMD(cmd2.Cmd):
     @cmd2.with_argparser(show_parser)
     def do_show(self, args: Namespace):
         """
+
         Show command help
+
         """
-        args.func(self, args)
+
+        if hasattr(args, "func"):
+            args.func(self, args)
+
+        else:
+            self.do_help("show")
 
     def add_client(self, args: Namespace):
-        if args.name and args.email:
-            self.app.create_client(name=args.name, email=args.email)
+        client_info = self.input_handler.get_client_info(args)
+
+        if client_info["name"] and client_info["email"]:
+            self.app.create_client(
+                name=client_info["name"], email=client_info["email"]
+            )
+
         else:
             self.poutput("Name and email are required.")
 
     add_client_parser.set_defaults(func=add_client)
 
     def add_job(self, args: Namespace):
-        job_file_path = None
-        if args.file:
-            job_file_path = Path(args.file)
-            if not job_file_path.exists():
-                self.poutput(f"File not found: {args.file}")
-                return
-        else:
-            message = [
-                ("class:prompt", "Enter job file path:"),
-                ("class:space", "  "),
-            ]
-            file_path_str = prompt(
-                message, style=style, validator=file_validator
-            )
-            job_file_path = Path(file_path_str)
+        job_file_path = self.input_handler.get_job_file_path(args)
+
+        if not job_file_path.exists():
+            self.poutput(f"File not found: {job_file_path}")
+
+            return
 
         if job_file_path:
             job_info = self.input_handler.get_job_info(args, job_file_path)
+
             task_info = self.input_handler.get_task_info(args, job_file_path)
 
             if job_info and task_info:
                 self.app.create_job(job_file_path, job_info, task_info)
+
             else:
                 self.poutput(
                     "Job or task information could not be collected."
@@ -457,20 +501,17 @@ class TranscriptorCMD(cmd2.Cmd):
     add_job_parser.set_defaults(func=add_job)
 
     def add_cutoffs(self, args: Namespace):
-        if args.file:
-            if not Path(args.file).exists():
-                self.poutput(f"File not found: {args.file}")
-                return
-        else:
-            message = [
-                ("class:prompt", "Enter cutoff file path:"),
-                ("class:space", "  "),
-            ]
-            args.file = prompt(message, style=style, validator=file_validator)
+        docx_path = self.input_handler.get_cutoff_file(args)
+
+        if not docx_path.exists():
+            self.poutput(f"File not found: {docx_path}")
+
+            return
 
         cutoffs = generate_cutoff_list_from_docx(
-            docx_path=args.file, date_fmt=args.date_fmt
+            docx_path=str(docx_path), date_fmt=args.date_fmt
         )
+
         self.app.save_cutoffs(cutoffs, year=args.year)
 
     add_cutoffs_parser.set_defaults(func=add_cutoffs)
@@ -478,30 +519,46 @@ class TranscriptorCMD(cmd2.Cmd):
     @cmd2.with_argparser(add_parser)
     def do_add(self, args: Namespace):
         """
+
         Add command help
+
         """
-        args.func(self, args)
+
+        if hasattr(args, "func"):
+            args.func(self, args)
+
+        else:
+            self.do_help("add")
 
     def update_config(self, args: Namespace):
         config = self.app.config
+
         if args.base_dir:
             config.base_dir = args.base_dir
+
         if args.date_format:
             config.date_format = args.date_format
+
         self.app.config = config
+
         self.app.save_config()
 
     update_config_parser.set_defaults(func=update_config)
 
     def update_profile(self, args: Namespace):
         profile = self.app.profile
+
         if args.name:
             profile.name = args.name
+
         if args.area:
             profile.area = args.area
+
         if args.country:
             profile.country = args.country
+
         self.app.profile = profile
+
         self.app.save_profile()
 
     update_profile_parser.set_defaults(func=update_profile)
@@ -509,12 +566,17 @@ class TranscriptorCMD(cmd2.Cmd):
     def update_clients(self, args: Namespace):
         if args.raw:
             self.app.api.update("clients", raw_sql_stmt=args.raw)
+
         if args.where and args.values:
             where = parse_conditions(args.where)
+
             values = parse_conditions_as_dict(args.values)
+
             self.app.api.update_clients(conditions=where, values=values)
+
         else:
             self.poutput("Please provide conditions and values")
+
             return
 
     update_client_parser.set_defaults(func=update_clients)
@@ -522,14 +584,21 @@ class TranscriptorCMD(cmd2.Cmd):
     def update_rates(self, args: Namespace):
         if args.raw:
             self.app.api.update_rates(raw_sql_stmt=args.raw)
+
             return
+
         if args.where and args.values:
             where = parse_conditions(args.where)
+
             values = parse_conditions_as_dict(args.values)
+
             self.app.api.update_rates(conditions=where, values=values)
+
             return
+
         else:
             self.poutput("Please provide conditions and values")
+
             return
 
     update_rates_parser.set_defaults(func=update_rates)
@@ -538,10 +607,12 @@ class TranscriptorCMD(cmd2.Cmd):
         if args.table:
             if not args.client_id:
                 self.show_clients(args=None)
+
                 message = [
                     ("class:prompt", "Enter client id:"),
                     ("class:space", "  "),
                 ]
+
                 client_id = int(
                     prompt(
                         message,
@@ -549,33 +620,44 @@ class TranscriptorCMD(cmd2.Cmd):
                         validator=positive_number_validator,
                     )
                 )
+
                 args.client_id = client_id  # Update the original args
 
             if not args.values:
                 self.poutput("Please provide values to be updated.")
+
                 return
 
             cutoffs = self.app.load_cutoffs(as_str=True)
+
             cutoffs = [
                 ["index" if row == 0 else str(idx)] + row
                 for idx, row in enumerate(cutoffs)
             ]
+
             TranscriptorView().print_table(cutoffs)
+
             message = [
                 ("class:prompt", "select deposit date. Use index number:"),
                 ("class:space", "  "),
             ]
+
             cutoff_idx = prompt(
                 message,
                 style=style,
                 validator=positive_number_validator,
             )
+
             previous_cutoff, cutoff = self.app.select_cutoff_period(
                 int(cutoff_idx)
             )
+
             raw_cutoff_condition = f""" date_submitted > '{previous_cutoff}'
+
                   AND date_submitted <= '{cutoff}' AND client_id = {args.client_id}
+
                   """
+
             cutoff_condition = [
                 f"date_submitted>{previous_cutoff}",
                 f"date_submitted<={cutoff}",
@@ -585,36 +667,51 @@ class TranscriptorCMD(cmd2.Cmd):
         if args.raw:
             if args.table:
                 args.raw = args.raw + f" AND {raw_cutoff_condition}"
+
             self.app.update_jobs(raw_sql_stmt=args.raw)
+
         elif args.where and args.values:
             if args.table:
                 args.where = args.where + cutoff_condition
+
             where = parse_conditions(args.where)
+
             values = parse_conditions_as_dict(args.values)
+
             if "date_submitted" in values:
                 jobs = self.app.api.get_jobs(conditions=where)
+
                 if jobs:
                     for job in jobs:
                         date_received = datetime.strptime(
                             job["date_received"], self.app.config.date_format
                         ).date()
+
                         date_submitted = datetime.strptime(
                             values["date_submitted"],
                             self.app.config.date_format,
                         ).date()
+
                         if date_submitted < date_received:
                             self.poutput(
                                 "Error: Date submitted cannot be earlier than date received."
                             )
+
                             return
+
             self.app.update_jobs(conditions=where, values=values)
+
         else:
             if args.table:
                 conditions = parse_conditions(cutoff_condition)
+
                 values = parse_conditions_as_dict(args.values)
+
                 self.app.update_jobs(conditions=conditions, values=values)
+
             else:
                 self.poutput("Please provide conditions and values")
+
             return
 
     update_jobs_parser.set_defaults(func=update_job)
@@ -622,15 +719,23 @@ class TranscriptorCMD(cmd2.Cmd):
     @cmd2.with_argparser(update_parser)
     def do_update(self, args: Namespace):
         """
+
         Update command help
+
         """
-        args.func(self, args)
+
+        if hasattr(args, "func"):
+            args.func(self, args)
+
+        else:
+            self.do_help("update")
 
     def delete_clients(self, args: Namespace):
         clients = None
 
         if not args.where and not args.raw:
             self.poutput("Please provide conditions to delete")
+
             return
 
         if args.raw:
@@ -638,10 +743,12 @@ class TranscriptorCMD(cmd2.Cmd):
 
         elif args.where:
             conditions = parse_conditions(args.where)
+
             clients = self.app.api.get_clients(conditions=conditions)
 
         if not clients:
             self.poutput("No clients found")
+
             return
 
         if args.no_confirm:
@@ -649,6 +756,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 self.poutput(
                     "\n** DELETING CLIENTS WILL DELETE ALL CLIENT DATA (NO CONFIRMATION)**\n"
                 )
+
             message = [
                 (
                     "class:prompt",
@@ -656,20 +764,24 @@ class TranscriptorCMD(cmd2.Cmd):
                 ),
                 ("class:space", "  "),
             ]
+
             to_delete = prompt(
                 message,
                 style=style,
                 validator=yes_no_validator,
             )
+
             if to_delete.lower().startswith("y"):
                 self.app.delete_clients(
                     conditions=conditions,
                     raw_sql_stmt=args.raw,
                     purge=args.purge,
                 )
+
         else:
             for client in clients:
                 client_name = client["name"]
+
                 message = [
                     (
                         "class:prompt",
@@ -677,6 +789,7 @@ class TranscriptorCMD(cmd2.Cmd):
                     ),
                     ("class:space", "  "),
                 ]
+
                 to_delete = prompt(
                     message,
                     style=style,
@@ -687,14 +800,17 @@ class TranscriptorCMD(cmd2.Cmd):
                     self.poutput(
                         "\n** DELETING CLIENT WILL DELETE CLIENT'S JOBS AND RATES **\n"
                     )
+
                     if args.purge:
                         self.poutput(
                             "\n** DELETING CLIENT WILL DELETE ALL CLIENT DATA**\n"
                         )
+
                     message = [
                         ("class:prompt", f"Type {client_name} to confirm:"),
                         ("class:space", "  "),
                     ]
+
                     confirm_delete = prompt(message, style=style)
 
                     if confirm_delete == client_name:
@@ -702,25 +818,33 @@ class TranscriptorCMD(cmd2.Cmd):
                             conditions={"name": [("=", client_name)]},
                             purge=args.purge,
                         )
+
                     else:
                         self.poutput("Operation aborted")
+
                         return
 
     delete_client_parser.set_defaults(func=delete_clients)
 
     def delete_jobs(self, args: Namespace):
         jobs = None
+
         if args.raw:
             jobs = self.app.api.get_jobs(raw_sql_stmt=args.raw)
+
         if not args.where:
             self.poutput("Please provide conditions to delete")
+
             return
+
         else:
             conditions = parse_conditions(args.where)
+
             jobs = self.app.api.get_jobs(conditions=conditions)
 
         if not jobs:
             self.poutput("No jobs found")
+
             return
 
         if args.no_confirm:
@@ -728,6 +852,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 self.poutput(
                     "\n** DELETING CLIENTS WILL DELETE ALL CLIENT DATA (NO CONFIRMATION)**\n"
                 )
+
             message = [
                 (
                     "class:prompt",
@@ -735,17 +860,20 @@ class TranscriptorCMD(cmd2.Cmd):
                 ),
                 ("class:space", "  "),
             ]
+
             confirm_delete = prompt(
                 message,
                 style=style,
                 validator=yes_no_validator,
             )
+
             if confirm_delete.lower().startswith("y"):
                 self.app.delete_jobs(
                     conditions=conditions,
                     raw_sql_stmt=args.raw,
                     purge=args.purge,
                 )
+
         else:
             for job in jobs:
                 message = [
@@ -755,6 +883,7 @@ class TranscriptorCMD(cmd2.Cmd):
                     ),
                     ("class:space", "  "),
                 ]
+
                 confirm_delete = prompt(
                     message,
                     style=style,
@@ -767,8 +896,10 @@ class TranscriptorCMD(cmd2.Cmd):
                         raw_sql_stmt=args.raw,
                         purge=args.purge,
                     )
+
                 else:
                     self.poutput("Operation aborted")
+
                     return
 
     delete_jobs_parser.set_defaults(func=delete_jobs)
@@ -776,60 +907,88 @@ class TranscriptorCMD(cmd2.Cmd):
     @cmd2.with_argparser(delete_parser)
     def do_delete(self, args: Namespace):
         """
+
         Delete command help
+
         """
-        args.func(self, args)
+
+        if hasattr(args, "func"):
+            args.func(self, args)
+
+        else:
+            self.do_help("delete")
 
     def invoice(self, args: Namespace):
         if not any([args.raw, args.table, args.where, args.summary]):
             error = """Conditions must be provided or summary flag must be set.
+
     Ex. invoice -w 'date_submitted > \"2025-01-01\" -w date_submitted <= \"2025-01-31\"
+
             """
+
             self.poutput(error)
+
             self.do_help("invoice")
+
             return
+
         if not args.client_id:
             self.show_clients(args=None)
+
             message = [
                 ("class:prompt", "Enter client id:"),
                 ("class:space", "  "),
             ]
+
             client_id = int(
                 prompt(
                     message, style=style, validator=positive_number_validator
                 )
             )
+
             args.client_id = client_id  # Update the original args
+
         if args.summary:
             invoice_jobs = self.app.get_summary_invoice_jobs(
                 client_id=args.client_id,
                 previous_year_cutoff=args.previous_year_cutoff,
             )
+
             html, client_name = self.app.generate_summary_invoice(
                 invoice_jobs
             )
+
         if args.table:
             cutoffs = self.app.load_cutoffs(as_str=True)
+
             cutoffs = [
                 ["index" if row == 0 else str(idx)] + row
                 for idx, row in enumerate(cutoffs)
             ]
+
             TranscriptorView().print_table(cutoffs)
+
             message = [
                 ("class:prompt", "select deposit date. Use index number:"),
                 ("class:space", "  "),
             ]
+
             cutoff_idx = prompt(
                 message,
                 style=style,
                 validator=positive_number_validator,
             )
+
             previous_cutoff, cutoff = self.app.select_cutoff_period(
                 int(cutoff_idx)
             )
+
             raw_cutoff_condition = f""" date_submitted > '{previous_cutoff}'
+
                   AND date_submitted <= '{cutoff}'
+
                   """
+
             cutoff_condition = [
                 f"date_submitted>{previous_cutoff}",
                 f"date_submitted<={cutoff}",
@@ -838,6 +997,7 @@ class TranscriptorCMD(cmd2.Cmd):
         if args.raw:
             if args.table:
                 args.raw = args.raw + f" AND {raw_cutoff_condition}"
+
             invoice_jobs = self.app.get_invoice_jobs(
                 client_id=args.client_id,
                 raw_sql_stmt=args.raw,
@@ -847,35 +1007,46 @@ class TranscriptorCMD(cmd2.Cmd):
                 invoice_jobs,
                 invoice_theme=args.invoice_template,
             )
+
         elif args.where:
             if args.table:
                 args.where = args.where + cutoff_condition
+
             conditions = parse_conditions(args.where)
+
             invoice_jobs = self.app.get_invoice_jobs(
                 client_id=args.client_id,
                 conditions=conditions,
             )
+
             html, client_name = self.app.generate_invoice(
                 invoice_jobs, invoice_theme=args.invoice_template
             )
+
         else:
             if args.table and not args.summary:
                 conditions = parse_conditions(cutoff_condition)
+
                 invoice_jobs = self.app.get_invoice_jobs(
                     client_id=args.client_id,
                     conditions=conditions,
                 )
+
                 html, client_name = self.app.generate_invoice(
                     invoice_jobs, invoice_theme=args.invoice_template
                 )
+
         if args.print:
             self.app.html_to_pdf(
                 html, client_name, summary_invoice=args.summary
             )
+
         if args.csv:
             self.app.generate_csv_invoice(invoice_jobs, client_name)
+
         if args.markdown:
             md = self.app.to_md(html)
+
             TranscriptorView().console.print(md)
 
         else:
@@ -888,31 +1059,46 @@ class TranscriptorCMD(cmd2.Cmd):
     @cmd2.with_argparser(invoice_parser)
     def do_invoice(self, args: Namespace):
         """
+
         Invoice command help
+
         """
-        args.func(self, args)
+
+        if hasattr(args, "func"):
+            args.func(self, args)
+
+        else:
+            self.do_help("invoice")
 
     def purge(self, args):
         if not any([args.raw, args.where]):
             self.poutput("Please provide conditions to purge")
+
             return
+
         if args.raw:
             jobs = self.app.api.get_jobs(raw_sql_stmt=args.raw)
+
         else:
             conditions = parse_conditions(args.where)
+
             jobs = self.app.api.get_jobs(conditions=conditions)
+
         if not jobs:
             self.poutput("No jobs found")
+
         else:
             message = [
                 ("class:prompt", "Are you sure you want to delete (y/n):"),
                 ("class:space", "  "),
             ]
+
             confirm_delete = prompt(
                 message,
                 style=style,
                 validator=yes_no_validator,
             )
+
             if confirm_delete.lower().startswith("y"):
                 self.app.purge_job_files(jobs)
 
@@ -921,9 +1107,16 @@ class TranscriptorCMD(cmd2.Cmd):
     @cmd2.with_argparser(purge_parser)
     def do_purge(self, args: Namespace):
         """
+
         Purge command help
+
         """
-        args.func(self, args)
+
+        if hasattr(args, "func"):
+            args.func(self, args)
+
+        else:
+            self.do_help("purge")
 
     @cmd2.with_argparser(backup_parser)
     def do_backup(self, args: Namespace):
