@@ -569,9 +569,7 @@ class Transcriptor:
             else:
                 raw_sql_stmt = f"{raw_sql_stmt} AND amount_paid = 0"
 
-        jobs = self.api.get_jobs(
-            conditions=conditions, raw_sql_stmt=raw_sql_stmt
-        )  # type: ignore
+        jobs = self.api.get_jobs(conditions=conditions, raw_sql_stmt=raw_sql_stmt)  # type: ignore
         if not jobs:
             return None
         return jobs
@@ -583,13 +581,9 @@ class Transcriptor:
 
         invoice_lines = [InvoiceLine.parse_obj(job) for job in jobs]
         client = jobs[0].get("client")
-        client_name = (
-            client.name if hasattr(client, "name") else client
-        )  # type: ignore
+        client_name = client.name if hasattr(client, "name") else client  # type: ignore
 
-        INVOICE_DIR = (
-            self.base_dir / "clients" / sc(client_name) / "invoices"
-        )  # type: ignore
+        INVOICE_DIR = self.base_dir / "clients" / sc(client_name) / "invoices"  # type: ignore
         INVOICE_NUM_COUNTER_FILE = INVOICE_DIR / "invoice_number_counter"
 
         invoice_number = self.read_invoice_counter(INVOICE_NUM_COUNTER_FILE)
@@ -667,9 +661,7 @@ class Transcriptor:
             if jobs:
                 if client_name is None:
                     client = jobs[0].get("client")
-                    client_name = (
-                        client.name if hasattr(client, "name") else client
-                    )  # type: ignore
+                    client_name = client.name if hasattr(client, "name") else client  # type: ignore
                 month_name = std(deposit_date, "%Y-%m-%d").strftime("%B")
                 job_count = len(jobs)
                 total = round(sum(job["amount_paid"] for job in jobs), 2)
@@ -770,16 +762,6 @@ class Transcriptor:
     def to_md(self, html: str) -> str:
         return html_to_md(html)
 
-    def generate_cutoff_list_from_docx(
-        self, docx_path: str, date_fmt: str = ""
-    ) -> List[Union[Tuple[date, ...], List[str]]]:
-        date_fmt = date_fmt or "%m/%d/%Y"
-        cutoff_list = extract_table_data_from_docx(docx_path)
-
-        header, *rows = cutoff_list
-        cutoffs = [header] + [to_date_object(row, date_fmt) for row in rows]
-        return cutoffs
-
     def save_cutoffs(
         self,
         cutoffs: List[Union[List[str], Tuple[date, date]]],
@@ -793,9 +775,7 @@ class Transcriptor:
 
         year = year or date.today().year
 
-        file_path = (
-            file_path or CUTOFFS_DIR / f"cutoffs_{year}.csv"
-        )  # type: ignore
+        file_path = file_path or CUTOFFS_DIR / f"cutoffs_{year}.csv"  # type: ignore
         with open(file_path, "w", newline="") as fd:
             writer = csv.writer(fd)
             writer.writerows(cutoffs)
@@ -813,9 +793,7 @@ class Transcriptor:
         CUTOFFS_DIR.mkdir(parents=True, exist_ok=True)
         year = year or date.today().year
 
-        file_path = (
-            file_path or CUTOFFS_DIR / f"cutoffs_{year}.csv"
-        )  # type: ignore
+        file_path = file_path or CUTOFFS_DIR / f"cutoffs_{year}.csv"  # type: ignore
         with open(file_path, "r", newline="") as fd:
             cutoff_list: Sequence = list(csv.reader(fd))
 
