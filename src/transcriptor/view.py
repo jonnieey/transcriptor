@@ -76,7 +76,6 @@ class TranscriptorView:
                     "client",
                     "job",
                     "rate",
-                    "client_name",
                     "client_email",
                 )
             ]
