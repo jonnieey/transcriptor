@@ -3,7 +3,7 @@ from typing import List, Tuple, Union
 
 import docx  # type: ignore
 
-from transcriptor.date_utils import to_date_object
+from .date_utils import to_date_object
 
 
 def extract_table_data_from_docx(docx_path: str) -> List[List[str]]:

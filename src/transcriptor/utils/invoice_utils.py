@@ -96,7 +96,7 @@ def html_to_md(html: str) -> str:
 
 
 def invoice_template_themes():
-    invoice_template_dir = Path(__file__).parent / "invoice_templates"
+    invoice_template_dir = Path(__file__).parent.parent / "invoice_templates"
     template_themes = []
     for invoice_file in invoice_template_dir.iterdir():
         if invoice_file.stem.startswith("invoice_"):

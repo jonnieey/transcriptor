@@ -10,7 +10,6 @@ from prompt_toolkit import prompt
 from prompt_toolkit.styles import Style
 
 from transcriptor.base import Transcriptor
-from transcriptor.docx_utils import generate_cutoff_list_from_docx
 from transcriptor.input_handler import CLIInputHandler
 from transcriptor.utils import (
     invoice_template_themes,
@@ -19,6 +18,7 @@ from transcriptor.utils import (
     positive_number_validator,
     yes_no_validator,
 )
+from transcriptor.utils.docx_utils import generate_cutoff_list_from_docx
 from transcriptor.view import TranscriptorView
 
 style = Style.from_dict(

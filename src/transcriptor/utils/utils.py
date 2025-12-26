@@ -37,7 +37,7 @@ from .validators import template_validator, yes_no_validator
 
 def get_version():
     try:
-        init_file_path = Path(__file__).parent / "__about__.py"
+        init_file_path = Path(__file__).parent.parent / "__about__.py"
         with open(init_file_path, "r") as fd:
             init_content = fd.read()
 
