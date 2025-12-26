@@ -603,16 +603,20 @@ class Transcriptor:
 
     def get_summary_invoice_jobs(
         self, client_id: str, previous_year_cutoff: None = None
-    ) -> Tuple[str, Union[int, Any, str, float, None]]:
-        client_name = None
+    ) -> Dict[str, List[Dict[str, Any]]]:
         cutoffs = self.load_cutoffs(as_str=True)
 
         if client_id is None:
             logger.error("CLIENT ID CANNOT BE NONE")
-            return ("", "")
-        # jobs_by_month: dict[str, list[Any]] = {
-        #     str(i): [] for i in range(1, 13)
-        # }
+            return {}
+
+        client_query = self.api.get_clients(
+            conditions={"id": [("=", client_id)]}
+        )
+        if not client_query:
+            logger.error(f"No client found with ID {client_id}")
+            return {}
+        client_name = client_query[0].get("name")
 
         def merge_months(data):
             data = [d for d in data if d]
@@ -659,9 +663,6 @@ class Transcriptor:
             jobs_by_month = {}
             jobs = self.api.get_jobs(conditions=conditions)  # type: ignore
             if jobs:
-                if client_name is None:
-                    client = jobs[0].get("client")
-                    client_name = client.name if hasattr(client, "name") else client  # type: ignore
                 month_name = std(deposit_date, "%Y-%m-%d").strftime("%B")
                 job_count = len(jobs)
                 total = round(sum(job["amount_paid"] for job in jobs), 2)
@@ -671,10 +672,10 @@ class Transcriptor:
                 summary_invoice_list.append(jobs_by_month)
 
         summary_invoice_list = merge_months(summary_invoice_list)
+        if not summary_invoice_list:
+            return {}
         summary_invoice_dict[client_name] = summary_invoice_list
-        if summary_invoice_dict:
-            return summary_invoice_dict
-        return {}
+        return summary_invoice_dict
 
         # {'client_name': [{"month": "Jan", "job_count": 0, "total": 0.0}]}
 
@@ -683,9 +684,7 @@ class Transcriptor:
         jobs_by_month = summary_invoice_dict[client_name]
 
         months_summary_list = []
-        for idx in range(1, len(jobs_by_month)):
-            month_info = jobs_by_month[idx]
-
+        for month_info in jobs_by_month:
             months_summary_list.append(
                 SummaryInvoiceLine.parse_obj(month_info)
             )

@@ -304,4 +304,4 @@ class SummaryInvoice(BaseModel):
     profile: Profile
     client_name: str
     create_date: date = Field(default_factory=date.today)
-    summary_lines: List
+    summary_lines: List[SummaryInvoiceLine]

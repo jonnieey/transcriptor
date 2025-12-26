@@ -340,80 +340,59 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def show_config(self, arg: Namespace):
         """
-
         Show configuration
-
         Ex.
-
            show config
-
         """
-
         config = self.app.config
-
-        TranscriptorView().print_table(config.__dict__)
+        TranscriptorView().print_table(config.__dict__, title="Configuration")
 
     show_config_parser.set_defaults(func=show_config)
 
     def show_profile(self, arg: Namespace):
         """
-
         Show profile
-
         Ex.
-
            show profile
-
         """
-
         if profile := self.app.profile:
-            TranscriptorView().print_table(profile.__dict__)
+            TranscriptorView().print_table(profile.__dict__, title="Profile")
 
     show_profile_parser.set_defaults(func=show_profile)
 
     def show_clients(self, args: Optional[Namespace]):
         """
-
         Show clients
-
         Ex.
-
            show clients
-
         """
-
         if args:
             if args.raw:
                 clients = self.app.api.get_clients(raw_sql_stmt=args.raw)
-
             elif args.where:
                 conditions = parse_conditions(args.where)
-
                 clients = self.app.api.get_clients(conditions=conditions)
-
             else:
                 clients = self.app.api.get_clients()
-
         else:
             clients = self.app.api.get_clients()
-
-        TranscriptorView().print_table(clients, orientation="horizontal")
+        TranscriptorView().print_table(
+            clients, orientation="horizontal", title="Clients"
+        )
 
     show_clients_parser.set_defaults(func=show_clients)
 
     def show_rates(self, args: Namespace):
         if args.raw:
             rates = self.app.api.get_rates(raw_sql_stmt=args.raw)
-
         elif args.where:
             conditions = parse_conditions(args.where)
-
             rates = self.app.api.get_rates(conditions=conditions)
-
         else:
             rates = self.app.api.get_rates()
-
-        TranscriptorView().print_table(rates, orientation="horizontal")
+        TranscriptorView().print_table(
+            rates, orientation="horizontal", title="Rates"
+        )
 
     show_rates_parser.set_defaults(func=show_rates)
 
@@ -421,28 +400,28 @@ class TranscriptorCMD(cmd2.Cmd):
         if args:
             if args.raw:
                 jobs = self.app.api.get_jobs(raw_sql_stmt=args.raw)
-
             elif args.where:
                 conditions = parse_conditions(args.where)
-
                 jobs = self.app.api.get_jobs(conditions=conditions)
-
             elif args.all:
                 jobs = self.app.api.get_jobs()
-
             else:
                 jobs = self.app.api.get_jobs(
                     conditions={"status": [("=", "Pending")]}
                 )
 
-        TranscriptorView().print_table(jobs, orientation="horizontal")
+        TranscriptorView().print_table(
+            jobs, orientation="horizontal", title="Jobs"
+        )
 
     show_jobs_parser.set_defaults(func=show_jobs)
 
     def show_cutoffs(self, args: Namespace):
         cutoffs = self.app.load_cutoffs(as_str=True)
-
-        TranscriptorView().print_table(cutoffs, orientation="horizontal")
+        formatted_cutoffs = [[str(i)] + row for i, row in enumerate(cutoffs)]
+        TranscriptorView().print_table(
+            formatted_cutoffs, orientation="horizontal", title="Cutoffs"
+        )
 
     show_cutoffs_parser.set_defaults(func=show_cutoffs)
 
@@ -949,15 +928,21 @@ class TranscriptorCMD(cmd2.Cmd):
 
             args.client_id = client_id  # Update the original args
 
+        client_name = ""
         if args.summary:
-            invoice_jobs = self.app.get_summary_invoice_jobs(
+            invoice_jobs_dict = self.app.get_summary_invoice_jobs(
                 client_id=args.client_id,
                 previous_year_cutoff=args.previous_year_cutoff,
             )
 
+            if not invoice_jobs_dict:
+                self.poutput("No jobs found for summary.")
+                return
+
             html, client_name = self.app.generate_summary_invoice(
-                invoice_jobs
+                invoice_jobs_dict
             )
+            invoice_jobs = invoice_jobs_dict[client_name]
 
         if args.table:
             cutoffs = self.app.load_cutoffs(as_str=True)
@@ -1051,8 +1036,12 @@ class TranscriptorCMD(cmd2.Cmd):
             TranscriptorView().console.print(md)
 
         else:
+            title = f"Jobs for {client_name}"
+            if args.summary:
+                title = f"Summary Invoice for {client_name}"
+
             TranscriptorView().print_table(
-                invoice_jobs, orientation="horizontal"
+                invoice_jobs, orientation="horizontal", title=title
             )
 
     invoice_parser.set_defaults(func=invoice)
