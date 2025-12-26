@@ -72,7 +72,8 @@ def test_do_show_config(cli_app, mock_transcriptor):
         result = cli_app.onecmd("show config")
         assert result is False
         mock_print.assert_called_once_with(
-            mock_transcriptor.return_value.config.__dict__
+            mock_transcriptor.return_value.config.__dict__,
+            title="Configuration",
         )
 
 
@@ -82,7 +83,7 @@ def test_do_show_profile(cli_app, mock_transcriptor):
         result = cli_app.onecmd("show profile")
         assert result is False
         mock_print.assert_called_once_with(
-            mock_transcriptor.return_value.profile.__dict__
+            mock_transcriptor.return_value.profile.__dict__, title="Profile"
         )
 
 
@@ -97,7 +98,7 @@ def test_do_show_clients(cli_app, mock_transcriptor):
         result = cli_app.onecmd("show clients")
         assert result is False
         mock_print.assert_called_once_with(
-            mock_clients, orientation="horizontal"
+            mock_clients, orientation="horizontal", title="Clients"
         )
 
 

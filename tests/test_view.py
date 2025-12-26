@@ -64,7 +64,7 @@ class TestItemStyle:
             "amount_paid": 50.0,
         }
         style = view._get_item_style(item)
-        assert style == "blue"
+        assert style == "#8be9fd"
 
     def test_submitted_paid_full(self, view):
         item = {
@@ -73,34 +73,34 @@ class TestItemStyle:
             "amount_paid": 100.0,
         }
         style = view._get_item_style(item)
-        assert style == "white"
+        assert style == "#f8f8f2"
 
     def test_due_date_passed(self, view):
         past_date = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
         item = {"date_due": past_date}
         style = view._get_item_style(item)
-        assert style == "purple"
+        assert style == "#bd93f9"
 
     def test_due_date_imminent(self, view):
         # 1 day left
         soon_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
         item = {"date_due": soon_date}
         style = view._get_item_style(item)
-        assert style == "red"
+        assert style == "#ff5555"
 
     def test_due_date_soon(self, view):
         # 3 days left
         soon_date = (date.today() + timedelta(days=3)).strftime("%Y-%m-%d")
         item = {"date_due": soon_date}
         style = view._get_item_style(item)
-        assert style == "yellow"
+        assert style == "#f1fa8c"
 
     def test_due_date_far(self, view):
         # 10 days left
         far_date = (date.today() + timedelta(days=10)).strftime("%Y-%m-%d")
         item = {"date_due": far_date}
         style = view._get_item_style(item)
-        assert style == "green"
+        assert style == "#50fa7b"
 
     def test_invalid_date(self, view):
         item = {"date_due": "invalid-date"}
