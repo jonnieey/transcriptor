@@ -294,6 +294,7 @@ class TranscriptorCMD(cmd2.Cmd):
             persistent_history_length=500,
             allow_cli_args=False,
             startup_script=alias_script,
+            silence_startup_script=True,
         )
 
         self.debug = True
