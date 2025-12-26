@@ -635,7 +635,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 for idx, row in enumerate(cutoffs)
             ]
 
-            TranscriptorView().print_table(cutoffs)
+            TranscriptorView().print_table(cutoffs, orientation="horizontal")
 
             message = [
                 ("class:prompt", "select deposit date. Use index number:"),
@@ -966,7 +966,7 @@ class TranscriptorCMD(cmd2.Cmd):
                 for idx, row in enumerate(cutoffs)
             ]
 
-            TranscriptorView().print_table(cutoffs)
+            TranscriptorView().print_table(cutoffs, orientation="horizontal")
 
             message = [
                 ("class:prompt", "select deposit date. Use index number:"),

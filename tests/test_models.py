@@ -246,3 +246,27 @@ def test_yaml_base_error_handling():
     with patch("builtins.open", mock_open(read_data=invalid_yaml)):
         with pytest.raises(ScannerError):  # Changed to catch either error
             Config.from_yaml(Path(TEST_YAML_FILE))
+
+
+def test_profile_defaults():
+    """Test Profile model default values"""
+    profile = Profile()
+    assert profile.name == ""
+    assert profile.area == ""
+    assert profile.country == ""
+
+
+def test_invoice_custom_due_date():
+    """Test Invoice model with custom due date"""
+    custom_date = date(2023, 12, 31)
+    profile = Profile(name="Tester")
+    invoice = Invoice(
+        profile=profile,
+        invoice_number="INV002",
+        client_name="Test Client",
+        jobs=[],
+        due_date=custom_date,
+    )
+
+    assert invoice.create_date == date.today()
+    assert invoice.due_date == custom_date

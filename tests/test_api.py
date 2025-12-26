@@ -422,3 +422,73 @@ def test_get_method(api):
     # Test get with raw SQL
     stmt = api.get(Client, raw_sql_stmt=f"WHERE id = {client_id}")
     assert f"WHERE id = {client_id}" in str(stmt)
+
+
+def test_compare_conditions_vs_raw_sql(api, sample_job_data):
+    """
+    Unit test to compare retrieval using conditions vs raw SQL.
+    Ensures that both methods return identical data.
+    """
+    # Setup data
+    c1_id = api.add_client({"name": "CompareClient1", "email": "c1@test.com"})
+    c2_id = api.add_client({"name": "CompareClient2", "email": "c2@test.com"})
+
+    # Add jobs
+    j1 = sample_job_data.copy()
+    j1.update({"client_id": c1_id, "job_number": "J1", "status": "Pending"})
+    api.add_job(j1)
+
+    j2 = sample_job_data.copy()
+    j2.update({"client_id": c2_id, "job_number": "J2", "status": "Done"})
+    api.add_job(j2)
+
+    clients_cond = api.get_clients(
+        conditions={"name": [("=", "CompareClient1")]}
+    )
+    clients_raw = api.get_clients(
+        raw_sql_stmt="WHERE name = 'CompareClient1'"
+    )
+
+    assert len(clients_cond) == 1
+    assert len(clients_raw) == 1
+    assert clients_cond == clients_raw
+
+    # By Email Pattern
+    clients_cond = api.get_clients(conditions={"email": [("~", "%test.com")]})
+    clients_raw = api.get_clients(raw_sql_stmt="WHERE email LIKE '%test.com'")
+
+    # Sort by ID to ensure list equality
+    clients_cond.sort(key=lambda x: x["id"])
+    clients_raw.sort(key=lambda x: x["id"])
+    assert len(clients_cond) >= 2
+    assert clients_cond == clients_raw
+
+    # 2. Compare Jobs
+    # By Status
+    jobs_cond = api.get_jobs(conditions={"status": [("=", "Pending")]})
+    jobs_raw = api.get_jobs(raw_sql_stmt="WHERE status = 'Pending'")
+
+    assert len(jobs_cond) == 1
+    assert len(jobs_raw) == 1
+    assert jobs_cond[0]["job_number"] == jobs_raw[0]["job_number"]
+    assert jobs_cond[0]["client"].id == jobs_raw[0]["client"].id
+
+    # By Client ID
+    jobs_cond = api.get_jobs(conditions={"client_id": [("=", c2_id)]})
+    jobs_raw = api.get_jobs(raw_sql_stmt=f"WHERE client_id = {c2_id}")
+
+    assert len(jobs_cond) == 1
+    assert jobs_cond[0]["job_number"] == "J2"
+
+    for j_cond, j_raw in zip(jobs_cond, jobs_raw):
+        cond_keys = {k: v for k, v in j_cond.items() if k != "client"}
+        raw_keys = {
+            k: v
+            for k, v in j_raw.items()
+            if k not in ("client", "client_name", "client_email")
+        }
+        assert cond_keys == raw_keys
+
+        assert j_cond["client"].id == j_raw["client"].id
+        assert j_cond["client"].name == j_raw["client"].name
+        assert j_cond["client"].email == j_raw["client"].email

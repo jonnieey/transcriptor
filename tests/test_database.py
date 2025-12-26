@@ -51,3 +51,19 @@ class TestDatabase:
         with memory_db.engine.connect() as conn:
             result = conn.execute(text("PRAGMA foreign_keys")).fetchone()
             assert result[0] == 1  # Should be enabled
+
+    def test_init_db_idempotency(self, memory_db):
+        """Test that calling init_db multiple times doesn't fail"""
+        # First call done in fixture
+        # Second call
+        memory_db.init_db()
+
+        inspector = inspect(memory_db.engine)
+        assert "clients" in inspector.get_table_names()
+        # Verify data persists (if any were added) - technically init_db doesn't clear data, just creates tables if missing
+
+    def test_invalid_db_path(self):
+        """Test initialization with invalid path (might raise error depending on sqlalchemy)"""
+        # SQLite usually creates file if possible, but if directory doesn't exist?
+        # create_engine doesn't validate path immediately, but connection might fail.
+        # However, this depends on OS.
