@@ -15,7 +15,7 @@ class TranscriptorView:
         self.console = Console()
         self.table = Table(
             show_header=True,
-            header_style="bold red",
+            header_style="bold #bd93f9",
             title_justify="center",
             padding=(0, 0),
         )
@@ -132,8 +132,8 @@ class TranscriptorView:
                 and amount_paid is not None
                 and float(amount_paid) < float(amount)
             ):
-                return "blue"
-            return "white"
+                return "#8be9fd"
+            return "#f8f8f2"
 
         if date_due:
             if isinstance(date_due, str):
@@ -148,12 +148,12 @@ class TranscriptorView:
             if isinstance(date_due, date):
                 days_left = (date_due - date.today()).days
                 if days_left < 0:
-                    return "purple"
+                    return "#bd93f9"
                 if days_left < 2:
-                    return "red"
+                    return "#ff5555"
                 if days_left < 4:
-                    return "yellow"
-                return "green"
+                    return "#f1fa8c"
+                return "#50fa7b"
         return None
 
     def print_table(
