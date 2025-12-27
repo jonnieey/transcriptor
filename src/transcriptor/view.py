@@ -16,6 +16,9 @@ class TranscriptorView:
         self.table = Table(
             show_header=True,
             header_style="bold #bd93f9",
+            border_style="#6272a4",
+            title_style="bold #ff79c6",
+            caption_style="#6272a4",
             title_justify="center",
             padding=(0, 0),
         )
@@ -71,8 +74,8 @@ class TranscriptorView:
                     ]
 
         if orientation == "vertical":
-            self.table.add_column(tc("Option"))
-            self.table.add_column(tc("Value"))
+            self.table.add_column(tc("Option"), style="#8be9fd")
+            self.table.add_column(tc("Value"), style="#f8f8f2")
 
             for item in data_list:
                 for col in columns:
@@ -116,7 +119,7 @@ class TranscriptorView:
                 style = (
                     self._get_item_style(item)
                     if not is_list_of_lists
-                    else None
+                    else "#f8f8f2"
                 )
 
                 if is_list_of_lists:
@@ -176,7 +179,7 @@ class TranscriptorView:
                     )
                 self.table.add_row(*summary_row)
 
-    def _get_item_style(self, item: Any) -> Optional[str]:
+    def _get_item_style(self, item: Any) -> str:
         date_submitted = self._get_attr(item, "date_submitted")
         date_due = self._get_attr(item, "date_due")
         amount = self._get_attr(item, "amount")
@@ -196,7 +199,7 @@ class TranscriptorView:
                 try:
                     date_due = datetime.strptime(date_due, "%Y-%m-%d").date()
                 except ValueError:
-                    return None
+                    return "#f8f8f2"
 
             if isinstance(date_due, datetime):
                 date_due = date_due.date()
@@ -210,7 +213,7 @@ class TranscriptorView:
                 if days_left < 4:
                     return "#f1fa8c"
                 return "#50fa7b"
-        return None
+        return "#f8f8f2"
 
     def print_table(
         self,

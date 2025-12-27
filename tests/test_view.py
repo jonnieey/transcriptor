@@ -105,7 +105,12 @@ class TestItemStyle:
     def test_invalid_date(self, view):
         item = {"date_due": "invalid-date"}
         style = view._get_item_style(item)
-        assert style is None
+        assert style == "#f8f8f2"
+
+    def test_default_style(self, view):
+        item = {"other": "value"}
+        style = view._get_item_style(item)
+        assert style == "#f8f8f2"
 
 
 class TestPrintTable:
