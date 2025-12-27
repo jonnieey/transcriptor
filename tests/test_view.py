@@ -1,3 +1,4 @@
+import unittest.mock
 from datetime import date, timedelta
 from unittest.mock import MagicMock
 
@@ -54,6 +55,53 @@ class TestViewGeneration:
     def test_empty_data(self, view):
         view.generate_table([])
         assert len(view.table.columns) == 0
+
+    def test_generate_table_vertical_cutoffs_highlight(self, view):
+        # Mock today to be inside the range
+        today = date(2023, 1, 20)
+        with unittest.mock.patch("transcriptor.view.date") as mock_date:
+            mock_date.today.return_value = today
+            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
+
+            # Header + one row that matches today
+            data = [["Cutoff", "Deposit"], ["2023-01-15", "2023-01-31"]]
+            view.generate_table(data, orientation="vertical")
+
+            # In vertical mode for list of lists, it adds rows.
+            # We expect 2 rows added (one for Cutoff, one for Deposit).
+            # The style should be passed to add_row.
+            # Since we can't easily inspect rich Table rows for style after add_row (it's internal),
+            # we might need to mock table.add_row or inspect private attributes if possible.
+            # However, looking at the implementation:
+            # self.table.add_row(tc(str(col)), str(val), style=row_style)
+
+            # Let's inspect the rows attribute of the table if available or rely on no exception.
+            # Rich Table stores rows in .rows, which is a list of Row objects.
+            # Row objects have a style attribute.
+
+            assert len(view.table.rows) == 2
+            # Check style of the first row
+            assert view.table.rows[0].style == "#ff79c6"
+            assert view.table.rows[1].style == "#ff79c6"
+
+    def test_generate_table_horizontal_cutoffs_highlight(self, view):
+        # Mock today to be inside the range
+        today = date(2023, 1, 20)
+        with unittest.mock.patch("transcriptor.view.date") as mock_date:
+            mock_date.today.return_value = today
+            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
+
+            # Header + one row that matches today (index, start, end)
+            data = [
+                ["Index", "Cutoff", "Deposit"],
+                ["1", "2023-01-15", "2023-01-31"],
+            ]
+            view.generate_table(data, orientation="horizontal")
+
+            # Expecting 1 row in the table (plus header which is columns)
+            assert len(view.table.rows) == 1
+            # Check style of the row
+            assert view.table.rows[0].style == "#ff79c6"
 
 
 class TestItemStyle:

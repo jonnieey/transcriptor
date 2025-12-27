@@ -78,6 +78,25 @@ class TranscriptorView:
             self.table.add_column(tc("Value"), style="#f8f8f2")
 
             for item in data_list:
+                row_style = None
+                if is_list_of_lists and len(item) >= 2:
+                    try:
+                        # Check if item has date range that includes today
+                        # Assuming item[0] is start/cutoff and item[1] is end/deposit
+                        # or some date pair. The user example showed a row with 2 dates.
+                        d1 = datetime.strptime(
+                            str(item[0]), "%Y-%m-%d"
+                        ).date()
+                        d2 = datetime.strptime(
+                            str(item[1]), "%Y-%m-%d"
+                        ).date()
+                        # Sort dates to ensure range is valid regardless of order
+                        start_date, end_date = sorted([d1, d2])
+                        if start_date <= date.today() <= end_date:
+                            row_style = "#ff79c6"
+                    except (ValueError, TypeError, IndexError):
+                        pass
+
                 for col in columns:
                     if is_list_of_lists:
                         # For list of lists in vertical mode, this might be weird
@@ -88,7 +107,9 @@ class TranscriptorView:
                             val = ""
                     else:
                         val = self._get_attr(item, col)
-                    self.table.add_row(tc(str(col)), str(val))
+                    self.table.add_row(
+                        tc(str(col)), str(val), style=row_style
+                    )
                 if len(data_list) > 1:
                     self.table.add_section()
 
@@ -116,11 +137,25 @@ class TranscriptorView:
             has_totals = False
 
             for item in data_list:
-                style = (
-                    self._get_item_style(item)
-                    if not is_list_of_lists
-                    else "#f8f8f2"
-                )
+                style = "#f8f8f2"
+                if is_list_of_lists:
+                    # Check for cutoff highlighting: [index, start_date, end_date]
+                    if len(item) >= 3:
+                        try:
+                            # Assuming item format [index, date1, date2]
+                            d1 = datetime.strptime(
+                                str(item[1]), "%Y-%m-%d"
+                            ).date()
+                            d2 = datetime.strptime(
+                                str(item[2]), "%Y-%m-%d"
+                            ).date()
+                            start, end = sorted([d1, d2])
+                            if start <= date.today() <= end:
+                                style = "#ff79c6"
+                        except (ValueError, IndexError):
+                            pass
+                else:
+                    style = self._get_item_style(item)
 
                 if is_list_of_lists:
                     try:
