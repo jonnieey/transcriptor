@@ -28,12 +28,20 @@ def main():
     cli_parser = subparsers.add_parser(
         "cli", help="Run the command-line interface (default)"
     )
+    cli_parser.add_argument(
+        "cli_args",
+        nargs=argparse.REMAINDER,
+        help="Arguments to pass to the CLI",
+    )
     cli_parser.set_defaults(func=cli_main)
 
     args = parser.parse_args()
 
     if hasattr(args, "func"):
-        args.func()
+        if args.command == "cli":
+            args.func(argv=args.cli_args)
+        else:
+            args.func()
     elif (
         args.command is None
     ):  # If no subcommand is specified, run the default CLI

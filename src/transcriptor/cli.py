@@ -1147,8 +1147,24 @@ class TranscriptorCMD(cmd2.Cmd):
             self.poutput(f"Error restoring backup: {e}")
 
 
-def main():
+def main(argv=None):
     c = TranscriptorCMD()
+
+    if argv:
+        alias_script = c.app.CONFIG_DIR.joinpath(".cmd2rc")
+        if alias_script.exists():
+            with open(os.devnull, "w") as devnull:
+                _stdout = c.stdout
+                c.stdout = devnull
+                try:
+                    c.do_run_script(str(alias_script))
+                finally:
+                    c.stdout = _stdout
+
+        command = " ".join(argv)
+        c.onecmd_plus_hooks(command)
+        return
+
     try:
         sys.exit(c.cmdloop())
     except (KeyboardInterrupt, EOFError):
