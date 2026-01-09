@@ -243,6 +243,7 @@ invoice_parser.add_argument(
 invoice_parser.add_argument(
     "-l", "--previous_year_cutoff", help="Previous year last cutoff"
 )
+invoice_parser.add_argument("-y", "--year", help="Year of cutoff")
 invoice_parser.add_argument(
     "-t",
     "--invoice_template",
@@ -933,6 +934,7 @@ class TranscriptorCMD(cmd2.Cmd):
             invoice_jobs_dict = self.app.get_summary_invoice_jobs(
                 client_id=args.client_id,
                 previous_year_cutoff=args.previous_year_cutoff,
+                year=args.year,
             )
 
             if not invoice_jobs_dict:

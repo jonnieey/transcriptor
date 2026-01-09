@@ -602,9 +602,13 @@ class Transcriptor:
         return html, client_name
 
     def get_summary_invoice_jobs(
-        self, client_id: str, previous_year_cutoff: None = None
+        self,
+        client_id: str,
+        previous_year_cutoff: None = None,
+        cutoffs_year: None = None,
+        year: None = None,
     ) -> Dict[str, List[Dict[str, Any]]]:
-        cutoffs = self.load_cutoffs(as_str=True)
+        cutoffs = self.load_cutoffs(as_str=True, year=year)
 
         if client_id is None:
             logger.error("CLIENT ID CANNOT BE NONE")
@@ -640,7 +644,9 @@ class Transcriptor:
         cutoffs_list = list(cutoffs[1:])
 
         for idx, (cutoff, deposit_date) in enumerate(cutoffs_list, start=1):
-            previous_cutoff, cutoff = self.select_cutoff_period(idx)
+            previous_cutoff, cutoff = self.select_cutoff_period(
+                idx, year=year
+            )
             if previous_cutoff is None:
                 previous_cutoff = previous_year_cutoff or date(
                     datetime.now().year, 1, 1
@@ -786,7 +792,7 @@ class Transcriptor:
         ] = None,
         date_fmt: str = "%Y-%m-%d",
         as_str: bool = False,
-        year: Optional[Union[str | int]] = None,
+        year=None,
     ) -> Union[List[Union[Tuple[date, ...], List[str]]], Sequence[Any]]:
         CUTOFFS_DIR = self.base_dir / "cutoffs"
         CUTOFFS_DIR.mkdir(parents=True, exist_ok=True)
@@ -804,11 +810,11 @@ class Transcriptor:
         return cutoffs
 
     def select_cutoff_period(
-        self, deposit_date_idx: int, cutoffs=None
+        self, deposit_date_idx: int, cutoffs=None, year=None
     ) -> Tuple[Union[str, date, None], Union[str, date]]:
         if cutoffs is None:
-            cutoff_deposit_pairs = self.load_cutoffs()
-            cutoff_deposit_pairs = self.load_cutoffs()[1:]
+            cutoff_deposit_pairs = self.load_cutoffs(year=year)
+            cutoff_deposit_pairs = self.load_cutoffs(year=year)[1:]
         else:
             cutoff_deposit_pairs = cutoffs
 
