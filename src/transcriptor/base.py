@@ -1,5 +1,6 @@
 import csv
 import logging
+import re
 import shutil
 import zipfile
 from datetime import date, datetime
@@ -383,7 +384,10 @@ class Transcriptor:
             return None
         where_idx = raw_sql_stmt.lower().find("where")
         if where_idx != -1:
-            return raw_sql_stmt[where_idx:].replace("id", "job_id").strip()
+            where_clause = raw_sql_stmt[where_idx:]
+            return re.sub(
+                r"\bid\b", "jobs.id", where_clause, flags=re.IGNORECASE
+            ).strip()
         return None
 
     def _get_update_client_name(
