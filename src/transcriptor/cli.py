@@ -469,15 +469,14 @@ class TranscriptorCMD(cmd2.Cmd):
         if job_file_path:
             job_info = self.input_handler.get_job_info(args, job_file_path)
 
-            task_info = self.input_handler.get_task_info(args, job_file_path)
+            def task_callback(task_file):
+                return self.input_handler.get_task_info(args, task_file)
 
-            if job_info and task_info:
-                self.app.create_job(job_file_path, job_info, task_info)
+            if job_info:
+                self.app.create_job(job_file_path, job_info, task_callback)
 
             else:
-                self.poutput(
-                    "Job or task information could not be collected."
-                )
+                self.poutput("Job information could not be collected.")
 
     add_job_parser.set_defaults(func=add_job)
 

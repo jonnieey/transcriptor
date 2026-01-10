@@ -7,7 +7,7 @@ from itertools import groupby
 from operator import itemgetter
 from os import PathLike
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from platformdirs import user_config_dir, user_data_dir
 from sqlalchemy.engine.row import RowMapping
@@ -306,10 +306,10 @@ class Transcriptor:
         self,
         job_file: str,
         job_info: Dict[str, Any],
-        task_info: Dict[str, Any],
+        task_callback: Callable[[Path], Dict[str, Any]],
     ):
         if isinstance(job_file, str):
-            job_file = job_info.strip("'\"")
+            job_file = job_file.strip("'\"")
 
         client_query = self.api.get_clients(
             conditions={"id": [("=", job_info["client_id"])]}
@@ -330,6 +330,7 @@ class Transcriptor:
 
         tasks = []
         for task_file in task_files:
+            task_info = task_callback(task_file)
             if not task_info:
                 continue
             task_info.update(job_info)
