@@ -324,7 +324,9 @@ def test_save_and_load_cutoffs(transcriptor, test_base_dir):
     transcriptor.save_cutoffs(test_cutoffs)
 
     # Verify file was created
-    cutoff_file = test_base_dir / "cutoffs" / "cutoffs_2025.csv"
+    cutoff_file = (
+        test_base_dir / "cutoffs" / f"cutoffs_{date.today().year}.csv"
+    )
     assert cutoff_file.exists()
 
     # Load cutoffs
