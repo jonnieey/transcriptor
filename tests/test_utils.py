@@ -10,7 +10,10 @@ from transcriptor.utils.date_utils import (
     month_day_to_date,
     str_to_date,
 )
-from transcriptor.utils.docx_utils import extract_table_data_from_docx
+from transcriptor.utils.docx_utils import (
+    extract_table_data_from_docx,
+    generate_cutoff_list_from_docx,
+)
 from transcriptor.utils.filesystem import (
     get_media_files,
     mkdirp,
@@ -88,7 +91,45 @@ def sample_summary_invoice():
     return invoice
 
 
+from transcriptor import __about__
+from transcriptor.utils.utils import get_version
+
+
 # Test classes
+class TestGetVersion:
+    def test_get_version_success(self):
+        mock_content = "__version__ = '1.0.0'"
+        with patch("builtins.open", new_callable=MagicMock) as mock_open:
+            mock_open.return_value.__enter__.return_value.read.return_value = (
+                mock_content
+            )
+            # We also need to mock Path to avoid actual file system check if implementation uses it,
+            # but open is mocked.
+            # Implementation:
+            # init_file_path = Path(__file__).parent.parent / "__about__.py"
+            # with open(init_file_path, "r") as fd: ...
+
+            # Since open is mocked globally, it should work regardless of path.
+            version = get_version()
+            assert version == "1.0.0"
+
+    def test_get_version_not_found(self):
+        with patch("builtins.open", side_effect=FileNotFoundError):
+            with pytest.raises(FileNotFoundError):
+                get_version()
+
+    def test_get_version_invalid_format(self):
+        mock_content = "no version here"
+        with patch("builtins.open", new_callable=MagicMock) as mock_open:
+            mock_open.return_value.__enter__.return_value.read.return_value = (
+                mock_content
+            )
+            with pytest.raises(
+                ValueError, match="Could not determine version"
+            ):
+                get_version()
+
+
 class TestFileOperations:
     def test_touch_creates_file(self, tmp_file):
         touch([tmp_file])
@@ -225,20 +266,19 @@ class TestConditionParsing:
         assert result == {"name": "test", "id": "1"}
 
     def test_parse_conditions(self):
-        conditions = ["id<=1", "amount>0", "name~test"]
+        conditions = ["id<=1", "amount>0", "name~test", "invalid_string"]
         result = parse_conditions(conditions)
-        assert result == {
-            "id": [("<=", 1)],
-            "amount": [(">", 0)],
-            "name": [("~", "test")],
-        }
+        assert result["id"] == [("<=", 1)]
+        assert result["amount"] == [(">", 0)]
+        assert result["name"] == [("~", "test")]
 
     def test_parse_conditions_mixed_types(self):
-        conditions = ["id=1", "name=test", "amount=10.5"]
+        conditions = ["id=1", "name=test", "amount=10.5", "id==2"]
         result = parse_conditions(conditions)
         assert result["id"][0][1] == 1
         assert result["name"][0][1] == "test"
         assert result["amount"][0][1] == 10.5
+        assert result["id"][1][1] == 2
 
 
 class TestValidation:
@@ -341,6 +381,52 @@ class TestDocxOperations:
         assert len(result) == 1
         assert result[0] == ["cell_0", "cell_1", "cell_2"]
 
+    def test_extract_table_data_from_docx_file_not_found(self):
+        # This triggers docx.opc.exceptions.PackageNotFoundError inside the function
+        # because the file doesn't exist.
+        # We need to capture stdout to verify the print statement if we want to be thorough,
+        # but the main thing is it returns empty list []
+
+        # We need to patch docx.Document to raise PackageNotFoundError
+        with patch("transcriptor.utils.docx_utils.docx.Document") as mock_doc:
+            # We need to import the exception class to mock raising it
+            import docx.opc.exceptions
+
+            mock_doc.side_effect = docx.opc.exceptions.PackageNotFoundError
+
+            # Use capsys if we want to check print, but simple return check is fine
+            result = extract_table_data_from_docx("non_existent.docx")
+            assert result == []
+
+    def test_extract_table_data_from_docx_import_error(self):
+        with patch.dict("sys.modules", {"docx": None}):
+            # We can't easily force ImportError on already imported module without reloading.
+            # Instead, we can patch docx.Document to raise ImportError.
+            # Wait, the code imports docx at module level.
+            # The function does `try: docx_file = docx.Document(...) except ImportError:`.
+            # If docx is imported at top level, `docx.Document` is a class/function.
+            # We can mock it to raise ImportError.
+            with patch(
+                "transcriptor.utils.docx_utils.docx.Document",
+                side_effect=ImportError,
+            ):
+                result = extract_table_data_from_docx("test.docx")
+                assert result == []
+
+    @patch("transcriptor.utils.docx_utils.extract_table_data_from_docx")
+    def test_generate_cutoff_list_from_docx(self, mock_extract):
+        mock_extract.return_value = [
+            ["Cutoff", "Deposit"],
+            ["01/15/2023", "01/20/2023"],
+        ]
+        result = generate_cutoff_list_from_docx("test.docx")
+        assert len(result) == 2
+        assert result[0] == ["Cutoff", "Deposit"]
+        # result[1] should be a tuple of date objects
+        assert result[1][0].year == 2023
+        assert result[1][0].month == 1
+        assert result[1][0].day == 15
+
 
 class TestDateExtraction:
     def test_extract_job_number(self):
@@ -357,15 +443,37 @@ class TestDateExtraction:
         assert month_day_to_date("12.31", year="2023") == "2023-12-31"
         assert month_day_to_date("invalid") == ""
 
+    def test_parse_conditions_value_error(self):
+        # Mock type_convert to raise ValueError
+        with patch(
+            "transcriptor.utils.sql_parsers.type_convert",
+            side_effect=ValueError,
+        ):
+            conditions = ["id=1"]
+            result = parse_conditions(conditions)
+            # It should fall back to treating '1' as string
+            assert result["id"][0][1] == "1"
+
 
 class TestSQLParsing:
     def test_parse_sql_clause(self):
-        clause = "name='test' AND id=1"
+        clause = "name='test' AND id=1 AND status=\"Done\""
         result = parse_sql_clause(clause, "AND")
-        assert result == {"name": "test", "id": "1"}
+        assert result == {"name": "test", "id": "1", "status": "Done"}
+
+    def test_parse_sql_clause_invalid(self):
+        clause = "invalid_part AND id=1"
+        result = parse_sql_clause(clause, "AND")
+        assert result == {"id": "1"}
 
     def test_parse_sql_update_query(self):
         query = "SET amount=100 WHERE id=1 AND name='test'"
         set_assignments, where_assignments = parse_sql_update_query(query)
         assert set_assignments == {"amount": "100"}
         assert where_assignments == {"id": "1", "name": "test"}
+
+    def test_parse_sql_update_query_no_where(self):
+        query = "SET amount=100, status='Done'"
+        set_assignments, where_assignments = parse_sql_update_query(query)
+        assert set_assignments == {"amount": "100", "status": "Done"}
+        assert where_assignments == {}

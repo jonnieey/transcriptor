@@ -808,16 +808,17 @@ class TranscriptorCMD(cmd2.Cmd):
 
     def delete_jobs(self, args: Namespace):
         jobs = None
+        conditions = None
 
         if args.raw:
             jobs = self.app.api.get_jobs(raw_sql_stmt=args.raw)
 
-        if not args.where:
+        if not args.where and not args.raw:
             self.poutput("Please provide conditions to delete")
 
             return
 
-        else:
+        elif args.where:
             conditions = parse_conditions(args.where)
 
             jobs = self.app.api.get_jobs(conditions=conditions)

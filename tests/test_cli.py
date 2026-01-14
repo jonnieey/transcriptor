@@ -41,6 +41,7 @@ def mock_transcriptor(test_base_dir):
         mock.return_value.base_dir = test_base_dir
         mock.return_value.CONFIG_DIR = test_base_dir
         mock.return_value.api = MagicMock(spec=API)
+        mock.return_value.backup = MagicMock()  # Add backup mock
         yield mock
 
 
@@ -301,3 +302,389 @@ def test_do_clear(cli_app):
         result = cli_app.onecmd("clear")
         assert result is False
         mock_system.assert_called_once_with("clear")
+
+
+def test_do_update_clients_missing_args(cli_app):
+    cli_app.poutput = MagicMock()
+    cli_app.onecmd("update client")
+    cli_app.poutput.assert_called_with("Please provide conditions and values")
+
+
+def test_do_update_rates_missing_args(cli_app):
+    cli_app.poutput = MagicMock()
+    cli_app.onecmd("update rates")
+    cli_app.poutput.assert_called_with("Please provide conditions and values")
+
+
+def test_do_update_jobs_missing_args(cli_app):
+    cli_app.poutput = MagicMock()
+    cli_app.onecmd("update jobs")
+    cli_app.poutput.assert_called_with("Please provide conditions and values")
+
+
+def test_do_update_jobs_raw(cli_app, mock_transcriptor):
+    cli_app.onecmd("update jobs --raw \"SET status='Done' WHERE id=1\"")
+    mock_transcriptor.return_value.update_jobs.assert_called()
+
+
+def test_do_backup(cli_app, mock_transcriptor):
+    cli_app.onecmd("backup")
+    mock_transcriptor.return_value.backup.create_backup.assert_called_once()
+
+
+def test_do_restore(cli_app, mock_transcriptor):
+    mock_backup = MagicMock()
+    mock_backup.name = "backup.tar.gz"
+    mock_transcriptor.return_value.backup.list_backups.return_value = [
+        mock_backup
+    ]
+
+    with patch("transcriptor.cli.prompt", return_value="1"):
+        cli_app.onecmd("restore")
+        mock_transcriptor.return_value.backup.restore_backup.assert_called_with(
+            mock_backup
+        )
+
+
+def test_do_restore_no_backups(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.backup.list_backups.return_value = []
+    cli_app.poutput = MagicMock()
+    cli_app.onecmd("restore")
+    cli_app.poutput.assert_called_with("No backups found.")
+
+
+def test_do_show_rates(cli_app, mock_transcriptor):
+    cli_app.onecmd("show rates")
+    mock_transcriptor.return_value.api.get_rates.assert_called_once()
+
+
+def test_do_show_jobs(cli_app, mock_transcriptor):
+    cli_app.onecmd("show jobs -a")
+    mock_transcriptor.return_value.api.get_jobs.assert_called_with()
+
+
+def test_do_show_jobs_pending(cli_app, mock_transcriptor):
+    cli_app.onecmd("show jobs")
+    mock_transcriptor.return_value.api.get_jobs.assert_called_with(
+        conditions={"status": [("=", "Pending")]}
+    )
+
+
+def test_do_show_cutoffs(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.load_cutoffs.return_value = [
+        ["2023-01-01", "2023-01-15"]
+    ]
+    cli_app.onecmd("show cutoffs")
+    mock_transcriptor.return_value.load_cutoffs.assert_called_once()
+
+
+def test_do_show_version(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.version = "1.0.0"
+    cli_app.poutput = MagicMock()
+    cli_app.onecmd("show version")
+    cli_app.poutput.assert_called_with("Version: 1.0.0")
+
+
+def test_do_add_cutoffs(cli_app, mock_transcriptor):
+    mock_path = MagicMock(spec=Path)
+    mock_path.exists.return_value = True
+    cli_app.input_handler.get_cutoff_file = MagicMock(return_value=mock_path)
+    with patch(
+        "transcriptor.cli.generate_cutoff_list_from_docx", return_value=[]
+    ):
+        cli_app.onecmd("add cutoffs -f test.docx")
+        mock_transcriptor.return_value.save_cutoffs.assert_called_once()
+
+
+def test_do_update_profile_full(cli_app, mock_transcriptor):
+    cli_app.onecmd("update profile -n Name -a Area -c Country")
+    assert mock_transcriptor.return_value.profile.name == "Name"
+    assert mock_transcriptor.return_value.profile.area == "Area"
+    assert mock_transcriptor.return_value.profile.country == "Country"
+    mock_transcriptor.return_value.save_profile.assert_called_once()
+
+
+def test_do_delete_jobs_no_confirm(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.api.get_jobs.return_value = [
+        {"job_number": "J1"}
+    ]
+    with patch("transcriptor.cli.prompt", return_value="y"):
+        cli_app.onecmd("delete jobs -w id=1 -N")
+        mock_transcriptor.return_value.delete_jobs.assert_called_once()
+
+
+def test_do_invoice_no_args(cli_app):
+    cli_app.poutput = MagicMock()
+    cli_app.onecmd("invoice")
+    cli_app.poutput.assert_called()
+
+
+def test_do_invoice_print(cli_app, mock_transcriptor):
+    mock_client = MagicMock()
+    mock_client.id = 1
+    mock_client.name = "Client"
+    mock_transcriptor.return_value.api.get_clients.return_value = [
+        mock_client
+    ]
+    mock_transcriptor.return_value.generate_invoice.return_value = (
+        "html",
+        "Client",
+    )
+
+    cli_app.onecmd("invoice -c 1 -w id=1 -p")
+    mock_transcriptor.return_value.html_to_pdf.assert_called_once()
+
+
+def test_main_argv(mock_transcriptor):
+    with patch("transcriptor.cli.TranscriptorCMD") as MockCMD:
+        from transcriptor.cli import main
+
+        main(["show", "version"])
+        MockCMD.return_value.onecmd_plus_hooks.assert_called_with(
+            "show version"
+        )
+
+
+def test_main_keyboard_interrupt(mock_transcriptor):
+    with patch("transcriptor.cli.TranscriptorCMD") as MockCMD:
+        MockCMD.return_value.cmdloop.side_effect = KeyboardInterrupt
+        with patch("sys.exit"):
+            from transcriptor.cli import main
+
+            assert main() is True
+
+
+def test_do_update_clients_raw(cli_app, mock_transcriptor):
+    cli_app.onecmd("update client -r \"SET name='New' WHERE id=1\"")
+    mock_transcriptor.return_value.api.update.assert_called_with(
+        "clients", raw_sql_stmt="SET name='New' WHERE id=1"
+    )
+
+
+def test_do_update_job_table_no_values(cli_app):
+    cli_app.poutput = MagicMock()
+    with patch("transcriptor.cli.prompt", return_value="1"):
+        cli_app.onecmd("update jobs -T")
+        cli_app.poutput.assert_called_with(
+            "Please provide values to be updated."
+        )
+
+
+def test_do_delete_clients_raw(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.api.get_clients.return_value = [
+        {"name": "Test", "id": 1}
+    ]
+    # We need to mock prompt to return "y" then "Test" because the first prompt is "Are you sure..."?
+    # No, delete_clients logic:
+    # if args.no_confirm: ...
+    # else: for client in clients: prompt("Are you sure...?") -> if y -> prompt("Type name to confirm")
+    with patch("transcriptor.cli.prompt", side_effect=["y", "Test"]):
+        cli_app.onecmd('delete clients -r "WHERE id=1"')
+        mock_transcriptor.return_value.delete_clients.assert_called()
+
+
+def test_do_delete_jobs_raw(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.api.get_jobs.return_value = [
+        {"job_number": "J1", "id": 1}
+    ]
+    with patch("transcriptor.cli.prompt", side_effect=["y", "J1"]):
+        cli_app.onecmd('delete jobs -r "WHERE id=1"')
+        mock_transcriptor.return_value.delete_jobs.assert_called()
+
+
+def test_do_restore_invalid_input(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.backup.list_backups.return_value = [
+        MagicMock(name="backup1")
+    ]
+    cli_app.poutput = MagicMock()
+    with patch("transcriptor.cli.prompt", return_value="invalid"):
+        cli_app.onecmd("restore")
+        cli_app.poutput.assert_any_call(
+            "Invalid input. Please enter a number."
+        )
+
+
+def test_do_restore_invalid_selection(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.backup.list_backups.return_value = [
+        MagicMock(name="backup1")
+    ]
+    cli_app.poutput = MagicMock()
+    with patch("transcriptor.cli.prompt", return_value="99"):
+        cli_app.onecmd("restore")
+        cli_app.poutput.assert_any_call("Invalid selection.")
+
+
+def test_do_invoice_missing_args(cli_app):
+    cli_app.poutput = MagicMock()
+    cli_app.onecmd("invoice")
+    assert cli_app.poutput.called
+
+
+def test_do_purge_raw(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.api.get_jobs.return_value = [
+        {"job_path": "path"}
+    ]
+    with patch("transcriptor.cli.prompt", return_value="y"):
+        cli_app.onecmd('purge -r "WHERE id=1"')
+        mock_transcriptor.return_value.purge_job_files.assert_called()
+
+
+def test_do_add_job_file_not_found(cli_app):
+    cli_app.poutput = MagicMock()
+    cli_app.input_handler.get_job_file_path = MagicMock(
+        return_value=Path("non_existent")
+    )
+    cli_app.onecmd("add job -f non_existent")
+    assert cli_app.poutput.called
+
+
+def test_do_update_rates_where(cli_app, mock_transcriptor):
+    with patch("transcriptor.cli.prompt", side_effect=["y"]):
+        cli_app.onecmd("update rates -w id=1 -v normal=0.6")
+        mock_transcriptor.return_value.api.update_rates.assert_called()
+
+
+def test_do_update_job_raw(cli_app, mock_transcriptor):
+    cli_app.onecmd("update jobs -r \"SET status='Done' WHERE id=1\"")
+    mock_transcriptor.return_value.update_jobs.assert_called_with(
+        raw_sql_stmt="SET status='Done' WHERE id=1"
+    )
+
+
+def test_do_delete_clients_confirm(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.api.get_clients.return_value = [
+        {"name": "Test", "id": 1}
+    ]
+    # Prompt: Are you sure? (y), Type Test to confirm (Test)
+    with patch("transcriptor.cli.prompt", side_effect=["y", "Test"]):
+        cli_app.onecmd("delete clients -w id=1")
+        mock_transcriptor.return_value.delete_clients.assert_called()
+
+
+def test_do_invoice_raw(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.get_invoice_jobs.return_value = []
+    mock_transcriptor.return_value.generate_invoice.return_value = (
+        "html",
+        "Client",
+    )
+
+    with patch("transcriptor.cli.prompt", return_value="1"):
+        cli_app.onecmd('invoice -r "WHERE id=1"')
+        mock_transcriptor.return_value.get_invoice_jobs.assert_called()
+
+
+def test_do_invoice_table(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.load_cutoffs.return_value = [
+        ["Cutoff", "Deposit"],
+        ["2023-01-01", "2023-01-15"],
+    ]
+    mock_transcriptor.return_value.select_cutoff_period.return_value = (
+        "2023-01-01",
+        "2023-01-15",
+    )
+    mock_transcriptor.return_value.get_invoice_jobs.return_value = []
+    mock_transcriptor.return_value.generate_invoice.return_value = (
+        "html",
+        "Client",
+    )
+
+    with patch(
+        "transcriptor.cli.prompt", side_effect=["1", "1"]
+    ):  # client_id, cutoff_idx
+        cli_app.onecmd("invoice -T")
+        mock_transcriptor.return_value.get_invoice_jobs.assert_called()
+
+
+def test_do_add_client_missing(cli_app, mock_transcriptor):
+    cli_app.poutput = MagicMock()
+    cli_app.input_handler.get_client_info = MagicMock(
+        return_value={"name": "", "email": ""}
+    )
+    cli_app.onecmd("add client")
+    cli_app.poutput.assert_called_with("Name and email are required.")
+
+
+def test_do_delete_clients_no_where(cli_app):
+    cli_app.poutput = MagicMock()
+    cli_app.onecmd("delete clients")
+    cli_app.poutput.assert_called_with("Please provide conditions to delete")
+
+
+def test_do_delete_clients_not_found(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.api.get_clients.return_value = []
+    cli_app.poutput = MagicMock()
+    cli_app.onecmd("delete clients -w id=999")
+    cli_app.poutput.assert_called_with("No clients found")
+
+
+def test_do_invoice_csv(cli_app, mock_transcriptor):
+    mock_client = MagicMock()
+    mock_client.id = 1
+    mock_client.name = "Client"
+    mock_transcriptor.return_value.api.get_clients.return_value = [
+        mock_client
+    ]
+    mock_transcriptor.return_value.get_invoice_jobs.return_value = []
+    mock_transcriptor.return_value.generate_invoice.return_value = (
+        "html",
+        "Client",
+    )
+
+    cli_app.onecmd("invoice -c 1 -w id=1 --csv")
+    mock_transcriptor.return_value.generate_csv_invoice.assert_called_once()
+
+
+def test_do_invoice_markdown(cli_app, mock_transcriptor):
+    mock_client = MagicMock()
+    mock_client.id = 1
+    mock_client.name = "Client"
+    mock_transcriptor.return_value.api.get_clients.return_value = [
+        mock_client
+    ]
+    mock_transcriptor.return_value.get_invoice_jobs.return_value = []
+    mock_transcriptor.return_value.generate_invoice.return_value = (
+        "html",
+        "Client",
+    )
+    mock_transcriptor.return_value.to_md.return_value = "markdown"
+
+    with patch("rich.console.Console.print") as mock_print:
+        cli_app.onecmd("invoice -c 1 -w id=1 -m")
+        mock_print.assert_called()
+
+
+def test_do_purge_no_args(cli_app):
+    cli_app.poutput = MagicMock()
+    cli_app.onecmd("purge")
+    cli_app.poutput.assert_called_with("Please provide conditions to purge")
+
+
+def test_do_update_job_conditions_values(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.api.get_jobs.return_value = [{"id": 1}]
+    cli_app.onecmd("update jobs -w id=1 -v status=Done")
+    mock_transcriptor.return_value.update_jobs.assert_called()
+
+
+def test_do_delete_clients_interactive(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.api.get_clients.return_value = [
+        {"name": "Client1", "id": 1}
+    ]
+    # Prompt flow:
+    # 1. Are you sure? (y)
+    # 2. Type Client1 to confirm (Client1)
+    with patch("transcriptor.cli.prompt", side_effect=["y", "Client1"]):
+        cli_app.onecmd("delete clients -w id=1")
+        mock_transcriptor.return_value.delete_clients.assert_called()
+
+
+def test_do_invoice_prompt_client(cli_app, mock_transcriptor):
+    mock_transcriptor.return_value.get_invoice_jobs.return_value = []
+    mock_transcriptor.return_value.generate_invoice.return_value = (
+        "html",
+        "Client",
+    )
+
+    # Prompt for client id
+    with patch("transcriptor.cli.prompt", return_value="1"):
+        cli_app.onecmd("invoice -w id=1")
+        mock_transcriptor.return_value.get_invoice_jobs.assert_called()

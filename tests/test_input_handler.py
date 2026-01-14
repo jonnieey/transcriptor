@@ -195,3 +195,11 @@ class TestGetFiles:
         mock_args.file = "job.mp3"
         path = input_handler.get_job_file_path(mock_args)
         assert path == Path("job.mp3")
+
+    @patch("transcriptor.input_handler.prompt")
+    def test_get_job_file_path_prompt(
+        self, mock_prompt, input_handler, mock_args
+    ):
+        mock_prompt.return_value = "job.mp3"
+        path = input_handler.get_job_file_path(mock_args)
+        assert path == Path("job.mp3")

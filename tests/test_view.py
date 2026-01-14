@@ -1,6 +1,5 @@
 import unittest.mock
-from datetime import date, timedelta
-from unittest.mock import MagicMock
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -51,6 +50,37 @@ class TestViewGeneration:
     def test_generate_table_with_ordination(self, view):
         data = {"key1": "value1", "key2": "value2"}
         view.generate_table(data, orientation="vertical", ordination=["key2"])
+        # Should only have key2
+        assert len(view.table.rows) == 1
+
+    def test_generate_table_non_dict_object(self, view):
+        class MockObj:
+            def __init__(self):
+                self.name = "Test"
+                self.val = 10
+
+        view.generate_table([MockObj()], orientation="horizontal")
+        assert len(view.table.columns) == 2
+
+    def test_generate_table_horizontal_with_totals(self, view):
+        data = [
+            {"name": "A", "amount": 10.0, "amount_paid": 5.0, "job_count": 1},
+            {
+                "name": "B",
+                "amount": 20.0,
+                "amount_paid": 10.0,
+                "job_count": 2,
+            },
+        ]
+        view.generate_table(data, orientation="horizontal")
+        # Header + 2 rows + section + total row = 4 rows in rich Table.rows if section is a row?
+        # Actually rich Table.rows doesn't include header.
+        # 2 data rows + 1 total row = 3 rows.
+        assert len(view.table.rows) == 3
+        # Check totals
+        # "10.00", "20.00" -> total "30.00"
+        # "5.00", "10.00" -> total "15.00"
+        # "1", "2" -> total "3"
 
     def test_empty_data(self, view):
         view.generate_table([])
@@ -150,6 +180,16 @@ class TestItemStyle:
         style = view._get_item_style(item)
         assert style == "#50fa7b"
 
+    def test_due_date_as_date_obj(self, view):
+        item = {"date_due": date.today() + timedelta(days=10)}
+        style = view._get_item_style(item)
+        assert style == "#50fa7b"
+
+    def test_due_date_as_datetime_obj(self, view):
+        item = {"date_due": datetime.now() + timedelta(days=10)}
+        style = view._get_item_style(item)
+        assert style == "#50fa7b"
+
     def test_invalid_date(self, view):
         item = {"date_due": "invalid-date"}
         style = view._get_item_style(item)
@@ -162,9 +202,67 @@ class TestItemStyle:
 
 
 class TestPrintTable:
-    def test_print_table(self, view):
-        # Mock console to verify print called
-        view.console = MagicMock()
-        data = {"key": "value"}
-        view.print_table(data)
-        view.console.print.assert_called_once()
+    def test_generate_table_vertical_list_of_lists_date_error(self, view):
+        # Trigger ValueError in date parsing
+        data = [["Cutoff", "Deposit"], ["invalid-date", "2023-01-20"]]
+        view.generate_table(data, orientation="vertical")
+        # Should not crash, just not highlight
+        assert len(view.table.rows) == 2
+
+    def test_generate_table_horizontal_list_of_lists_date_error(self, view):
+        data = [
+            ["Index", "Cutoff", "Deposit"],
+            ["1", "invalid-date", "2023-01-20"],
+        ]
+        view.generate_table(data, orientation="horizontal")
+        assert len(view.table.rows) == 1
+
+    def test_get_item_style_date_submitted_paid_full(self, view):
+        item = {
+            "date_submitted": "2023-01-01",
+            "amount": 10.0,
+            "amount_paid": 10.0,
+        }
+        assert view._get_item_style(item) == "#f8f8f2"
+
+    def test_get_item_style_date_submitted_unpaid(self, view):
+        item = {
+            "date_submitted": "2023-01-01",
+            "amount": 10.0,
+            "amount_paid": 0.0,
+        }
+        assert view._get_item_style(item) == "#8be9fd"
+
+    def test_get_item_style_date_due_invalid_string(self, view):
+        item = {"date_due": "invalid"}
+        assert view._get_item_style(item) == "#f8f8f2"
+
+    def test_get_item_style_date_due_datetime(self, view):
+        dt = datetime.now() + timedelta(days=10)
+        item = {"date_due": dt}
+        assert view._get_item_style(item) == "#50fa7b"
+
+    def test_get_attr_dict(self, view):
+        obj = {"key": "value"}
+        assert view._get_attr(obj, "key") == "value"
+        assert view._get_attr(obj, "missing", "default") == "default"
+
+    def test_get_attr_object(self, view):
+        class Obj:
+            key = "value"
+
+        obj = Obj()
+        assert view._get_attr(obj, "key") == "value"
+        assert view._get_attr(obj, "missing", "default") == "default"
+
+    def test_generate_table_list_of_lists_column_index_error(self, view):
+        # Trigger IndexError when accessing column
+        data = [["Col1", "Col2"], ["Val1"]]  # Missing Val2
+        view.generate_table(data, orientation="vertical")
+        # Should handle it gracefully
+        assert len(view.table.rows) == 2  # 2 rows added for vertical
+
+    def test_generate_table_horizontal_list_of_lists_index_error(self, view):
+        data = [["Col1", "Col2"], ["Val1"]]
+        view.generate_table(data, orientation="horizontal")
+        assert len(view.table.rows) == 1

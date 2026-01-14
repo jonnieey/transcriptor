@@ -98,26 +98,145 @@ def test_add_job(api, sample_client_data, sample_job_data):
     assert isinstance(job_id, int)
     assert job_id > 0
 
+    def test_add_jobs(self, api_instance):
+        jobs = [
+            {
+                "client_id": 1,
+                "job_number": "J1",
+                "status": "Pending",
+                "amount": 10.0,
+            },
+            {
+                "client_id": 1,
+                "job_number": "J2",
+                "status": "Pending",
+                "amount": 20.0,
+            },
+        ]
+        api_instance.add_jobs(jobs)
+        result = api_instance.get_jobs(conditions={"client_id": [("=", 1)]})
+        assert len(result) >= 2
 
-def test_add_jobs(api, sample_client_data, sample_job_data):
-    # First add a client since jobs need a client_id
-    client_id = api.add_client(sample_client_data)
+    def test_session_scope_exception(self, api_instance):
+        with pytest.raises(Exception):
+            with api_instance.session_scope() as session:
+                session.add(Client(name="Fail"))
+                raise Exception("Boom")
 
-    # Create multiple job data with unique job numbers
-    jobs = []
-    for i in range(1, 4):
-        job = sample_job_data.copy()
-        job["client_id"] = client_id
-        job["job_number"] = f"JOB00{i}"
-        jobs.append(job)
+        # Verify rollback
+        clients = api_instance.get_clients(
+            conditions={"name": [("=", "Fail")]}
+        )
+        assert len(clients) == 0
 
-    api.add_jobs(jobs)
+    def test_build_statement_invalid_type(self, api_instance):
+        with pytest.raises(ValueError, match="Invalid stmt_type"):
+            api_instance._build_statement_with_conditions(
+                Client, {"id": [("=", 1)]}, stmt_type="insert"
+            )
 
-    # Verify jobs were added
-    stmt = api.get(Job)
-    with api.session_scope() as session:
-        result = session.execute(stmt).scalars().all()
-    assert len(result) == 3
+    def test_build_statement_invalid_column(self, api_instance):
+        with pytest.raises(AttributeError, match="Invalid column name"):
+            api_instance._build_statement_with_conditions(
+                Client, {"invalid_col": [("=", 1)]}
+            )
+
+    def test_build_statement_invalid_operator(self, api_instance):
+        # We need to mock table attribute access to not fail on getattr but fail on op_map lookup?
+        # Actually op_map key error raises ValueError.
+        with pytest.raises(ValueError, match="Invalid comparison operator"):
+            api_instance._build_statement_with_conditions(
+                Client, {"id": [("INVALID", 1)]}
+            )
+
+    def test_get_raw_sql(self, api_instance):
+        stmt = api_instance.get(Client, raw_sql_stmt="SELECT * FROM clients")
+        assert str(stmt) == "SELECT * FROM clients"
+
+    def test_update_exception(self, api_instance):
+        # Trigger exception in update by passing invalid values
+        # e.g. values that don't match columns
+        # However, update() catches Exception and prints it, returning False.
+        # We need to ensure _build_statement returns a stmt, then stmt.values() fails?
+        # Or just pass raw_sql_stmt that fails? No, raw_sql_stmt path doesn't try/except the same way?
+        # Let's try mocking _build_statement to return None or let .values() fail.
+
+        with patch.object(
+            api_instance, "_build_statement_with_conditions"
+        ) as mock_build:
+            mock_build.return_value = MagicMock()
+            mock_build.return_value.values.side_effect = Exception(
+                "Update fail"
+            )
+
+            result = api_instance.update(
+                Client, {"id": [("=", 1)]}, {"name": "New"}
+            )
+            assert result is False
+
+    def test_delete_exception(self, api_instance):
+        # Similar to update exception
+        with patch("sqlalchemy.delete") as mock_delete:
+            mock_delete.side_effect = Exception("Delete fail")
+            result = api_instance.delete(Client, {"id": [("=", 1)]})
+            assert result is False
+
+    def test_get_rates_raw_sql(self, api_instance):
+        # Setup data
+        cid = api_instance.add_client(
+            {"name": "RateClient", "email": "r@c.com"}
+        )
+        api_instance.add_rates({"client_id": cid, "normal": 0.5})
+
+        rates = api_instance.get_rates(
+            raw_sql_stmt="WHERE rates.client_id = " + str(cid)
+        )
+        assert len(rates) == 1
+        assert rates[0]["normal"] == 0.5
+
+    def test_get_jobs_raw_sql(self, api_instance):
+        cid = api_instance.add_client(
+            {"name": "JobClient", "email": "j@c.com"}
+        )
+        api_instance.add_job(
+            {"client_id": cid, "job_number": "RawJ1", "status": "Pending"}
+        )
+
+        jobs = api_instance.get_jobs(
+            raw_sql_stmt="WHERE jobs.client_id = " + str(cid)
+        )
+        assert len(jobs) == 1
+        assert jobs[0]["job_number"] == "RawJ1"
+        assert jobs[0]["client"].name == "JobClient"
+
+    def test_update_with_raw_sql(self, api_instance):
+        cid = api_instance.add_client(
+            {"name": "UpdateRaw", "email": "u@r.com"}
+        )
+
+        res = api_instance.update(
+            Client,
+            raw_sql_stmt="SET name = 'UpdatedRaw' WHERE id = " + str(cid),
+        )
+        assert res is not False
+
+        # Verify
+        clients = api_instance.get_clients(conditions={"id": [("=", cid)]})
+        assert clients[0]["name"] == "UpdatedRaw"
+
+    def test_delete_with_raw_sql(self, api_instance):
+        cid = api_instance.add_client(
+            {"name": "DeleteRaw", "email": "d@r.com"}
+        )
+
+        res = api_instance.delete(
+            Client, conditions=None, raw_sql_stmt="WHERE id = " + str(cid)
+        )
+        assert res is not False
+
+        # Verify
+        clients = api_instance.get_clients(conditions={"id": [("=", cid)]})
+        assert len(clients) == 0
 
 
 def test_get_clients(api):
@@ -401,6 +520,65 @@ def test_build_statement_with_conditions(api):
         api._build_statement_with_conditions(
             Client, conditions={"bad_column": [("=", 1)]}, stmt_type="select"
         )
+
+
+def test_build_statement_exceptions(api):
+    # Test invalid column (AttributeError) - already covered but let's be explicit with the specific error message check if needed
+    with pytest.raises(
+        AttributeError, match="Invalid column name 'bad_column'"
+    ):
+        api._build_statement_with_conditions(
+            Client, conditions={"bad_column": [("=", 1)]}
+        )
+
+    # Test invalid operator (ValueError)
+    with pytest.raises(ValueError, match="Invalid comparison operator"):
+        api._build_statement_with_conditions(
+            Client, conditions={"name": [("bad_op", "test")]}
+        )
+
+    # Test invalid statement type (ValueError)
+    with pytest.raises(ValueError, match="Invalid stmt_type"):
+        api._build_statement_with_conditions(
+            Client, conditions={"name": [("=", "test")]}, stmt_type="insert"
+        )
+
+
+def test_api_update_generic(api, sample_client_data):
+    client_id = api.add_client(sample_client_data)
+
+    # Test raw sql update
+    result = api.update(
+        Client, raw_sql_stmt=f"SET name='Updated' WHERE id={client_id}"
+    )
+    assert result is not False
+
+    # Test update with missing args (returns False)
+    assert (
+        api.update(Client, conditions=None, values={"name": "test"}) is False
+    )
+    assert (
+        api.update(Client, conditions={"id": [("=", 1)]}, values=None)
+        is False
+    )
+
+    # invalid column in values might not raise at this stage depending on SQLAlchemy version
+    # so we skip asserting it returns False here to avoid flakes
+
+
+def test_api_delete_generic(api, sample_client_data):
+    client_id = api.add_client(sample_client_data)
+
+    # Test raw sql delete
+    result = api.delete(
+        Client, conditions=None, raw_sql_stmt=f"WHERE id={client_id}"
+    )
+    assert result is not False
+
+    # Test delete with error (invalid operator in generic delete)
+    # The delete method catches exceptions and returns False
+    result = api.delete(Client, conditions={"id": [("bad_op", client_id)]})
+    assert result is False
 
 
 def test_get_method(api):

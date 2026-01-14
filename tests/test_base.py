@@ -420,3 +420,390 @@ def test_delete_jobs_with_purge(transcriptor, test_base_dir):
 
     assert len(deleted) == 1
     assert not job_dir.exists()
+
+
+def test_create_job_full_flow(transcriptor, test_base_dir):
+    client_name = "FullJob"
+    transcriptor.create_client(name=client_name, email="full@test.com")
+    client_id = transcriptor.api.get_clients(
+        conditions={"name": [("=", client_name)]}
+    )[0]["id"]
+
+    # Create dummy job file
+    job_file = test_base_dir / "job.mp3"
+    job_file.touch()
+
+    job_info = {
+        "client_id": client_id,
+        "job_number": "FULL001",
+        "date_received": "2023-01-01",
+        "date_due": "2023-01-10",
+    }
+
+    # Callback to return task info
+    def task_callback(task_file):
+        return {
+            "job_type": "Normal",
+            "quantity": 10.0,
+            "total_quantity": 10.0,
+            "job_template": "zd",
+            "note": "test",
+            "date_due": "2023-01-10",
+        }
+
+    # Mock media utils to return our dummy file
+    with patch("transcriptor.base.get_media_files", return_value=[job_file]):
+        with patch(
+            "transcriptor.base.next_non_existent_file",
+            return_value=test_base_dir / "final_task.docx",
+        ):
+            transcriptor.create_job(str(job_file), job_info, task_callback)
+
+    # Verify job created
+    jobs = transcriptor.api.get_jobs(
+        conditions={"job_number": [("=", "FULL001")]}
+    )
+    assert len(jobs) == 1
+    assert jobs[0]["amount"] == 4.0  # 10 * 0.4
+
+
+def test_get_summary_invoice_jobs(transcriptor):
+    client_name = "SummaryClient"
+    transcriptor.create_client(name=client_name, email="summary@test.com")
+    client_id = transcriptor.api.get_clients(
+        conditions={"name": [("=", client_name)]}
+    )[0]["id"]
+
+    # Add paid jobs in different months
+    # Month 1
+    job1 = {
+        "client_id": client_id,
+        "job_number": "S1",
+        "status": "Done",
+        "amount": 10.0,
+        "amount_paid": 10.0,
+        "date_received": "2023-01-01",
+        "date_due": "2023-01-05",
+        "date_submitted": "2023-01-10",
+        "job_path": "path",
+        "job_type": "Normal",
+        "quantity": 1,
+        "total_quantity": 1,
+        "job_rate": 0.4,
+    }
+    transcriptor.api.add_job(job1)
+
+    # Mock cutoffs
+    cutoffs = [
+        ["Cutoff", "Deposit"],
+        [date(2023, 1, 31), date(2023, 2, 5)],
+    ]
+    with patch.object(transcriptor, "load_cutoffs", return_value=cutoffs):
+        with patch.object(
+            transcriptor,
+            "select_cutoff_period",
+            return_value=(date(2023, 1, 1), date(2023, 1, 31)),
+        ):
+            summary = transcriptor.get_summary_invoice_jobs(
+                client_id, year=2023
+            )
+
+    assert client_name in summary
+    assert len(summary[client_name]) == 1
+    assert (
+        summary[client_name][0]["month"] == "February"
+    )  # Deposit date month
+    assert summary[client_name][0]["total"] == 10.0
+
+
+def test_generate_csv_invoice(transcriptor, test_base_dir):
+    client_name = "CSVClient"
+    transcriptor.create_client(name=client_name, email="csv@test.com")
+
+    jobs = [
+        {
+            "job_number": "J1",
+            "job_type": "Normal",
+            "job_rate": 0.5,
+            "quantity": 10,
+            "amount": 5.0,
+        }
+    ]
+
+    transcriptor.generate_csv_invoice(jobs, client_name)
+
+    csv_dir = test_base_dir / "clients" / "CSVClient" / "invoices" / "csv"
+    assert csv_dir.exists()
+    assert len(list(csv_dir.glob("*.csv"))) == 1
+
+
+def test_purge_job_files(transcriptor, test_base_dir):
+    job_path = test_base_dir / "job_files" / "audio.mp3"
+    job_path.parent.mkdir(parents=True)
+    job_path.touch()
+
+    jobs = [{"job_path": str(job_path)}]
+
+    transcriptor.purge_job_files(jobs)
+    assert not job_path.exists()
+
+
+def test_get_invoice_jobs_no_id(transcriptor):
+    assert transcriptor.get_invoice_jobs(None) == ("", "")
+
+
+def test_generate_invoice_no_jobs(transcriptor):
+    assert transcriptor.generate_invoice([]) == ("", "")
+
+
+def test_get_summary_invoice_jobs_no_id(transcriptor):
+    with patch.object(
+        transcriptor, "load_cutoffs", return_value=[["Cutoff", "Deposit"]]
+    ):
+        assert transcriptor.get_summary_invoice_jobs(None) == {}
+
+
+def test_get_summary_invoice_jobs_no_client(transcriptor):
+    with patch.object(
+        transcriptor, "load_cutoffs", return_value=[["Cutoff", "Deposit"]]
+    ):
+        assert transcriptor.get_summary_invoice_jobs(999) == {}
+
+
+def test_mv_extract_job_file_error(transcriptor):
+    # Pass a non-existent file to trigger error (it logs but doesn't raise usually)
+    # Actually mv_extract_job_file uses shutil.copy which raises.
+    # But wait, Transcriptor.mv_extract_job_file:
+    # if zipfile.is_zipfile(job_file):
+    #    try: ... except Exception as e: logger.error(...)
+    # else: shutil.copy(job_file, job_dir)
+
+    with pytest.raises(FileNotFoundError):
+        transcriptor.mv_extract_job_file("non_existent.zip", "/tmp")
+
+
+def test_create_job_no_client(transcriptor):
+    # Should log error and return
+    transcriptor.create_job("file.mp3", {"client_id": 999}, lambda x: {})
+
+
+def test_load_cutoffs_not_found(transcriptor):
+    # Pass a non-existent file
+    with pytest.raises(FileNotFoundError):
+        transcriptor.load_cutoffs(file_path="non_existent.csv")
+
+
+def test_select_cutoff_period_first_year_prev(transcriptor, test_base_dir):
+    # Test deposit_date_idx == 0 and previous year cutoffs logic
+    cutoffs = [["Cutoff", "Deposit"], [date(2023, 1, 15), date(2023, 1, 20)]]
+    # It is called 3 times total:
+    # 1. cutoff_deposit_pairs = self.load_cutoffs(year=year)
+    # 2. cutoff_deposit_pairs = self.load_cutoffs(year=year)[1:]
+    # 3. previous_year_cutoffs = self.load_cutoffs(year=previous_year)[1:]
+    with patch.object(
+        transcriptor,
+        "load_cutoffs",
+        side_effect=[cutoffs, cutoffs, Exception("no 2022")],
+    ):
+        prev, curr = transcriptor.select_cutoff_period(1, cutoffs=None)
+        assert prev is None
+        assert curr == date(2023, 1, 15)
+
+
+def test_update_jobs_sync_files(transcriptor, test_base_dir):
+    client_name = "SyncClient"
+    transcriptor.create_client(name=client_name, email="sync@test.com")
+    client_id = transcriptor.api.get_clients(
+        conditions={"name": [("=", client_name)]}
+    )[0]["id"]
+
+    # Create a job with a file
+    job_dir = transcriptor.create_job_dir(
+        client_name, "SYNC001", "2023-01-01", "2023-01-10"
+    )
+    job_file = job_dir / "task.mp3"
+    job_file.touch()
+
+    job_data = {
+        "client_id": client_id,
+        "job_number": "SYNC001",
+        "date_received": "2023-01-01",
+        "date_due": "2023-01-10",
+        "job_path": str(job_file),
+        "status": "Pending",
+        "amount": 0,
+        "job_type": "Normal",
+        "quantity": 0,
+        "total_quantity": 0,
+        "job_rate": 0,
+    }
+    job_id = transcriptor.api.add_job(job_data)
+
+    # Update date_received - should trigger directory move
+    new_date = "2023-02-01"
+    transcriptor.update_jobs(
+        conditions={"id": [("=", job_id)]}, values={"date_received": new_date}
+    )
+
+    # Verify new directory exists
+    new_job_dir = transcriptor.create_job_dir(
+        client_name, "SYNC001", new_date, "2023-01-10"
+    )
+    assert new_job_dir.exists()
+    assert (new_job_dir / "task.mp3").exists()
+
+
+def test_write_config_exception(transcriptor):
+    with patch(
+        "transcriptor.models.Config.write",
+        side_effect=Exception("Write error"),
+    ):
+        with pytest.raises(RuntimeError):
+            transcriptor._write_config()
+
+
+def test_write_profile_exception(transcriptor):
+    with patch(
+        "transcriptor.models.Profile.write",
+        side_effect=Exception("Write error"),
+    ):
+        with pytest.raises(RuntimeError):
+            transcriptor._write_profile()
+
+
+def test_load_profile_exception(transcriptor):
+    # We need to ensure _profile_file_exists returns True first
+    with patch.object(
+        transcriptor, "_profile_file_exists", return_value=True
+    ):
+        with patch(
+            "transcriptor.base.Profile.from_yaml",
+            side_effect=Exception("Load error"),
+        ):
+            with pytest.raises(RuntimeError):
+                transcriptor._load_profile()
+
+
+def test_mv_extract_job_file_zip_error(transcriptor, caplog):
+    with patch("zipfile.is_zipfile", return_value=True):
+        with patch("zipfile.ZipFile", side_effect=Exception("Zip error")):
+            transcriptor.mv_extract_job_file("bad.zip", "dest")
+            assert "Could not extract zip file" in caplog.text
+
+
+def test_create_job_client_not_found(transcriptor, caplog):
+    transcriptor.create_job("job.mp3", {"client_id": 99999}, lambda x: {})
+    assert "No client found" in caplog.text
+
+
+def test_create_job_no_task_info(transcriptor, test_base_dir):
+    # Setup valid client
+    cid = transcriptor.api.add_client({"name": "NoTask", "email": "n@t.com"})
+
+    # Mock create_job_dir to avoid fs ops
+    with patch.object(transcriptor, "create_job_dir"):
+        # Mock get_media_files to return something
+        with patch(
+            "transcriptor.base.get_media_files",
+            return_value=[Path("file.mp3")],
+        ):
+            # task_callback returns None
+            transcriptor.create_job(
+                "job.mp3",
+                {
+                    "client_id": cid,
+                    "job_number": "J1",
+                    "date_received": "2023-01-01",
+                    "date_due": "2023-01-02",
+                },
+                lambda x: None,
+            )
+
+    # Verify no job added
+    jobs = transcriptor.api.get_jobs(conditions={"client_id": [("=", cid)]})
+    assert len(jobs) == 0
+
+
+def test_get_where_clause_none(transcriptor):
+    assert transcriptor._get_where_clause_from_update_sql(None) is None
+
+
+def test_get_update_client_name_raw(transcriptor):
+    cid = transcriptor.api.add_client(
+        {"name": "RawClient", "email": "r@c.com"}
+    )
+    name = transcriptor._get_update_client_name(
+        None, None, f"SET client_id={cid} WHERE id=1"
+    )
+    assert name == "RawClient"
+
+
+def test_read_invoice_counter_malformed(transcriptor, tmp_path):
+    f = tmp_path / "counter"
+    f.write_text("invalid")
+    with pytest.raises(ValueError):
+        transcriptor.read_invoice_counter(f)
+
+
+def test_increase_invoice_counter_malformed(transcriptor, tmp_path):
+    f = tmp_path / "counter"
+    f.write_text("invalid")
+    transcriptor.increase_invoice_counter(f)
+    assert f.read_text() == "00002"
+
+
+def test_purge_job_files_exception(transcriptor, test_base_dir, caplog):
+    # Create a file that fails to unlink
+    f = test_base_dir / "protected.mp3"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.touch()
+    with patch("pathlib.Path.unlink", side_effect=OSError("Access denied")):
+        transcriptor.purge_job_files([{"job_path": str(f)}])
+        assert "Error deleting file" in caplog.text
+
+
+def test_update_jobs_raw_sql_set_path(transcriptor):
+    cid = transcriptor.api.add_client({"name": "SetPath", "email": "s@p.com"})
+    # Add job_type="Normal"
+    jid = transcriptor.api.add_job(
+        {
+            "client_id": cid,
+            "job_number": "SP1",
+            "status": "Pending",
+            "job_path": "/tmp/old/file.mp3",
+            "date_received": "2023-01-01",
+            "date_due": "2023-01-05",
+            "job_type": "Normal",
+            "total_quantity": 0,
+            "quantity": 0,
+            "job_rate": 0,
+            "amount": 0,
+        }
+    )
+
+    with patch.object(
+        transcriptor, "_sync_job_files", return_value="/tmp/new/file.mp3"
+    ):
+        with patch.object(transcriptor.api, "update_jobs") as mock_update:
+            transcriptor.update_jobs(
+                raw_sql_stmt=f"SET status='Done' WHERE id={jid}"
+            )
+            # Check if raw_sql_stmt was modified
+            args = mock_update.call_args
+            assert (
+                'set job_path="/tmp/new/file.mp3", '
+                in args.kwargs["raw_sql_stmt"]
+            )
+
+
+def test_delete_jobs_raw_sql(transcriptor):
+    # Mock api.delete_jobs to return list
+    with patch.object(
+        transcriptor.api,
+        "delete_jobs",
+        return_value=[{"job_path": "/tmp/j1"}],
+    ) as mock_del:
+        transcriptor.delete_jobs(raw_sql_stmt="WHERE id=1", purge=False)
+        mock_del.assert_called_with(
+            conditions=None, raw_sql_stmt="WHERE id=1"
+        )

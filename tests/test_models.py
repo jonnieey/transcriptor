@@ -270,3 +270,16 @@ def test_invoice_custom_due_date():
 
     assert invoice.create_date == date.today()
     assert invoice.due_date == custom_date
+
+
+def test_yaml_base_write_error():
+    config = Config(base_dir="/tmp", date_format="", invoice_theme="")
+
+    with patch("builtins.open", side_effect=FileNotFoundError):
+        with pytest.raises(FileNotFoundError):
+            config.write(Path("bad.yaml"))
+
+    with patch("builtins.open", mock_open()):
+        with patch("yaml.dump", side_effect=Exception("Generic error")):
+            with pytest.raises(Exception):
+                config.write(Path("test.yaml"))
