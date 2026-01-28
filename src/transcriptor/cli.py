@@ -50,6 +50,7 @@ show_jobs_parser = show_subparsers.add_parser("jobs", help="show jobs")
 show_cutoffs_parser = show_subparsers.add_parser(
     "cutoffs", help="show cutoffs"
 )
+show_cutoffs_parser.add_argument("-y", "--year", help="Year for cutoffs")
 show_version_parser = show_subparsers.add_parser(
     "version", help="show version"
 )
@@ -186,6 +187,7 @@ update_jobs_parser.add_argument(
 update_jobs_parser.add_argument(
     "-c", "--client_id", type=int, help="Client ID"
 )
+update_jobs_parser.add_argument("-y", "--year", help="Year for cutoffs")
 
 delete_parser = base_subparsers.add_parser("delete", help="delete object")
 delete_subparsers = delete_parser.add_subparsers(
@@ -418,7 +420,7 @@ class TranscriptorCMD(cmd2.Cmd):
     show_jobs_parser.set_defaults(func=show_jobs)
 
     def show_cutoffs(self, args: Namespace):
-        cutoffs = self.app.load_cutoffs(as_str=True)
+        cutoffs = self.app.load_cutoffs(as_str=True, year=args.year)
         formatted_cutoffs = [[str(i)] + row for i, row in enumerate(cutoffs)]
         TranscriptorView().print_table(
             formatted_cutoffs, orientation="horizontal", title="Cutoffs"
@@ -608,7 +610,7 @@ class TranscriptorCMD(cmd2.Cmd):
 
                 return
 
-            cutoffs = self.app.load_cutoffs(as_str=True)
+            cutoffs = self.app.load_cutoffs(as_str=True, year=args.year)
 
             cutoffs = [
                 ["index" if row == 0 else str(idx)] + row
@@ -947,7 +949,7 @@ class TranscriptorCMD(cmd2.Cmd):
             invoice_jobs = invoice_jobs_dict[client_name]
 
         if args.table:
-            cutoffs = self.app.load_cutoffs(as_str=True)
+            cutoffs = self.app.load_cutoffs(as_str=True, year=args.year)
 
             cutoffs = [
                 ["index" if row == 0 else str(idx)] + row

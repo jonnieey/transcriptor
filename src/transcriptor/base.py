@@ -785,10 +785,15 @@ class Transcriptor:
 
         year = year or date.today().year
 
-        file_path = file_path or CUTOFFS_DIR / f"cutoffs_{year}.csv"  # type: ignore
-        with open(file_path, "w", newline="") as fd:
+        # Save as cutoffs_{year}.csv
+        yearly_file_path = CUTOFFS_DIR / f"cutoffs_{year}.csv"
+        with open(yearly_file_path, "w", newline="") as fd:
             writer = csv.writer(fd)
             writer.writerows(cutoffs)
+
+        # Also save as current_cutoffs.csv
+        current_file_path = CUTOFFS_DIR / "current_cutoffs.csv"
+        shutil.copyfile(yearly_file_path, current_file_path)
 
     def load_cutoffs(
         self,
@@ -801,9 +806,20 @@ class Transcriptor:
     ) -> Union[List[Union[Tuple[date, ...], List[str]]], Sequence[Any]]:
         CUTOFFS_DIR = self.base_dir / "cutoffs"
         CUTOFFS_DIR.mkdir(parents=True, exist_ok=True)
-        year = year or date.today().year
 
-        file_path = file_path or CUTOFFS_DIR / f"cutoffs_{year}.csv"  # type: ignore
+        if file_path is None:
+            if year is None:
+                # Try to load from current_cutoffs.csv first
+                current_file_path = CUTOFFS_DIR / "current_cutoffs.csv"
+                if current_file_path.exists():
+                    file_path = current_file_path
+                else:
+                    # Fall back to current year's cutoffs
+                    year = date.today().year
+                    file_path = CUTOFFS_DIR / f"cutoffs_{year}.csv"
+            else:
+                file_path = CUTOFFS_DIR / f"cutoffs_{year}.csv"
+
         with open(file_path, "r", newline="") as fd:
             cutoff_list: Sequence = list(csv.reader(fd))
 
