@@ -1,6 +1,7 @@
 import shutil
 import zipfile
 from datetime import date, datetime, timedelta
+from itertools import cycle
 from pathlib import Path
 from typing import Dict, List
 
@@ -67,6 +68,8 @@ class Dashboard(Container):
     def refresh_table(self):
         table = self.query_one("#pending-jobs-table", DataTable)
         table.clear(columns=True)
+        # Alternate row backgrounds for readability
+        table.zebra_stripes = True
         table.add_columns(
             ("⋮", "menu"),
             ("Select", "select"),
@@ -246,6 +249,8 @@ class JobsTable(Container):
     def refresh_table(self):
         table = self.query_one("#jobs-data-table", DataTable)
         table.clear(columns=True)
+        # Alternate row backgrounds for readability
+        table.zebra_stripes = True
         table.add_columns(
             ("⋮", "menu"),
             ("Select", "select"),
@@ -522,6 +527,7 @@ class Clients(Container):
         table = self.query_one("#clients-table", DataTable)
         table.clear(columns=True)
         table.cursor_type = "row"
+        table.zebra_stripes = True
         table.add_columns(
             ("⋮", "menu"),
             ("ID", "id"),
@@ -654,11 +660,9 @@ class ClientContextMenu(ModalScreen):
                 classes="context-title",
             )
             with ListView(id="action-list"):
-                yield ListItem(ListLabel("📝 Edit Client"), id="edit-client")
-                yield ListItem(
-                    ListLabel("🗑️ Delete Client"), id="delete-client"
-                )
-                yield ListItem(ListLabel("❌ Cancel"), id="cancel-context")
+                yield ListItem(Label("📝 Edit Client"), id="edit-client")
+                yield ListItem(Label("🗑️ Delete Client"), id="delete-client")
+                yield ListItem(Label("❌ Cancel"), id="cancel-context")
 
     def check_edit(self, confirm):
         if confirm:
@@ -817,6 +821,7 @@ class Rates(Container):
         table = self.query_one("#rates-table", DataTable)
         table.clear(columns=True)
         table.cursor_type = "row"
+        table.zebra_stripes = True
         table.add_columns(
             ("⋮", "menu"),
             ("Client", "client"),
@@ -925,8 +930,8 @@ class RateContextMenu(ModalScreen):
                 classes="context-title",
             )
             with ListView(id="action-list"):
-                yield ListItem(ListLabel("📝 Edit Rate"), id="edit-rate")
-                yield ListItem(ListLabel("❌ Cancel"), id="cancel-context")
+                yield ListItem(Label("📝 Edit Rate"), id="edit-rate")
+                yield ListItem(Label("❌ Cancel"), id="cancel-context")
 
     def check_edit(self, confirm):
         if confirm:
@@ -1369,9 +1374,9 @@ class JobContextMenu(ModalScreen):
                 classes="context-title",
             )
             with ListView(id="action-list"):
-                yield ListItem(ListLabel("📝 Edit Job"), id="edit-job")
-                yield ListItem(ListLabel("🗑️ Delete Job"), id="delete-job")
-                yield ListItem(ListLabel("❌ Cancel"), id="cancel-context")
+                yield ListItem(Label("📝 Edit Job"), id="edit-job")
+                yield ListItem(Label("🗑️ Delete Job"), id="delete-job")
+                yield ListItem(Label("❌ Cancel"), id="cancel-context")
 
     def check_edit(self, confirm):
         if confirm:
@@ -2339,7 +2344,7 @@ class Invoice(Container):
 
             # Right pane: Cutoffs table
             with Container(id="invoice-cutoffs-container"):
-                yield Label("Select Cutoff Period", classes="title")
+                yield Label("Select Deposit Period", classes="title")
                 yield DataTable(id="invoice-cutoffs-table")
 
     def on_mount(self):

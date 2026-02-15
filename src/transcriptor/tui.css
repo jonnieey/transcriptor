@@ -80,6 +80,22 @@ DataTable {
     scrollbar-color: $panel;
 }
 
+/* Dashboard table zebra rows */
+#pending-jobs-table .datatable--even-row { background: $panel; }
+#pending-jobs-table .datatable--odd-row  { background: $surface; }
+
+/* All jobs table zebra rows */
+#jobs-data-table .datatable--even-row { background: $panel; }
+#jobs-data-table .datatable--odd-row  { background: $surface; }
+
+/* Clients table zebra rows */
+#clients-table .datatable--even-row { background: $panel; }
+#clients-table .datatable--odd-row  { background: $surface; }
+
+/* Rates table zebra rows */
+#rates-table .datatable--even-row { background: $panel; }
+#rates-table .datatable--odd-row  { background: $surface; }
+
 /* SQL input */
 #sql-input {
     height: 30%;
