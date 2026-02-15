@@ -1127,12 +1127,17 @@ class Profile(Container):
         ("r", "refresh_table", "Refresh Table (R)"),
     ]
 
+    # Ensure container can receive focus so its bindings work when tab is active
+    can_focus = True
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def compose(self) -> ComposeResult:
         yield Label("Profile", classes="title")
         yield Static(id="profile-display")
+        with Horizontal(classes="button-bar"):
+            yield Button("Edit Profile", id="edit-profile")
 
     def on_mount(self):
         self.refresh_table()
@@ -1154,6 +1159,10 @@ Country: {profile.country}
                 self.refresh_table()
 
         self.app.push_screen(ProfileEditScreen(), check_edit)
+
+    @on(Button.Pressed, "#edit-profile")
+    def on_edit_profile_button(self):
+        self.action_edit_profile()
 
 
 class ProfileEditScreen(ModalScreen):
@@ -1227,7 +1236,7 @@ class ConfigurationScreen(ModalScreen):
                 )
                 yield select
 
-            with Horizontal(id="config-buttons"):
+            with Horizontal(id="edit-buttons"):
                 yield Button("Save", variant="primary", id="save-config")
                 yield Button("Cancel", variant="default", id="cancel-config")
 
@@ -1266,10 +1275,11 @@ class Configuration(Container):
     ]
 
     def compose(self) -> ComposeResult:
-        with VerticalScroll():
+        with VerticalScroll(id="config-container"):
             yield Label("Configuration & Settings", classes="title")
-            yield DataTable(id="config-table")
             yield Static(id="config-display")
+            with Horizontal(classes="edit-config-bar"):
+                yield Button("Edit Config", id="edit-config")
 
             yield Label("Data Management", classes="subtitle")
             with Horizontal(classes="button-bar"):
@@ -1298,6 +1308,10 @@ Invoice Theme: {config.invoice_theme}
                 self.refresh_table()
 
         self.app.push_screen(ConfigurationScreen(), check_edit)
+
+    @on(Button.Pressed, "#edit-config")
+    def on_edit_config_button(self):
+        self.action_edit_config()
 
     def action_refresh_table(self):
         self.refresh_table()
@@ -2829,19 +2843,32 @@ class TranscriptorTUI(App):
         self, event: TabbedContent.TabActivated
     ) -> None:
         """Show only the content for the active tab and refresh its data."""
-        event.tab.focus()
-
-        # Refresh the table/data for the activated tab
+        # Focus the pane's primary container so its key bindings (e, r, etc.) work
+        # and refresh its data.
         if event.pane.id == "dashboard":
-            self.query_one("#dashboard-pane", Dashboard).refresh_table()
+            pane = self.query_one("#dashboard-pane", Dashboard)
+            pane.refresh_table()
+            pane.focus()
+        elif event.pane.id == "all-jobs":
+            pane = self.query_one("#jobstable-pane", JobsTable)
+            pane.refresh_table()
+            pane.focus()
         elif event.pane.id == "clients":
-            self.query_one("#clients-pane", Clients).refresh_table()
+            pane = self.query_one("#clients-pane", Clients)
+            pane.refresh_table()
+            pane.focus()
         elif event.pane.id == "rates":
-            self.query_one("#rates-pane", Rates).refresh_table()
+            pane = self.query_one("#rates-pane", Rates)
+            pane.refresh_table()
+            pane.focus()
         elif event.pane.id == "profile":
-            self.query_one("#profile-pane", Profile).refresh_table()
+            pane = self.query_one("#profile-pane", Profile)
+            pane.refresh_table()
+            pane.focus()
         elif event.pane.id == "config":
-            self.query_one("#config-pane", Configuration).refresh_table()
+            pane = self.query_one("#config-pane", Configuration)
+            pane.refresh_table()
+            pane.focus()
 
 
 def main():

@@ -29,7 +29,7 @@ VerticalScroll {
 }
 
 /* Containers */
-.dashboard-container, .jobs-container, .cutoffs-container,
+.dashboard-container, .jobs-container, .cutoffs-container, .profile-container,
 .clients-container, .rates-container, .config-container, .sql-container {
     padding: 1;
     border: solid $accent;
@@ -62,7 +62,7 @@ Button {
     height: auto;
 }
 
-#preview-buttons, #edit-buttons, #query-buttons, #config-buttons, #selection-buttons {
+#preview-buttons, #edit-buttons, #query-buttons, #config-buttons, #selection-buttons, #profile-buttons {
     height: auto;
     align: right top;
 }
@@ -107,6 +107,20 @@ DataTable {
     height: 50%;
     margin: 1;
 }
+/* profile display */
+#profile-display {
+    margin: 1;
+    padding: 1;
+    border: solid $panel;
+    background: $panel;
+}
+
+
+#edit-profile, #edit-config {
+    height: auto;
+    border: solid $panel;
+    background: $panel;
+}
 
 /* Configuration display */
 #config-display {
@@ -115,8 +129,6 @@ DataTable {
     border: solid $panel;
     background: $panel;
 }
-/* Add these styles to your transcriptor_tui.css file */
-
 /* Job Edit Screen Styles */
 #job-edit {
     width: 1fr;
@@ -499,17 +511,27 @@ Input:focus, Select:focus, TextArea:focus {
 .two-col > Select {
     width: 1fr;
 }
+#config-container .edit-config > Button {
+    margin-left: 1;
+    width: 18;
+    background: $panel;
+}
+#config-container .button-bar {
+    height: auto;
+    align: left top;
+    background: $panel;
+}
+
+#config-container .button-bar > Button {
+    margin-left: 1;
+    min-width: 18;
+}
 
 /* Buttons in invoicing controls */
 #invoice-controls .button-bar {
     height: auto;
     margin: 1 0 0 0;
     align: right top;
-}
-
-#invoice-controls .button-bar > Button {
-    margin-left: 1;
-    min-width: 18;
 }
 
 #invoice-results {
