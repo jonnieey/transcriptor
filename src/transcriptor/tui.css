@@ -279,8 +279,260 @@ Input:focus, Select:focus, TextArea:focus {
     padding: 2 0;
 }
 
-#confirmation-buttons {
-    width: 100%;
-    align: center middle;
+
+/* Restore Screen Styles */
+#restore-screen {
+    width: 60%;
     height: auto;
+    border: double $accent;
+    background: $surface;
+    padding: 1;
+    align: center middle;
+}
+
+.restore-title {
+    text-align: center;
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+.restore-label {
+    margin-bottom: 1;
+}
+
+#restore-buttons {
+    margin-top: 1;
+    align: center middle;
+    width: 100%;
+}
+
+#restore-buttons > Button {
+    margin: 0 1;
+}
+
+/* Purge Screen Styles */
+#purge-screen {
+    width: 60%;
+    height: auto;
+    border: double $error;
+    background: $surface;
+    padding: 1;
+    align: center middle;
+}
+
+.purge-title {
+    text-align: center;
+    text-style: bold;
+    color: $error;
+    margin-bottom: 1;
+}
+
+.purge-label {
+    margin-bottom: 1;
+}
+
+#purge-buttons {
+    margin-top: 1;
+    align: center middle;
+    width: 100%;
+}
+
+#purge-buttons > Button {
+    margin: 0 1;
+}
+
+/* About Screen Styles */
+#about-screen {
+    width: 50%;
+    height: auto;
+    border: double $accent;
+    background: $surface;
+    padding: 1;
+    align: center middle;
+}
+
+.about-title {
+    text-align: center;
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+.about-text {
+    text-align: center;
+    margin-bottom: 1;
+}
+
+#about-buttons {
+    align: center middle;
+    width: 100%;
+}
+
+/* Add Cutoffs Styles */
+#add-cutoffs {
+    width: 60%;
+    height: auto;
+    border: double $accent;
+    background: $surface;
+    padding: 1;
+}
+
+.add-cutoffs-title {
+    text-align: center;
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+#add-cutoffs-form-container {
+    height: auto;
+    max-height: 70%;
+    margin-bottom: 1;
+}
+
+#add-cutoffs-buttons {
+    align: center middle;
+    width: 100%;
+}
+
+#add-cutoffs-buttons > Button {
+    margin: 0 1;
+}
+
+/* Edit Screens Styles */
+#client-edit, #rate-edit, #profile-edit, #context-menu {
+    width: 60%;
+    height: auto;
+    border: double $accent;
+    background: $surface;
+    padding: 1;
+    align: center middle;
+}
+
+#client-form-container, #rate-form-container, #profile-form-container {
+    height: auto;
+    max-height: 80%;
+    margin-bottom: 1;
+}
+
+.context-title {
+    text-align: center;
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+    border-bottom: solid $accent;
+}
+
+#action-list {
+    margin: 1;
+    height: auto;
+}
+
+/* Invoicing Tab Styles */
+.invoicing-container {
+    padding: 1;
+    border: solid $panel;
+}
+
+#invoice-main-layout {
+    height: 1fr;
+}
+
+#invoice-input-pane {
+    width: 3fr;
+    height: 1fr;
+    padding: 1;
+}
+
+#invoice-controls {
+    height: auto;
+    background: $panel;
+    padding: 1;
+    margin-bottom: 1;
+}
+
+#invoice-form-container {
+    background: $surface;
+    padding: 1;
+    margin: 1 0;
+}
+
+.form-row {
+    height: auto;
+    margin: 1 0;
+    align: left middle;
+}
+
+.form-row > Label {
+    width: 16;
+    text-align: right;
+    color: $accent;
+}
+
+.form-row > Input,
+.form-row > Select {
+    width: 1fr;
+}
+
+/* Two-pair row (Start/End dates in one row) */
+.two-col > Label {
+    width: 12;
+}
+.two-col > Input,
+.two-col > Select {
+    width: 1fr;
+}
+
+/* Buttons in invoicing controls */
+#invoice-controls .button-bar {
+    height: auto;
+    margin: 1 0 0 0;
+    align: right top;
+}
+
+#invoice-controls .button-bar > Button {
+    margin-left: 1;
+    min-width: 18;
+}
+
+#invoice-results {
+    height: auto;
+    border: solid $panel;
+    background: $surface;
+    padding: 1;
+}
+
+#invoice-jobs-table {
+    height: 1fr;
+    margin: 1 0;
+    min-height: 4;
+}
+
+/* Override/extend existing invoice markdown styles for the tab */
+#invoice-markdown {
+    background: $panel;
+    border: solid $panel;
+    margin: 1 0;
+    padding: 1;
+}
+
+#invoice-cutoffs-container {
+    width: 1fr;
+    padding: 1;
+    border-left: solid $panel;
+    background: $surface;
+}
+
+#invoice-cutoffs-container .title {
+    text-style: bold;
+    color: $accent;
+    text-align: center;
+    padding-bottom: 1;
+    border-bottom: solid $accent;
+}
+
+#invoice-cutoffs-table {
+    height: 1fr;
+    margin-top: 1;
 }
