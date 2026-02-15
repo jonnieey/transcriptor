@@ -3,7 +3,7 @@ import zipfile
 from datetime import date, datetime, timedelta
 from itertools import cycle
 from pathlib import Path
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 from textual import on
 from textual.app import App, ComposeResult
@@ -48,6 +48,71 @@ from transcriptor.utils import str_to_date as std
 from transcriptor.utils.docx_utils import generate_cutoff_list_from_docx
 
 
+# Shared DataTable sorting helpers
+def _dt_to_float(val):
+    try:
+        if isinstance(val, str):
+            return float(val.replace("$", "").replace(",", "").strip())
+        return float(val)
+    except Exception:
+        return 0.0
+
+
+def _dt_to_int(val):
+    try:
+        return int(str(val).strip())
+    except Exception:
+        return 0
+
+
+def _dt_to_lower(val):
+    return str(val).lower() if val is not None else ""
+
+
+def sort_datatable_by_column(
+    table: DataTable,
+    column_key: str,
+    toggles: set,
+    parse_date: Callable[[str], date] | None = None,
+) -> None:
+    """Sort a DataTable by `column_key`, toggling asc/desc per column.
+
+    - `toggles` is a set tracking which columns should be reversed on next click.
+    - `parse_date` optionally converts date strings to `date` objects using app format.
+    """
+    if column_key in {"menu", "select"}:
+        return
+
+    reverse = column_key in toggles
+    if reverse:
+        toggles.remove(column_key)
+    else:
+        toggles.add(column_key)
+
+    def _to_date(val):
+        if parse_date is None:
+            return date.min
+        try:
+            return parse_date(str(val))
+        except Exception:
+            return date.min
+
+    key_map = {
+        "id": _dt_to_int,
+        "job number": _dt_to_lower,
+        "client": _dt_to_lower,
+        "status": _dt_to_lower,
+        "date due": _to_date,
+        "job type": _dt_to_lower,
+        "quantity": _dt_to_float,
+        "rate": _dt_to_float,
+        "amount": _dt_to_float,
+    }
+
+    key_fn = key_map.get(column_key, _dt_to_lower)
+    table.sort(column_key, key=key_fn, reverse=reverse)
+
+
 class Dashboard(Container):
 
     BINDINGS = [
@@ -60,6 +125,7 @@ class Dashboard(Container):
         super().__init__(*args, **kwargs)
         self.selected_jobs = []
         self.checkboxes = []
+        self._sort_toggles = set()
 
     def compose(self) -> ComposeResult:
         yield DataTable(id="pending-jobs-table")
@@ -116,6 +182,19 @@ class Dashboard(Container):
 
     def on_mount(self):
         self.refresh_table()
+
+    @on(DataTable.HeaderSelected, "#pending-jobs-table")
+    def on_dashboard_header_selected(self, event: DataTable.HeaderSelected):
+        """Sort dashboard table by clicked column, toggling reverse."""
+        table = self.query_one("#pending-jobs-table", DataTable)
+        sort_datatable_by_column(
+            table,
+            event.column_key,
+            self._sort_toggles,
+            parse_date=lambda s: std(
+                s, self.app.transcriptor.config.date_format
+            ),
+        )
 
     def action_add_job(self) -> None:
         self.app.push_screen(AddJobScreen())
@@ -238,6 +317,7 @@ class JobsTable(Container):
         super().__init__(*args, **kwargs)
         self.selected_jobs = []
         self.checkboxes = []
+        self._sort_toggles = set()
 
     def compose(self) -> ComposeResult:
         yield DataTable(id="jobs-data-table")
@@ -291,6 +371,13 @@ class JobsTable(Container):
                 key=str(job_idx),
             )
 
+        # Initial sort: latest first (by id descending)
+        try:
+            table.sort("id", key=lambda v: int(str(v)), reverse=True)
+        except Exception:
+            # Fallback to natural reverse if conversion fails
+            table.sort("id", reverse=True)
+
     def action_add_job(self) -> None:
         self.app.push_screen(AddJobScreen())
 
@@ -339,6 +426,19 @@ class JobsTable(Container):
                     self.selected_jobs.remove(job_id)
 
             self.update_jobs_selection_info()
+
+    @on(DataTable.HeaderSelected, "#jobs-data-table")
+    def on_jobs_header_selected(self, event: DataTable.HeaderSelected):
+        """Sort all jobs table by clicked column, toggling reverse."""
+        table = self.query_one("#jobs-data-table", DataTable)
+        sort_datatable_by_column(
+            table,
+            event.column_key,
+            self._sort_toggles,
+            parse_date=lambda s: std(
+                s, self.app.transcriptor.config.date_format
+            ),
+        )
 
     def update_jobs_selection_info(self):
         """Update the selection info display"""
@@ -2734,10 +2834,6 @@ class TranscriptorTUI(App):
         # Refresh the table/data for the activated tab
         if event.pane.id == "dashboard":
             self.query_one("#dashboard-pane", Dashboard).refresh_table()
-        elif event.pane.id == "all-jobs":
-            self.query_one("#jobstable-pane", JobsTable).refresh_table()
-        # elif event.pane.id == "cutoffs":
-        #     self.query_one("#cutoffs-pane", Cutoffs).refresh_table()
         elif event.pane.id == "clients":
             self.query_one("#clients-pane", Clients).refresh_table()
         elif event.pane.id == "rates":
