@@ -113,19 +113,290 @@ def sort_datatable_by_column(
     table.sort(column_key, key=key_fn, reverse=reverse)
 
 
-class Dashboard(Container):
+class BaseTable(Container):
+    """Base class for tables with selectable rows and vim-like navigation."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.selected_items = []  # list of selected IDs
+        self._sort_toggles = set()
+        self.data = []  # raw data (list of dicts)
+
+    def get_table(self) -> DataTable:
+        """Return the main DataTable widget (must be overridden)."""
+        raise NotImplementedError
+
+    def get_id_column(self) -> str:
+        """Name of the column containing the unique ID."""
+        return "id"
+
+    def get_item_id(self, item) -> int:
+        """Extract the ID from a data item."""
+        return item.get("id") if isinstance(item, dict) else item.id
+
+    def get_item_client_name(self, item) -> str:
+        """Extract client name from a data item."""
+        if hasattr(item.get("client"), "name"):
+            return item.get("client").name
+        return item.get("client_name", str(item.get("client", "")))
+
+    def refresh_table(self):
+        """Load data and populate table (must be overridden)."""
+        raise NotImplementedError
+
+    def update_selection_info(self):
+        """Update the info Static widget (must be overridden)."""
+        raise NotImplementedError
+
+    def get_context_menu(self, item):
+        """Return a ModalScreen for the given item (must be overridden)."""
+        raise NotImplementedError
+
+    def get_selected_data(self):
+        """Return full dicts for selected items."""
+        selected = []
+        for item in self.data:
+            item_id = self.get_item_id(item)
+            if item_id in self.selected_items:
+                # Build a dict with client_name
+                if hasattr(item, "client"):
+                    client_name = (
+                        item.client.name
+                        if hasattr(item.client, "name")
+                        else str(item.client)
+                    )
+                else:
+                    client_name = item.get("client_name", "Unknown")
+                if hasattr(item, "__dict__"):
+                    d = item.__dict__.copy()
+                else:
+                    d = dict(item)
+                d["client_name"] = client_name
+                selected.append(d)
+        return selected
+
+    # -------- cell click handling --------
+    @on(DataTable.CellSelected)
+    def handle_cell_click(self, event: DataTable.CellSelected):
+        event.data_table
+        row_key = event.cell_key.row_key
+        column_key = event.cell_key.column_key
+
+        if column_key == "menu":
+            self._open_context_menu(row_key)
+        elif column_key == "select":
+            self._toggle_select(row_key)
+
+    def _open_context_menu(self, row_key):
+        # row_key is the key we set when adding rows (e.g., str(idx))
+        idx = int(row_key.value)
+        if 0 <= idx < len(self.data):
+            self.app.push_screen(self.get_context_menu(self.data[idx]))
+
+    def _toggle_select(self, row_key):
+        table = self.get_table()
+        item_id = int(table.get_cell(row_key, self.get_id_column()))
+        current = table.get_cell(row_key, "select")
+        if current == "☐":
+            table.update_cell(row_key, "select", "☑")
+            if item_id not in self.selected_items:
+                self.selected_items.append(item_id)
+        else:
+            table.update_cell(row_key, "select", "☐")
+            if item_id in self.selected_items:
+                self.selected_items.remove(item_id)
+        self.update_selection_info()
+
+    # -------- sorting --------
+    @on(DataTable.HeaderSelected)
+    def on_header_selected(self, event: DataTable.HeaderSelected):
+        """Sort table by clicked column, toggling reverse."""
+        sort_datatable_by_column(
+            self.get_table(),
+            event.column_key,
+            self._sort_toggles,
+            parse_date=lambda s: std(
+                s, self.app.transcriptor.config.date_format
+            ),
+        )
+
+    # -------- vim navigation --------
+    def _row_count(self) -> int:
+        try:
+            return self.get_table().row_count
+        except Exception:
+            return len(self.data)
+
+    def vim_focus_table(self):
+        self.get_table().focus()
+
+    def vim_move_down(self):
+        table = self.get_table()
+        if table.cursor_row is None:
+            table.move_cursor(row=0)
+        else:
+            rc = self._row_count()
+            table.move_cursor(row=min(table.cursor_row + 1, max(0, rc - 1)))
+
+    def vim_move_up(self):
+        table = self.get_table()
+        if table.cursor_row is None:
+            table.move_cursor(row=0)
+        else:
+            table.move_cursor(row=max(table.cursor_row - 1, 0))
+
+    def vim_top(self):
+        self.get_table().move_cursor(row=0)
+
+    def vim_bottom(self):
+        table = self.get_table()
+        rc = self._row_count()
+        if rc:
+            table.move_cursor(row=rc - 1)
+
+    def vim_toggle_select_current(self):
+        table = self.get_table()
+        if table.cursor_row is None:
+            return
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        self._toggle_select(row_key)
+
+    def vim_open_context_current(self):
+        table = self.get_table()
+        if table.cursor_row is None:
+            return
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        self._open_context_menu(row_key)
+
+
+class BaseAddScreen(ModalScreen):
+    """Base class for simple add screens with common save/cancel buttons."""
+
+    def __init__(self, title: str):
+        super().__init__()
+        self.title = title
+
+    def compose(self) -> ComposeResult:
+        with Container(id=self.get_container_id()):
+            yield Label(self.title, classes="add-title")
+            with VerticalScroll(id=self.get_form_id()):
+                with Vertical():
+                    yield from self.get_fields()
+            with Horizontal(id="add-buttons"):
+                yield Button("Save", variant="primary", id="save")
+                yield Button("Cancel", variant="default", id="cancel")
+
+    def get_container_id(self) -> str:
+        raise NotImplementedError
+
+    def get_form_id(self) -> str:
+        raise NotImplementedError
+
+    def get_fields(self):
+        raise NotImplementedError
+
+    @on(Button.Pressed, "#save")
+    def save(self):
+        if self.validate():
+            self.perform_add()
+            self.dismiss(True)
+
+    @on(Button.Pressed, "#cancel")
+    def cancel(self):
+        self.dismiss(False)
+
+    def validate(self) -> bool:
+        """Return True if input is valid."""
+        raise NotImplementedError
+
+    def perform_add(self):
+        """Create the new item."""
+        raise NotImplementedError
+
+
+class BaseEditScreen(ModalScreen):
+    """Base class for edit screens with common save/cancel buttons."""
+
+    def __init__(self, data: Dict, title: str):
+        super().__init__()
+        self.data = data
+        self.title = title
+
+    def compose(self) -> ComposeResult:
+        with Container(id=self.get_container_id()):
+            yield Label(self.title, classes="edit-title")
+            with VerticalScroll(id=self.get_form_id()):
+                with Vertical():
+                    yield from self.get_fields()
+            with Horizontal(id="edit-buttons"):
+                yield Button("Save", variant="primary", id="save")
+                yield Button("Cancel", variant="default", id="cancel")
+
+    def get_container_id(self) -> str:
+        """ID of the outer container."""
+        raise NotImplementedError
+
+    def get_form_id(self) -> str:
+        """ID of the form container (VerticalScroll)."""
+        raise NotImplementedError
+
+    def get_fields(self):
+        """Yield Label/Input/Select etc. for the form."""
+        raise NotImplementedError
+
+    @on(Button.Pressed, "#save")
+    def save(self):
+        updated = self.collect_values()
+        if updated is not None:
+            self.perform_update(updated)
+            self.dismiss(True)
+
+    @on(Button.Pressed, "#cancel")
+    def cancel(self):
+        self.dismiss(False)
+
+    def collect_values(self) -> Dict | None:
+        """Collect and validate input values. Return None on error."""
+        raise NotImplementedError
+
+    def perform_update(self, values: Dict):
+        """Apply the update to the database."""
+        raise NotImplementedError
+
+
+class BaseContextMenu(ModalScreen):
+    """Base class for context menus with common structure."""
+
+    def __init__(self, item_data: Dict, title: str):
+        super().__init__()
+        self.item_data = item_data
+        self.title = title
+
+    def compose(self) -> ComposeResult:
+        with Container(id="context-menu"):
+            yield Label(self.title, classes="context-title")
+            with ListView(id="action-list"):
+                yield from self.get_menu_items()
+
+    def get_menu_items(self):
+        """Return list of ListItem widgets."""
+        raise NotImplementedError
+
+    @on(ListView.Selected)
+    def handle_selection(self, event: ListView.Selected):
+        action = event.item.id
+        self.handle_action(action)
+
+    def handle_action(self, action: str):
+        raise NotImplementedError
+
+
+class Dashboard(BaseTable):
     BINDINGS = [
         ("a", "add_job", "Add New Job (A)"),
         ("e", "edit_job", "Edit New Job (E)"),
         ("r", "refresh_table", "Refresh Table (R)"),
     ]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.selected_jobs = []
-        self.checkboxes = []
-        self._sort_toggles = set()
 
     def compose(self) -> ComposeResult:
         yield DataTable(id="pending-jobs-table")
@@ -136,10 +407,12 @@ class Dashboard(Container):
                 yield Button("Edit Job", id="dash-edit-job")
                 yield Button("Refresh", id="dash-refresh")
 
+    def get_table(self) -> DataTable:
+        return self.query_one("#pending-jobs-table", DataTable)
+
     def refresh_table(self):
-        table = self.query_one("#pending-jobs-table", DataTable)
+        table = self.get_table()
         table.clear(columns=True)
-        # Alternate row backgrounds for readability
         table.expand = True
         table.zebra_stripes = True
         table.add_columns(
@@ -156,24 +429,19 @@ class Dashboard(Container):
             ("Amount", "amount"),
         )
 
-        # Load jobs
         jobs = self.app.transcriptor.api.get_jobs(
             conditions={"status": [("=", "Pending")]}
         )
-        self.dashboard_jobs_data = jobs
+        self.data = jobs
+        self.selected_items = []
+        self.update_selection_info()
 
-        self.selected_jobs = []
-        self.update_jobs_selection_info()
-
-        for job_idx, job in enumerate(jobs):
-            client_name = (
-                job.get("client").name
-                if hasattr(job.get("client"), "name")
-                else str(job.get("client"))
-            )
+        for idx, job in enumerate(jobs):
+            client_name = self.get_item_client_name(job)
+            print("====>", client_name)
             table.add_row(
-                "⋯",  # Menu icon (three dots)
-                "□",  # Checkbox placeholder
+                "⋯",
+                "☐",
                 str(job.get("id")),
                 job.get("job_number"),
                 client_name,
@@ -183,218 +451,38 @@ class Dashboard(Container):
                 str(job.get("quantity")),
                 str(job.get("job_rate")),
                 f"${job.get('amount', 0):.2f}",
-                key=str(job_idx),
+                key=str(idx),
             )
 
-    def on_mount(self):
-        self.refresh_table()
-
-    @on(DataTable.HeaderSelected, "#pending-jobs-table")
-    def on_dashboard_header_selected(self, event: DataTable.HeaderSelected):
-        """Sort dashboard table by clicked column, toggling reverse."""
-        table = self.query_one("#pending-jobs-table", DataTable)
-        sort_datatable_by_column(
-            table,
-            event.column_key,
-            self._sort_toggles,
-            parse_date=lambda s: std(
-                s, self.app.transcriptor.config.date_format
-            ),
+    def update_selection_info(self):
+        self.query_one("#pending-jobs-selection-info", Static).update(
+            f"Selected: {len(self.selected_items)} jobs"
         )
 
-    def action_add_job(self) -> None:
-        self.app.push_screen(AddJobScreen())
+    def get_context_menu(self, job):
+        return JobContextMenu(job)
 
-    def action_refresh_table(self) -> None:
-        self.refresh_table()
-        self.selected_jobs = []
-
-    # Button handlers
-    @on(Button.Pressed, "#dash-add-job")
-    def on_dash_add(self):
-        self.action_add_job()
-
-    @on(Button.Pressed, "#dash-edit-job")
-    def on_dash_edit(self):
-        self.action_edit_job()
-
-    @on(Button.Pressed, "#dash-refresh")
-    def on_dash_refresh(self):
-        self.action_refresh_table()
-
-    def action_edit_job(self) -> None:
-        """Edit the first selected job"""
-        if not self.selected_jobs:
+    def action_edit_job(self):
+        if not self.selected_items:
             self.notify("No job selected!", severity="error")
             return
-
-        job_id = self.selected_jobs[0]
+        job_id = self.selected_items[0]
         jobs = self.app.transcriptor.api.get_jobs(
             conditions={"id": [("=", job_id)]}
         )
-
-        def check_edit(confirm):
-            if confirm:
-                self.refresh_table()
-
         if jobs:
-            job_data = jobs[0]
-            if hasattr(job_data, "__dict__"):
-                job_data = job_data.__dict__
-            self.app.push_screen(JobEditScreen(job_data), check_edit)
-
-    @on(DataTable.CellSelected, "#pending-jobs-table")
-    def handle_all_jobs_cell_click(self, event: DataTable.CellSelected):
-        """Handle cell clicks in all jobs table"""
-        table = event.data_table
-        row_key = event.cell_key.row_key
-        column_key = event.cell_key.column_key
-
-        if column_key == "menu":  # Menu icon column
-            # Find the job data for this row
-            job_id_cell = table.get_cell(row_key, "id")
-            if job_id_cell:
-                try:
-                    job_id = int(job_id_cell)
-                    # Find the job in our stored data
-                    job_data = None
-                    for job in self.dashboard_jobs_data:
-                        if job.get("id") == job_id:
-                            job_data = job
-                            break
-
-                    if job_data:
-                        self.app.push_screen(JobContextMenu(job_data))
-                except (ValueError, KeyError):
-                    self.notify("Could not find job data", severity="error")
-
-        elif column_key == "select":  # Checkbox column
-            # Get job ID from the row
-            job_id = int(table.get_cell(row_key, "id"))
-
-            # Toggle selection
-            current_value = table.get_cell(row_key, "select")
-            if current_value == "□":
-                table.update_cell(row_key, "select", "✓")
-                if job_id not in self.selected_jobs:
-                    self.selected_jobs.append(job_id)
-            else:
-                table.update_cell(row_key, "select", "□")
-                if job_id in self.selected_jobs:
-                    self.selected_jobs.remove(job_id)
-
-            self.update_jobs_selection_info()
-
-    def update_jobs_selection_info(self):
-        """Update the selection info display"""
-        info = self.query_one("#pending-jobs-selection-info", Static)
-        info.update(f"Selected: {len(self.selected_jobs)} jobs")
-
-    # Vim-like helpers
-    def _table_row_count(self, table: DataTable) -> int:
-        try:
-            return table.row_count  # type: ignore[attr-defined]
-        except Exception:
-            return len(getattr(self, "dashboard_jobs_data", []) or [])
-
-    def vim_focus_table(self):
-        self.query_one("#pending-jobs-table", DataTable).focus()
-
-    def vim_move_down(self):
-        table = self.query_one("#pending-jobs-table", DataTable)
-        if table.cursor_row is None:
-            table.move_cursor(row=0)
-        else:
-            row_count = self._table_row_count(table)
-            table.move_cursor(
-                row=min(table.cursor_row + 1, max(0, row_count - 1))
+            job_data = (
+                jobs[0].__dict__
+                if hasattr(jobs[0], "__dict__")
+                else dict(jobs[0])
+            )
+            self.app.push_screen(
+                JobEditScreen(job_data), lambda _: self.refresh_table()
             )
 
-    def vim_move_up(self):
-        table = self.query_one("#pending-jobs-table", DataTable)
-        if table.cursor_row is None:
-            table.move_cursor(row=0)
-        else:
-            table.move_cursor(row=max(table.cursor_row - 1, 0))
 
-    def vim_top(self):
-        table = self.query_one("#pending-jobs-table", DataTable)
-        table.move_cursor(row=0)
-
-    def vim_bottom(self):
-        table = self.query_one("#pending-jobs-table", DataTable)
-        row_count = self._table_row_count(table)
-        if row_count:
-            table.move_cursor(row=row_count - 1)
-
-    def vim_toggle_select_current(self):
-        table = self.query_one("#pending-jobs-table", DataTable)
-        if table.cursor_row is None:
-            return
-        # Resolve the actual row_key at current cursor position
-        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
-        job_id = int(table.get_cell(row_key, "id"))
-        current_value = table.get_cell(row_key, "select")
-        if current_value == "□":
-            table.update_cell(row_key, "select", "✓")
-            if job_id not in self.selected_jobs:
-                self.selected_jobs.append(job_id)
-        else:
-            table.update_cell(row_key, "select", "□")
-            if job_id in self.selected_jobs:
-                self.selected_jobs.remove(job_id)
-        self.update_jobs_selection_info()
-
-    def vim_open_context_current(self):
-        table = self.query_one("#pending-jobs-table", DataTable)
-        if table.cursor_row is None:
-            return
-        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
-        job_id_cell = table.get_cell(row_key, "id")
-        try:
-            job_id = int(job_id_cell)
-            for job in self.dashboard_jobs_data:
-                if job.get("id") == job_id:
-                    self.app.push_screen(JobContextMenu(job))
-                    break
-        except Exception:
-            pass
-
-    def get_selected_jobs_data(self):
-        """Get full data for selected jobs"""
-        selected_data = []
-        for job in self.dashboard_jobs_data:
-            if hasattr(job, "id"):
-                job_id = job.id
-            else:
-                job_id = job.get("id")
-
-            if job_id in self.selected_jobs:
-                # Extract client name
-                if hasattr(job, "client"):
-                    client_name = (
-                        job.client.name
-                        if hasattr(job.client, "name")
-                        else str(job.client)
-                    )
-                    job_dict = (
-                        job.__dict__
-                        if hasattr(job, "__dict__")
-                        else dict(job)
-                    )
-                    job_dict["client_name"] = client_name
-                    selected_data.append(job_dict)
-                else:
-                    job_dict = dict(job)
-                    job_dict["client_name"] = job.get(
-                        "client_name", "Unknown"
-                    )
-                    selected_data.append(job_dict)
-        return selected_data
-
-
-class JobsTable(Container):
-    """Custom table widget for jobs with checkboxes"""
+class JobsTable(BaseTable):
+    """All jobs table with selectable rows."""
 
     BINDINGS = [
         ("a", "add_job", "Add New Job (A)"),
@@ -402,12 +490,6 @@ class JobsTable(Container):
         ("r", "refresh_table", "Refresh Table (R)"),
         ("i", "generate_invoice", "Generate Invoice from Selected (I)"),
     ]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.selected_jobs = []
-        self.checkboxes = []
-        self._sort_toggles = set()
 
     def compose(self) -> ComposeResult:
         yield DataTable(id="jobs-data-table")
@@ -419,13 +501,20 @@ class JobsTable(Container):
                 yield Button("Refresh", id="jobs-refresh")
                 yield Button("Generate Invoice", id="jobs-generate-invoice")
 
-    def on_mount(self):
-        self.refresh_table()
+    def get_table(self) -> DataTable:
+        return self.query_one("#jobs-data-table", DataTable)
+
+    def update_selection_info(self):
+        self.query_one("#jobs-selection-info", Static).update(
+            f"Selected: {len(self.selected_items)} jobs"
+        )
+
+    def get_context_menu(self, job):
+        return JobContextMenu(job)
 
     def refresh_table(self):
-        table = self.query_one("#jobs-data-table", DataTable)
+        table = self.get_table()
         table.clear(columns=True)
-        # Alternate row backgrounds for readability
         table.zebra_stripes = True
         table.add_columns(
             ("⋮", "menu"),
@@ -442,20 +531,15 @@ class JobsTable(Container):
 
         # Load jobs
         jobs = self.app.transcriptor.api.get_jobs()
-        self.jobs_data = jobs
+        self.data = jobs
+        self.selected_items = []
+        self.update_selection_info()
 
-        self.selected_jobs = []
-        self.update_jobs_selection_info()
-
-        for job_idx, job in enumerate(jobs):
-            client_name = (
-                job.get("client").name
-                if hasattr(job.get("client"), "name")
-                else str(job.get("client"))
-            )
+        for idx, job in enumerate(jobs):
+            client_name = self.get_item_client_name(job)
             table.add_row(
-                "⋯",  # Menu icon (three dots)
-                "□",  # Checkbox placeholder
+                "⋯",
+                "☐",
                 str(job.get("id")),
                 job.get("job_number"),
                 client_name,
@@ -464,35 +548,53 @@ class JobsTable(Container):
                 job.get("job_type"),
                 str(job.get("quantity")),
                 f"${job.get('amount', 0):.2f}",
-                key=str(job_idx),
+                key=str(idx),
             )
 
         # Initial sort: latest first (by id descending)
         try:
             table.sort("id", key=lambda v: int(str(v)), reverse=True)
         except Exception:
-            # Fallback to natural reverse if conversion fails
             table.sort("id", reverse=True)
 
+    # -------- actions --------
     def action_add_job(self) -> None:
         self.app.push_screen(AddJobScreen())
 
     def action_refresh_table(self) -> None:
         self.refresh_table()
-        self.selected_jobs = []
+        self.selected_items = []
+
+    def action_edit_job(self) -> None:
+        """Edit the first selected job."""
+        if not self.selected_items:
+            self.notify("No job selected!", severity="error")
+            return
+
+        job_id = self.selected_items[0]
+        jobs = self.app.transcriptor.api.get_jobs(
+            conditions={"id": [("=", job_id)]}
+        )
+        if jobs:
+            job_data = jobs[0]
+            if hasattr(job_data, "__dict__"):
+                job_data = job_data.__dict__
+            self.app.push_screen(
+                JobEditScreen(job_data), lambda _: self.refresh_table()
+            )
 
     def action_generate_invoice(self) -> None:
-        """Generate an invoice for all selected jobs (must be Done and same client)."""
-        if not self.selected_jobs:
+        """Generate an invoice for selected jobs (must be Done and same client)."""
+        if not self.selected_items:
             self.notify("No jobs selected!", severity="error")
             return
 
-        selected = self.get_selected_jobs_data()
+        selected = self.get_selected_data()
         if not selected:
             self.notify("Could not retrieve job data.", severity="error")
             return
 
-        # Validate that all jobs are Done
+        # Validate all jobs are Done
         for job in selected:
             if job.get("status", "").lower() != "done":
                 self.notify(
@@ -501,7 +603,7 @@ class JobsTable(Container):
                 )
                 return
 
-        # Validate that all jobs belong to the same client
+        # Validate same client
         client_ids = {job.get("client_id") for job in selected}
         if len(client_ids) != 1:
             self.notify(
@@ -511,12 +613,8 @@ class JobsTable(Container):
             return
 
         client_id = selected[0].get("client_id")
-        # Get client name from the first job (set in get_selected_jobs_data)
-        client_name = selected[0].get("client").name or selected[0].get(
-            "client_name"
-        )
+        client_name = selected[0].get("client_name")
         if not client_name:
-            # Fallback: fetch client from API
             try:
                 clients = self.app.transcriptor.api.get_clients(
                     conditions={"id": [("=", client_id)]}
@@ -526,7 +624,6 @@ class JobsTable(Container):
                 client_name = "Unknown"
 
         try:
-            # Generate invoice HTML (re‑used in preview)
             html, _ = self.app.transcriptor.generate_invoice(selected)
         except Exception as e:
             self.notify(
@@ -534,12 +631,11 @@ class JobsTable(Container):
             )
             return
 
-        # Pass the HTML, client name, and the job list to the preview screen
         self.app.push_screen(
             InvoicePreviewScreen(html, client_name, selected)
         )
 
-    # Button handlers
+    # -------- button handlers --------
     @on(Button.Pressed, "#jobs-add-job")
     def on_jobs_add(self):
         self.action_add_job()
@@ -556,1403 +652,65 @@ class JobsTable(Container):
     def on_jobs_generate_invoice(self):
         self.action_generate_invoice()
 
-    @on(DataTable.CellSelected, "#jobs-data-table")
-    def handle_all_jobs_cell_click(self, event: DataTable.CellSelected):
-        """Handle cell clicks in all jobs table"""
-        table = event.data_table
-        row_key = event.cell_key.row_key
-        column_key = event.cell_key.column_key
 
-        if column_key == "menu":  # Menu icon column
-            # Find the job data for this row
-            job_id_cell = table.get_cell(row_key, "id")
-            if job_id_cell:
-                try:
-                    job_id = int(job_id_cell)
-                    # Find the job in our stored data
-                    job_data = None
-                    for job in self.jobs_data:
-                        if job.get("id") == job_id:
-                            job_data = job
-                            break
-
-                    if job_data:
-                        self.app.push_screen(JobContextMenu(job_data))
-                except (ValueError, KeyError):
-                    self.notify("Could not find job data", severity="error")
-
-        elif column_key == "select":  # Checkbox column
-            # Get job ID from the row
-            job_id = int(table.get_cell(row_key, "id"))
-
-            # Toggle selection
-            current_value = table.get_cell(row_key, "select")
-            if current_value == "□":
-                table.update_cell(row_key, "select", "✓")
-                if job_id not in self.selected_jobs:
-                    self.selected_jobs.append(job_id)
-            else:
-                table.update_cell(row_key, "select", "□")
-                if job_id in self.selected_jobs:
-                    self.selected_jobs.remove(job_id)
-
-            self.update_jobs_selection_info()
-
-    @on(DataTable.HeaderSelected, "#jobs-data-table")
-    def on_jobs_header_selected(self, event: DataTable.HeaderSelected):
-        """Sort all jobs table by clicked column, toggling reverse."""
-        table = self.query_one("#jobs-data-table", DataTable)
-        sort_datatable_by_column(
-            table,
-            event.column_key,
-            self._sort_toggles,
-            parse_date=lambda s: std(
-                s, self.app.transcriptor.config.date_format
-            ),
-        )
-
-    def update_jobs_selection_info(self):
-        """Update the selection info display"""
-        info = self.query_one("#jobs-selection-info", Static)
-        info.update(f"Selected: {len(self.selected_jobs)} jobs")
-
-    # Vim-like helpers
-    def _table_row_count(self, table: DataTable) -> int:
-        try:
-            return table.row_count  # type: ignore[attr-defined]
-        except Exception:
-            return len(getattr(self, "jobs_data", []) or [])
-
-    def vim_focus_table(self):
-        self.query_one("#jobs-data-table", DataTable).focus()
-
-    def vim_move_down(self):
-        table = self.query_one("#jobs-data-table", DataTable)
-        if table.cursor_row is None:
-            table.move_cursor(row=0)
-        else:
-            row_count = self._table_row_count(table)
-            table.move_cursor(
-                row=min(table.cursor_row + 1, max(0, row_count - 1))
-            )
-
-    def vim_move_up(self):
-        table = self.query_one("#jobs-data-table", DataTable)
-        if table.cursor_row is None:
-            table.move_cursor(row=0)
-        else:
-            table.move_cursor(row=max(table.cursor_row - 1, 0))
-
-    def vim_top(self):
-        table = self.query_one("#jobs-data-table", DataTable)
-        table.move_cursor(row=0)
-
-    def vim_bottom(self):
-        table = self.query_one("#jobs-data-table", DataTable)
-        row_count = self._table_row_count(table)
-        if row_count:
-            table.move_cursor(row=row_count - 1)
-
-    def vim_toggle_select_current(self):
-        table = self.query_one("#jobs-data-table", DataTable)
-        if table.cursor_row is None:
-            return
-        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
-        job_id = int(table.get_cell(row_key, "id"))
-        current_value = table.get_cell(row_key, "select")
-        if current_value == "□":
-            table.update_cell(row_key, "select", "✓")
-            if job_id not in self.selected_jobs:
-                self.selected_jobs.append(job_id)
-        else:
-            table.update_cell(row_key, "select", "□")
-            if job_id in self.selected_jobs:
-                self.selected_jobs.remove(job_id)
-        self.update_jobs_selection_info()
-
-    def vim_open_context_current(self):
-        table = self.query_one("#jobs-data-table", DataTable)
-        if table.cursor_row is None:
-            return
-        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
-        job_id_cell = table.get_cell(row_key, "id")
-        try:
-            job_id = int(job_id_cell)
-            for job in self.jobs_data:
-                if job.get("id") == job_id:
-                    self.app.push_screen(JobContextMenu(job))
-                    break
-        except Exception:
-            pass
-
-    def get_selected_jobs_data(self):
-        """Get full data for selected jobs"""
-        selected_data = []
-        for job in self.jobs_data:
-            if hasattr(job, "id"):
-                job_id = job.id
-            else:
-                job_id = job.get("id")
-
-            if job_id in self.selected_jobs:
-                # Extract client name
-                if hasattr(job, "client"):
-                    client_name = (
-                        job.client.name
-                        if hasattr(job.client, "name")
-                        else str(job.client)
-                    )
-                    job_dict = (
-                        job.__dict__
-                        if hasattr(job, "__dict__")
-                        else dict(job)
-                    )
-                    job_dict["client_name"] = client_name
-                    selected_data.append(job_dict)
-                else:
-                    job_dict = dict(job)
-                    job_dict["client_name"] = job.get(
-                        "client_name", "Unknown"
-                    )
-                    selected_data.append(job_dict)
-        return selected_data
-
-    def action_edit_job(self) -> None:
-        """Edit the first selected job"""
-        if not self.selected_jobs:
-            self.notify("No job selected!", severity="error")
-            return
-
-        job_id = self.selected_jobs[0]
-        jobs = self.app.transcriptor.api.get_jobs(
-            conditions={"id": [("=", job_id)]}
-        )
-
-        def check_edit(confirm):
-            if confirm:
-                self.refresh_table()
-
-        if jobs:
-            job_data = jobs[0]
-            if hasattr(job_data, "__dict__"):
-                job_data = job_data.__dict__
-            self.app.push_screen(JobEditScreen(job_data), check_edit)
-
-
-class Cutoffs(Container):
-
-    BINDINGS = [
-        ("a", "add_cutoffs", "Add Cutoffs from Docx (A)"),
-        ("r", "refresh_table", "Refresh Table (R)"),
-    ]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def compose(self) -> ComposeResult:
-        yield Label("Cutoffs", classes="title")
-        yield DataTable(id="cutoffs-table")
-        with Container(id="cutoffs-controls", classes="panel-controls"):
-            with Horizontal(classes="button-bar"):
-                yield Button("Add Cutoffs", id="cutoffs-add")
-                yield Button("Refresh", id="cutoffs-refresh")
-
-    def refresh_table(self):
-        """Load cutoff dates"""
-        table = self.query_one("#invoice-cutoffs-table", DataTable)
-        table.clear(columns=True)
-        table.expand = True
-        table.zebra_stripes = True
-        table.add_columns(
-            ("Cutoff Date", "cutoff-date"), ("Deposit Date", "deposit-date")
-        )
-
-        try:
-            cutoffs = self.app.transcriptor.load_cutoffs(as_str=True)
-            for cutoff in cutoffs[1:]:  # Skip header
-                if len(cutoff) >= 2:
-                    table.add_row(cutoff[0], cutoff[1])
-        except Exception as e:
-            table.add_row("Error loading cutoffs", str(e))
-
-    def on_mount(self):
-        self.refresh_table()
-
-    def action_add_cutoffs(self):
-        def check_add(confirm):
-            if confirm:
-                self.refresh_table()
-
-        self.app.push_screen(AddCutoffsScreen(), check_add)
-
-    @on(Button.Pressed, "#cutoffs-add")
-    def on_cutoffs_add(self):
-        self.action_add_cutoffs()
-
-    @on(Button.Pressed, "#cutoffs-refresh")
-    def on_cutoffs_refresh(self):
-        self.refresh_table()
-
-
-class AddCutoffsScreen(ModalScreen):
-    """Screen for adding cutoffs from a docx file"""
-
-    def compose(self) -> ComposeResult:
-        with Container(id="add-cutoffs"):
-            yield Label("Add Cutoffs from Docx", classes="add-cutoffs-title")
-            with VerticalScroll(id="add-cutoffs-form-container"):
-                with Vertical():
-                    yield Label("Docx File Path:")
-                    yield Input(
-                        placeholder="Enter path to cutoffs docx file",
-                        id="cutoffs-file-path",
-                    )
-                    yield Button("Browse", id="browse-cutoffs-file")
-                    yield Label("Year:")
-                    yield Input(
-                        value=str(datetime.now().year),
-                        id="cutoffs-year",
-                    )
-                    yield Label("Date Format:")
-                    yield Input(
-                        value=self.app.transcriptor.config.date_format,
-                        id="invoice-date-format",
-                    )
-            with Horizontal(id="add-cutoffs-buttons"):
-                yield Button("Save", variant="primary", id="save-cutoffs")
-                yield Button(
-                    "Cancel", variant="default", id="cancel-add-cutoffs"
-                )
-
-    @on(Button.Pressed, "#browse-cutoffs-file")
-    def browse_file(self):
-        # Placeholder for file browser
-        self.query_one("#cutoffs-file-path", Input).focus()
-
-    @on(Button.Pressed, "#save-cutoffs")
-    def save_cutoffs(self):
-        file_path = self.query_one("#cutoffs-file-path", Input).value
-        year = self.query_one("#cutoffs-year", Input).value
-        date_format = self.query_one("#invoice-date-format", Input).value
-
-        if not file_path:
-            self.app.notify("Please enter a file path.", severity="error")
-            return
-
-        path = Path(file_path)
-        if not path.exists():
-            self.app.notify(f"File not found: {file_path}", severity="error")
-            return
-
-        try:
-            cutoffs = generate_cutoff_list_from_docx(
-                docx_path=str(path), date_fmt=date_format
-            )
-            self.app.transcriptor.save_cutoffs(cutoffs, year=year)
-            self.app.notify("Cutoffs imported successfully!")
-            self.dismiss(True)
-        except Exception as e:
-            self.app.notify(
-                f"Error importing cutoffs: {str(e)}", severity="error"
-            )
-
-    @on(Button.Pressed, "#cancel-add-cutoffs")
-    def cancel_add_cutoffs(self):
-        self.dismiss(False)
-
-
-class Clients(Container):
-
-    BINDINGS = [
-        ("a", "add_client", "Add New Client (A)"),
-        ("e", "edit_client", "Edit Client (E)"),
-        ("d", "delete_client", "Delete Client (D)"),
-        ("r", "refresh_table", "Refresh Table (R)"),
-    ]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def compose(self) -> ComposeResult:
-        yield Label("Clients", classes="title")
-        yield DataTable(id="clients-table")
-        yield Static(id="clients-selection-info")
-        with Container(id="clients-controls", classes="panel-controls"):
-            with Horizontal(classes="button-bar"):
-                yield Button("Add Client", id="clients-add")
-                yield Button("Edit Client", id="clients-edit")
-                yield Button("Delete Client", id="clients-delete")
-                yield Button("Refresh", id="clients-refresh")
-
-    def on_mount(self):
-        self.refresh_table()
-
-    def refresh_table(self):
-        """Load clients"""
-        table = self.query_one("#clients-table", DataTable)
-        table.clear(columns=True)
-        table.cursor_type = "row"
-        table.zebra_stripes = True
-        table.expand = True
-        table.add_columns(
-            ("⋮", "menu"),
-            ("ID", "id"),
-            ("Name", "name"),
-            ("Email", "email"),
-        )
-
-        clients = self.app.transcriptor.api.get_clients()
-        self.clients_data = clients
-
-        self.update_clients_selection_info()
-
-        for idx, client in enumerate(clients):
-            table.add_row(
-                "⋯",
-                str(client.get("id")),
-                client.get("name"),
-                client.get("email"),
-                key=str(idx),
-            )
-
-    def action_add_client(self) -> None:
-        self.app.push_screen(AddClientScreen())
-
-    # Button handlers
-    @on(Button.Pressed, "#clients-add")
-    def on_clients_add(self):
-        self.action_add_client()
-
-    @on(Button.Pressed, "#clients-edit")
-    def on_clients_edit(self):
-        self.action_edit_client()
-
-    @on(Button.Pressed, "#clients-delete")
-    def on_clients_delete(self):
-        self.action_delete_client()
-
-    @on(Button.Pressed, "#clients-refresh")
-    def on_clients_refresh(self):
-        self.refresh_table()
-
-    def get_selected_client_id(self):
-        table = self.query_one("#clients-table", DataTable)
-        if table.cursor_row is not None and 0 <= table.cursor_row < len(
-            self.clients_data
-        ):
-            # Since we map rows to indices, table.cursor_row directly corresponds to self.clients_data index
-            return self.clients_data[table.cursor_row].get("id")
-        return None
-
-    def action_edit_client(self) -> None:
-        client_id = self.get_selected_client_id()
-        if not client_id:
-            self.app.notify("No client selected!", severity="error")
-            return
-
-        clients = self.app.transcriptor.api.get_clients(
-            conditions={"id": [("=", client_id)]}
-        )
-
-        def check_edit(confirm):
-            if confirm:
-                self.refresh_table()
-
-        if clients:
-            client_data = clients[0]
-            if hasattr(client_data, "__dict__"):
-                client_data = client_data.__dict__
-            self.app.push_screen(ClientEditScreen(client_data), check_edit)
-
-    def action_delete_client(self) -> None:
-        client_id = self.get_selected_client_id()
-        if not client_id:
-            self.app.notify("No client selected!", severity="error")
-            return
-
-        def check_confirm(confirm):
-            if confirm:
-                self.app.transcriptor.delete_clients(
-                    conditions={"id": [("=", client_id)]}
-                )
-                self.app.notify("Client deleted successfully!")
-
-                # Refresh both Clients and Rates tables
-                self.refresh_table()
-                self.app.query_one("#rates-pane", Rates).refresh_table()
-            else:
-                self.app.notify("Client deletion cancelled!")
-
-        self.app.push_screen(ConfirmDelete("client"), check_confirm)
-
-    @on(DataTable.CellSelected, "#clients-table")
-    def handle_all_clients_cell_click(self, event: DataTable.CellSelected):
-        table = event.data_table
-        row_key = event.cell_key.row_key
-        column_key = event.cell_key.column_key
-
-        if column_key == "menu":
-            client_id_cell = table.get_cell(row_key, "id")
-            if client_id_cell:
-                try:
-                    client_id = int(client_id_cell)
-                    client_data = None
-                    for client in self.clients_data:
-                        if client.get("id") == client_id:
-                            client_data = client
-                            break
-                    if client_data:
-                        self.app.push_screen(ClientContextMenu(client_data))
-                except (ValueError, KeyError):
-                    self.app.notify(
-                        "Could not find client data", severity="error"
-                    )
-
-        self.update_clients_selection_info()
-
-    @on(DataTable.RowHighlighted, "#clients-table")
-    def on_row_highlighted(self, event: DataTable.RowHighlighted):
-        self.update_clients_selection_info()
-
-    def update_clients_selection_info(self):
-        table = self.query_one("#clients-table", DataTable)
-        info = self.query_one("#clients-selection-info", Static)
-
-        if table.cursor_row is not None and 0 <= table.cursor_row < len(
-            self.clients_data
-        ):
-            client_name = self.clients_data[table.cursor_row].get(
-                "name", "Unknown"
-            )
-            info.update(f"Selected: {client_name}")
-        else:
-            info.update("Selected: None")
-
-    # Vim-like helpers
-    def vim_focus_table(self):
-        self.query_one("#clients-table", DataTable).focus()
-
-    def vim_move_down(self):
-        table = self.query_one("#clients-table", DataTable)
-        if table.cursor_row is None:
-            table.move_cursor(row=0)
-        else:
-            try:
-                row_count = table.row_count  # type: ignore[attr-defined]
-            except Exception:
-                row_count = len(self.clients_data)
-            table.move_cursor(
-                row=min(table.cursor_row + 1, max(0, row_count - 1))
-            )
-
-    def vim_move_up(self):
-        table = self.query_one("#clients-table", DataTable)
-        if table.cursor_row is None:
-            table.move_cursor(row=0)
-        else:
-            table.move_cursor(row=max(table.cursor_row - 1, 0))
-
-    def vim_top(self):
-        self.query_one("#clients-table", DataTable).move_cursor(row=0)
-
-    def vim_bottom(self):
-        table = self.query_one("#clients-table", DataTable)
-        try:
-            row_count = table.row_count  # type: ignore[attr-defined]
-        except Exception:
-            row_count = len(self.clients_data)
-        if row_count:
-            table.move_cursor(row=row_count - 1)
-
-    def vim_open_context_current(self):
-        table = self.query_one("#clients-table", DataTable)
-        if table.cursor_row is None:
-            return
-        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
-        client_id_cell = table.get_cell(row_key, "id")
-        try:
-            client_id = int(client_id_cell)
-            for client in self.clients_data:
-                if client.get("id") == client_id:
-                    self.app.push_screen(ClientContextMenu(client))
-                    break
-        except Exception:
-            pass
-
-
-class ClientContextMenu(ModalScreen):
-    """Context menu for client actions"""
-
-    def __init__(self, client_data: Dict):
-        super().__init__()
-        self.client_data = client_data
-
-    def compose(self) -> ComposeResult:
-        with Container(id="context-menu"):
-            yield Label(
-                f"Client: {self.client_data.get('name', '')}",
-                classes="context-title",
-            )
-            with ListView(id="action-list"):
-                yield ListItem(Label("📝 Edit Client"), id="edit-client")
-                yield ListItem(Label("🗑️ Delete Client"), id="delete-client")
-                yield ListItem(Label("❌ Cancel"), id="cancel-context")
-
-    def check_edit(self, confirm):
-        if confirm:
-            clients = self.app.query_one("#clients-pane", Clients)
-            clients.refresh_table()
-            self.dismiss()
-
-    @on(ListView.Selected)
-    def handle_action_selection(self, event: ListView.Selected):
-        action = event.item.id
-        client_id = self.client_data.get("id")
-
-        if action == "edit-client":
-            if hasattr(self.client_data, "__dict__"):
-                client_dict = self.client_data.__dict__
-            else:
-                client_dict = dict(self.client_data)
-            self.app.push_screen(
-                ClientEditScreen(client_dict), self.check_edit
-            )
-
-        elif action == "delete-client":
-
-            def check_confirm(confirm):
-                if confirm:
-                    self.app.transcriptor.delete_clients(
-                        conditions={"id": [("=", client_id)]}
-                    )
-                    self.app.notify("Client deleted successfully!")
-
-                    # Refresh both Clients and Rates tables
-                    self.app.query_one(
-                        "#clients-pane", Clients
-                    ).refresh_table()
-                    self.app.query_one("#rates-pane", Rates).refresh_table()
-
-                    self.dismiss(True)
-                else:
-                    self.app.notify("Client deletion cancelled!")
-                    self.dismiss(False)
-
-            self.app.push_screen(ConfirmDelete("client"), check_confirm)
-
-        elif action == "cancel-context":
-            self.dismiss()
-
-
-class ClientEditScreen(ModalScreen):
-    """Screen for editing client properties"""
-
-    def __init__(self, client_data: Dict):
-        super().__init__()
-        self.client_data = client_data
-
-    def compose(self) -> ComposeResult:
-        with Container(id="client-edit"):
-            yield Label(
-                f"Edit Client: {self.client_data.get('name', '')}",
-                classes="edit-title",
-            )
-            with VerticalScroll(id="client-form-container"):
-                with Vertical():
-                    yield Label("Name:")
-                    yield Input(
-                        value=self.client_data.get("name", ""),
-                        id="client-name",
-                    )
-                    yield Label("Email:")
-                    yield Input(
-                        value=self.client_data.get("email", ""),
-                        id="client-email",
-                    )
-            with Horizontal(id="edit-buttons"):
-                yield Button("Save", variant="primary", id="save-client")
-                yield Button("Cancel", variant="default", id="cancel-edit")
-
-    @on(Button.Pressed, "#save-client")
-    def save_client(self):
-        updated_values = {
-            "name": self.query_one("#client-name", Input).value,
-            "email": self.query_one("#client-email", Input).value,
-        }
-        client_id = self.client_data.get("id")
-        if client_id:
-            conditions = {"id": [("=", client_id)]}
-            self.app.transcriptor.api.update_clients(
-                conditions=conditions, values=updated_values
-            )
-            self.app.notify("Client updated successfully!")
-            self.dismiss(True)
-
-    @on(Button.Pressed, "#cancel-edit")
-    def cancel_edit(self):
-        self.dismiss(False)
-
-
-class AddClientScreen(ModalScreen):
-    """Screen for adding a new client"""
-
-    def compose(self) -> ComposeResult:
-        with Container(id="add-client"):
-            yield Label("Add New Client", classes="add-client-title")
-            with VerticalScroll(id="add-client-form-container"):
-                with Vertical():
-                    yield Label("Name:")
-                    yield Input(id="add-client-name")
-                    yield Label("Email:")
-                    yield Input(id="add-client-email")
-            with Horizontal(id="add-client-buttons"):
-                yield Button("Save", variant="primary", id="save-new-client")
-                yield Button(
-                    "Cancel", variant="default", id="cancel-add-client"
-                )
-
-    @on(Button.Pressed, "#save-new-client")
-    def save_new_client(self):
-        name = self.query_one("#add-client-name", Input).value
-        email = self.query_one("#add-client-email", Input).value
-        if name and email:
-            self.app.transcriptor.create_client(name=name, email=email)
-            self.app.notify("Client added successfully!")
-
-            # Refresh both Clients and Rates tables
-            self.app.query_one("#clients-pane", Clients).refresh_table()
-            self.app.query_one("#rates-pane", Rates).refresh_table()
-
-            self.dismiss(True)
-        else:
-            self.app.notify("Name and email are required.", severity="error")
-
-    @on(Button.Pressed, "#cancel-add-client")
-    def cancel_add_client(self):
-        self.dismiss(False)
-
-
-class Rates(Container):
-
-    BINDINGS = [
-        ("e", "edit_rate", "Edit Rate (E)"),
-        ("r", "refresh_table", "Refresh Table (R)"),
-    ]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def compose(self) -> ComposeResult:
-        yield Label("Rates", classes="title")
-        yield DataTable(id="rates-table")
-        yield Static(id="rates-selection-info")
-        with Container(id="rates-controls", classes="panel-controls"):
-            with Horizontal(classes="button-bar"):
-                yield Button("Edit Rate", id="rates-edit")
-                yield Button("Refresh", id="rates-refresh")
-
-    def on_mount(self):
-        self.refresh_table()
-
-    def refresh_table(self):
-        """Load rates"""
-        table = self.query_one("#rates-table", DataTable)
-        table.clear(columns=True)
-        table.cursor_type = "row"
-        table.zebra_stripes = True
-        table.expand = True
-        table.add_columns(
-            ("⋮", "menu"),
-            ("Client", "client"),
-            ("Normal", "normal"),
-            ("Expedite", "expedite"),
-            ("Interpreted", "interpreted"),
-        )
-
-        rates = self.app.transcriptor.api.get_rates()
-        self.rates_data = rates
-
-        self.update_rates_selection_info()
-
-        for idx, rate in enumerate(rates):
-            table.add_row(
-                "⋯",
-                rate.get("client_name"),
-                f"${rate.get('normal', 0):.2f}",
-                f"${rate.get('expedite', 0):.2f}",
-                f"${rate.get('interpreted', 0):.2f}",
-                key=str(idx),
-            )
-
-    def get_selected_rate_id(self):
-        table = self.query_one("#rates-table", DataTable)
-        if table.cursor_row is not None and 0 <= table.cursor_row < len(
-            self.rates_data
-        ):
-            return self.rates_data[table.cursor_row].get("id")
-        return None
-
-    def action_edit_rate(self) -> None:
-        rate_id = self.get_selected_rate_id()
-        if not rate_id:
-            self.app.notify("No rate selected!", severity="error")
-            return
-
-        rates = self.app.transcriptor.api.get_rates(
-            conditions={"id": [("=", rate_id)]}
-        )
-
-        def check_edit(confirm):
-            if confirm:
-                self.refresh_table()
-
-        if rates:
-            rate_data = rates[0]
-            if hasattr(rate_data, "__dict__"):
-                rate_data = rate_data.__dict__
-            self.app.push_screen(RateEditScreen(rate_data), check_edit)
-
-    # Button handlers
-    @on(Button.Pressed, "#rates-edit")
-    def on_rates_edit(self):
-        self.action_edit_rate()
-
-    @on(Button.Pressed, "#rates-refresh")
-    def on_rates_refresh(self):
-        self.refresh_table()
-
-    @on(DataTable.CellSelected, "#rates-table")
-    def handle_all_rates_cell_click(self, event: DataTable.CellSelected):
-        table = event.data_table
-        row_key = event.cell_key.row_key
-        column_key = event.cell_key.column_key
-
-        if column_key == "menu":
-            client_name_cell = table.get_cell(row_key, "client")
-            if client_name_cell:
-                try:
-                    rate_data = None
-                    for rate in self.rates_data:
-                        if rate.get("client_name") == client_name_cell:
-                            rate_data = rate
-                            break
-                    if rate_data:
-                        self.app.push_screen(RateContextMenu(rate_data))
-                except (ValueError, KeyError):
-                    self.app.notify(
-                        "Could not find rate data", severity="error"
-                    )
-
-        self.update_rates_selection_info()
-
-    @on(DataTable.RowHighlighted, "#rates-table")
-    def on_row_highlighted(self, event: DataTable.RowHighlighted):
-        self.update_rates_selection_info()
-
-    def update_rates_selection_info(self):
-        table = self.query_one("#rates-table", DataTable)
-        info = self.query_one("#rates-selection-info", Static)
-
-        if table.cursor_row is not None and 0 <= table.cursor_row < len(
-            self.rates_data
-        ):
-            client_name = self.rates_data[table.cursor_row].get(
-                "client_name", "Unknown"
-            )
-            info.update(f"Selected: {client_name}")
-        else:
-            info.update("Selected: None")
-
-    # Vim-like helpers
-    def vim_focus_table(self):
-        self.query_one("#rates-table", DataTable).focus()
-
-    def vim_move_down(self):
-        table = self.query_one("#rates-table", DataTable)
-        if table.cursor_row is None:
-            table.move_cursor(row=0)
-        else:
-            try:
-                row_count = table.row_count  # type: ignore[attr-defined]
-            except Exception:
-                row_count = len(self.rates_data)
-            table.move_cursor(
-                row=min(table.cursor_row + 1, max(0, row_count - 1))
-            )
-
-    def vim_move_up(self):
-        table = self.query_one("#rates-table", DataTable)
-        if table.cursor_row is None:
-            table.move_cursor(row=0)
-        else:
-            table.move_cursor(row=max(table.cursor_row - 1, 0))
-
-    def vim_top(self):
-        self.query_one("#rates-table", DataTable).move_cursor(row=0)
-
-    def vim_bottom(self):
-        table = self.query_one("#rates-table", DataTable)
-        try:
-            row_count = table.row_count  # type: ignore[attr-defined]
-        except Exception:
-            row_count = len(self.rates_data)
-        if row_count:
-            table.move_cursor(row=row_count - 1)
-
-    def vim_open_context_current(self):
-        table = self.query_one("#rates-table", DataTable)
-        if table.cursor_row is None:
-            return
-        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
-        client_name_cell = table.get_cell(row_key, "client")
-        for rate in self.rates_data:
-            if rate.get("client_name") == client_name_cell:
-                self.app.push_screen(RateContextMenu(rate))
-                break
-
-
-class RateContextMenu(ModalScreen):
-    """Context menu for rate actions"""
-
-    def __init__(self, rate_data: Dict):
-        super().__init__()
-        self.rate_data = rate_data
-
-    def compose(self) -> ComposeResult:
-        with Container(id="context-menu"):
-            yield Label(
-                f"Rate for: {self.rate_data.get('client_name', '')}",
-                classes="context-title",
-            )
-            with ListView(id="action-list"):
-                yield ListItem(Label("📝 Edit Rate"), id="edit-rate")
-                yield ListItem(Label("❌ Cancel"), id="cancel-context")
-
-    def check_edit(self, confirm):
-        if confirm:
-            rates = self.app.query_one("#rates-pane", Rates)
-            rates.refresh_table()
-            self.dismiss()
-
-    @on(ListView.Selected)
-    def handle_action_selection(self, event: ListView.Selected):
-        action = event.item.id
-
-        if action == "edit-rate":
-            if hasattr(self.rate_data, "__dict__"):
-                rate_dict = self.rate_data.__dict__
-            else:
-                rate_dict = dict(self.rate_data)
-            self.app.push_screen(RateEditScreen(rate_dict), self.check_edit)
-
-        elif action == "cancel-context":
-            self.dismiss()
-
-
-class RateEditScreen(ModalScreen):
-    """Screen for editing rate properties"""
-
-    def __init__(self, rate_data: Dict):
-        super().__init__()
-        self.rate_data = rate_data
-
-    def compose(self) -> ComposeResult:
-        with Container(id="rate-edit"):
-            yield Label(
-                f"Edit Rate: {self.rate_data.get('client_name', '')}",
-                classes="edit-title",
-            )
-            with VerticalScroll(id="rate-form-container"):
-                with Vertical():
-                    yield Label("Normal:")
-                    yield Input(
-                        value=str(self.rate_data.get("normal", 0.0)),
-                        id="rate-normal",
-                    )
-                    yield Label("Expedite:")
-                    yield Input(
-                        value=str(self.rate_data.get("expedite", 0.0)),
-                        id="rate-expedite",
-                    )
-                    yield Label("Interpreted:")
-                    yield Input(
-                        value=str(self.rate_data.get("interpreted", 0.0)),
-                        id="rate-interpreted",
-                    )
-            with Horizontal(id="edit-buttons"):
-                yield Button("Save", variant="primary", id="save-rate")
-                yield Button("Cancel", variant="default", id="cancel-edit")
-
-    @on(Button.Pressed, "#save-rate")
-    def save_rate(self):
-        try:
-            normal = float(self.query_one("#rate-normal", Input).value)
-            expedite = float(self.query_one("#rate-expedite", Input).value)
-            interpreted = float(
-                self.query_one("#rate-interpreted", Input).value
-            )
-        except ValueError:
-            self.app.notify("Rates must be numeric values.", severity="error")
-            return
-
-        updated_values = {
-            "normal": normal,
-            "expedite": expedite,
-            "interpreted": interpreted,
-        }
-
-        rate_id = self.rate_data.get("id")
-        if rate_id:
-            conditions = {"id": [("=", rate_id)]}
-            self.app.transcriptor.api.update_rates(
-                conditions=conditions, values=updated_values
-            )
-            self.app.notify("Rate updated successfully!")
-            self.dismiss(True)
-
-    @on(Button.Pressed, "#cancel-edit")
-    def cancel_edit(self):
-        self.dismiss(False)
-
-
-class Profile(Container):
-
-    BINDINGS = [
-        ("e", "edit_profile", "Edit Profile (E)"),
-        ("r", "refresh_table", "Refresh Table (R)"),
-    ]
-
-    # Ensure container can receive focus so its bindings work when tab is active
-    can_focus = True
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def compose(self) -> ComposeResult:
-        yield Label("Profile", classes="title")
-        yield Static(id="profile-display")
-        with Container(id="profile-controls", classes="panel-controls"):
-            with Horizontal(classes="button-bar"):
-                yield Button("Edit Profile", id="edit-profile")
-                yield Button("Refresh", id="profile-refresh")
-
-    def on_mount(self):
-        self.refresh_table()
-
-    def refresh_table(self):
-        """Load current profile for display"""
-        profile_display = self.query_one("#profile-display", Static)
-        profile = self.app.transcriptor.profile
-        display_text = f"""
-Name: {profile.name}
-Area: {profile.area}
-Country: {profile.country}
-        """
-        profile_display.update(display_text)
-
-    def action_edit_profile(self):
-        def check_edit(confirm):
-            if confirm:
-                self.refresh_table()
-
-        self.app.push_screen(ProfileEditScreen(), check_edit)
-
-    @on(Button.Pressed, "#edit-profile")
-    def on_edit_profile_button(self):
-        self.action_edit_profile()
-
-    @on(Button.Pressed, "#profile-refresh")
-    def on_profile_refresh(self):
-        self.refresh_table()
-
-
-class ProfileEditScreen(ModalScreen):
-    """Screen for editing profile properties"""
-
-    def compose(self) -> ComposeResult:
-        with Container(id="profile-edit"):
-            yield Label("Edit Profile", classes="edit-title")
-            with VerticalScroll(id="profile-form-container"):
-                with Vertical():
-                    yield Label("Name:")
-                    yield Input(
-                        value=self.app.transcriptor.profile.name,
-                        id="profile-name",
-                    )
-                    yield Label("Area:")
-                    yield Input(
-                        value=self.app.transcriptor.profile.area,
-                        id="profile-area",
-                    )
-                    yield Label("Country:")
-                    yield Input(
-                        value=self.app.transcriptor.profile.country,
-                        id="profile-country",
-                    )
-            with Horizontal(id="edit-buttons"):
-                yield Button("Save", variant="primary", id="save-profile")
-                yield Button("Cancel", variant="default", id="cancel-edit")
-
-    @on(Button.Pressed, "#save-profile")
-    def save_profile(self):
-        profile = self.app.transcriptor.profile
-        profile.name = self.query_one("#profile-name", Input).value
-        profile.area = self.query_one("#profile-area", Input).value
-        profile.country = self.query_one("#profile-country", Input).value
-        self.app.transcriptor.save_profile()
-        self.app.notify("Profile updated successfully!")
-        self.dismiss(True)
-
-    @on(Button.Pressed, "#cancel-edit")
-    def cancel_edit(self):
-        self.dismiss(False)
-
-
-class ConfigurationScreen(ModalScreen):
-    """Screen for editing configuration"""
-
-    def compose(self) -> ComposeResult:
-        with Container(id="config-edit"):
-            yield Label("Edit Configuration", classes="config-title")
-
-            with Vertical():
-                yield Label("Base Directory:")
-                yield Input(
-                    value=self.app.transcriptor.config.base_dir, id="base_dir"
-                )
-
-                yield Label("Date Format:")
-                yield Input(
-                    value=self.app.transcriptor.config.date_format,
-                    id="date_format",
-                )
-
-                yield Label("Invoice Theme:")
-                # Fix: Import invoice_template_themes at the top
-                themes = invoice_template_themes()
-                select = Select(
-                    [(theme, theme) for theme in themes],
-                    id="invoice_theme",
-                    value=self.app.transcriptor.config.invoice_theme,
-                )
-                yield select
-
-            with Horizontal(id="edit-buttons"):
-                yield Button("Save", variant="primary", id="save-config")
-                yield Button("Cancel", variant="default", id="cancel-config")
-
-    @on(Button.Pressed, "#save-config")
-    def save_config(self):
-        base_dir = self.query_one("#base_dir", Input).value
-        date_format = self.query_one("#date_format", Input).value
-        invoice_theme_select = self.query_one("#invoice_theme", Select)
-        invoice_theme = (
-            invoice_theme_select.value
-            if invoice_theme_select.value
-            else "default"
-        )
-
-        # Update config
-        self.app.transcriptor.config.base_dir = base_dir
-        self.app.transcriptor.config.date_format = date_format
-        self.app.transcriptor.config.invoice_theme = invoice_theme
-
-        # Save to file
-        self.app.transcriptor.save_config()
-        self.app.notify("Configuration saved successfully!")
-        self.dismiss(True)
-        # Refresh config display
-
-    @on(Button.Pressed, "#cancel-config")
-    def cancel_config(self):
-        self.dismiss(True)
-
-
-class Configuration(Container):
-
-    BINDINGS = [
-        ("e", "edit_config", "Edit New Job (E)"),
-        ("r", "refresh_table", "Refresh Config (R)"),
-    ]
-
-    def compose(self) -> ComposeResult:
-        with VerticalScroll(id="config-container"):
-            yield Label("Configuration & Settings", classes="title")
-            yield Static(id="config-display")
-            with Horizontal(classes="edit-config-bar"):
-                yield Button("Edit Config", id="edit-config")
-
-            yield Label("Data Management", classes="subtitle")
-            with Horizontal(classes="button-bar"):
-                yield Button("Backup Database", id="backup-db")
-                yield Button("Restore Database", id="restore-db")
-                yield Button("Purge Job Files", id="purge-jobs")
-                yield Button("About", id="about-app")
-
-    def on_mount(self):
-        self.refresh_table()
-
-    def refresh_table(self):
-        """Load current configuration for display"""
-        config_display = self.query_one("#config-display", Static)
-        config = self.app.transcriptor.config
-        display_text = f"""
-Base Directory: {config.base_dir}
-Date Format: {config.date_format}
-Invoice Theme: {config.invoice_theme}
-        """
-        config_display.update(display_text)
-
-    def action_edit_config(self):
-        def check_edit(confirm):
-            if confirm:
-                self.refresh_table()
-
-        self.app.push_screen(ConfigurationScreen(), check_edit)
-
-    @on(Button.Pressed, "#edit-config")
-    def on_edit_config_button(self):
-        self.action_edit_config()
-
-    def action_refresh_table(self):
-        self.refresh_table()
-
-    @on(Button.Pressed, "#backup-db")
-    def backup_database(self):
-        try:
-            path = self.app.transcriptor.backup.create_backup()
-            self.app.notify(f"Backup created at {path}")
-        except Exception as e:
-            self.app.notify(f"Backup failed: {str(e)}", severity="error")
-
-    @on(Button.Pressed, "#restore-db")
-    def restore_database(self):
-        self.app.push_screen(RestoreScreen())
-
-    @on(Button.Pressed, "#purge-jobs")
-    def purge_jobs(self):
-        self.app.push_screen(PurgeScreen())
-
-    @on(Button.Pressed, "#about-app")
-    def about_app(self):
-        self.app.push_screen(AboutScreen())
-
-
-class RestoreScreen(ModalScreen):
-    """Screen for restoring database from backup"""
-
-    def compose(self) -> ComposeResult:
-        with Container(id="restore-screen"):
-            yield Label("Restore Database", classes="restore-title")
-            yield Label(
-                "Select a backup to restore:", classes="restore-label"
-            )
-            yield Select([], id="backup-select", prompt="Select backup")
-            with Horizontal(id="restore-buttons"):
-                yield Button(
-                    "Restore", variant="primary", id="confirm-restore"
-                )
-                yield Button("Cancel", variant="default", id="cancel-restore")
-
-    def on_mount(self):
-        backups = self.app.transcriptor.backup.list_backups()
-        options = [(b.name, str(b)) for b in backups]
-        self.query_one("#backup-select", Select).set_options(options)
-
-    @on(Button.Pressed, "#confirm-restore")
-    def confirm_restore(self):
-        backup_path = self.query_one("#backup-select", Select).value
-        if not backup_path:
-            self.app.notify("Please select a backup.", severity="error")
-            return
-
-        try:
-            self.app.transcriptor.backup.restore_backup(Path(backup_path))
-            self.app.notify("Database restored successfully!")
-            self.dismiss()
-        except Exception as e:
-            self.app.notify(f"Restore failed: {str(e)}", severity="error")
-
-    @on(Button.Pressed, "#cancel-restore")
-    def cancel_restore(self):
-        self.dismiss()
-
-
-class PurgeScreen(ModalScreen):
-    """Screen for purging job files"""
-
-    def compose(self) -> ComposeResult:
-        with Container(id="purge-screen"):
-            yield Label("Purge Job Files", classes="purge-title")
-            yield Label(
-                "Delete media files for jobs matching:", classes="purge-label"
-            )
-
-            with Vertical():
-                yield Label("Status:")
-                yield Select(
-                    [("Done", "Done"), ("Pending", "Pending")],
-                    value="Done",
-                    id="purge-status",
-                )
-                yield Label("Created Before (YYYY-MM-DD):")
-                yield Input(
-                    placeholder="Optional: 2023-01-01", id="purge-date"
-                )
-
-            with Horizontal(id="purge-buttons"):
-                yield Button("Purge", variant="error", id="confirm-purge")
-                yield Button("Cancel", variant="default", id="cancel-purge")
-
-    @on(Button.Pressed, "#confirm-purge")
-    def confirm_purge(self):
-        status = self.query_one("#purge-status", Select).value
-        date_limit = self.query_one("#purge-date", Input).value
-
-        conditions = {}
-        if status:
-            conditions["status"] = [("=", status)]
-
-        # This part is simplified. In a real scenario, we'd need to parse the date
-        # and add it to conditions properly, potentially involving complex query logic
-        # if the API supports it.
-        # For now, let's just use status as the primary filter + date if provided via where clause construction.
-
-        where_clauses = []
-        if status:
-            where_clauses.append(f"status='{status}'")
-        if date_limit:
-            where_clauses.append(f"date_received<'{date_limit}'")
-
-        conditions = parse_conditions(where_clauses)
-
-        jobs = self.app.transcriptor.api.get_jobs(conditions=conditions)
-
-        if not jobs:
-            self.app.notify(
-                "No jobs found matching criteria.", severity="warning"
-            )
-            return
-
-        def final_confirm(confirm):
-            if confirm:
-                try:
-                    self.app.transcriptor.purge_job_files(jobs)
-                    self.app.notify(f"Purged files for {len(jobs)} jobs.")
-                    self.dismiss()
-                except Exception as e:
-                    self.app.notify(
-                        f"Purge failed: {str(e)}", severity="error"
-                    )
-
-        self.app.push_screen(
-            ConfirmDelete("files for these jobs"), final_confirm
-        )
-
-    @on(Button.Pressed, "#cancel-purge")
-    def cancel_purge(self):
-        self.dismiss()
-
-
-class AboutScreen(ModalScreen):
-    def compose(self) -> ComposeResult:
-        with Container(id="about-screen"):
-            yield Label("About Transcriptor", classes="about-title")
-            yield Label(
-                f"Version: {self.app.transcriptor.version}",
-                classes="about-text",
-            )
-            yield Label(
-                "A CLI/TUI tool for managing transcription jobs.",
-                classes="about-text",
-            )
-
-            with Horizontal(id="about-buttons"):
-                yield Button("Close", variant="primary", id="close-about")
-
-    @on(Button.Pressed, "#close-about")
-    def close_about(self):
-        self.dismiss()
-
-
-class JobContextMenu(ModalScreen):
-    """Context menu for job actions"""
-
+class JobContextMenu(BaseContextMenu):
     def __init__(self, job_data: Dict):
-        super().__init__()
-        self.job_data = job_data
+        super().__init__(job_data, f"Job: {job_data.get('job_number', '')}")
 
-    def compose(self) -> ComposeResult:
-        with Container(id="context-menu"):
-            yield Label(
-                f"Job: {self.job_data.get('job_number', '')}",
-                classes="context-title",
-            )
-            with ListView(id="action-list"):
-                yield ListItem(Label("📝 Edit Job"), id="edit-job")
-                yield ListItem(Label("🗑️ Delete Job"), id="delete-job")
-                yield ListItem(Label("❌ Cancel"), id="cancel-context")
+    def get_menu_items(self):
+        yield ListItem(Label("📝 Edit Job"), id="edit-job")
+        yield ListItem(Label("🗑️ Delete Job"), id="delete-job")
+        yield ListItem(Label("❌ Cancel"), id="cancel-context")
 
-    def check_edit(self, confirm):
-        if confirm:
-            dashboard = self.app.query_one("#dashboard-pane", Dashboard)
-            jobs_table = self.app.query_one("#jobstable-pane", JobsTable)
-            dashboard.refresh_table()
-            jobs_table.refresh_table()
-            self.dismiss()
-
-    @on(ListView.Selected)
-    def handle_action_selection(self, event: ListView.Selected):
-        action = event.item.id
-        job_id = self.job_data.get("id")
-
+    def handle_action(self, action: str):
+        job_id = self.item_data.get("id")
         if action == "edit-job":
-            # Push the edit screen
-            if hasattr(self.job_data, "__dict__"):
-                job_dict = self.job_data.__dict__
-            else:
-                job_dict = dict(self.job_data)
+            job_dict = (
+                self.item_data.__dict__
+                if hasattr(self.item_data, "__dict__")
+                else dict(self.item_data)
+            )
             self.app.push_screen(JobEditScreen(job_dict), self.check_edit)
-
         elif action == "delete-job":
-            # Confirm and delete
+
             def check_confirm(confirm):
                 if confirm:
                     self.app.transcriptor.delete_jobs(
                         conditions={"id": [("=", job_id)]}
                     )
                     self.app.notify("Job deleted successfully!")
-                    dashboard = self.app.query_one(
+                    self.app.query_one(
                         "#dashboard-pane", Dashboard
-                    )
-                    jobs_table = self.app.query_one(
+                    ).refresh_table()
+                    self.app.query_one(
                         "#jobstable-pane", JobsTable
-                    )
-                    dashboard.refresh_table()
-                    jobs_table.refresh_table()
+                    ).refresh_table()
                     self.dismiss(True)
                 else:
                     self.notify("Job deletion cancelled!")
                     self.dismiss(False)
 
             self.app.push_screen(ConfirmDelete("job"), check_confirm)
-
         elif action == "cancel-context":
             self.dismiss()
 
+    def check_edit(self, confirm):
+        if confirm:
+            self.app.query_one("#dashboard-pane", Dashboard).refresh_table()
+            self.app.query_one("#jobstable-pane", JobsTable).refresh_table()
+        self.dismiss()
 
-class JobEditScreen(ModalScreen):
-    """Screen for editing job properties with all attributes"""
 
+class JobEditScreen(BaseEditScreen):
     def __init__(self, job_data: Dict):
-        super().__init__()
-        self.job_data = job_data
-        self.original_data = job_data.copy()
+        super().__init__(
+            job_data, f"Edit Job: {job_data.get('job_number', '')}"
+        )
+        self.client_rates = None
 
     def on_mount(self):
-        """Load client rates when screen mounts"""
-        # Get client rates for calculations
-        client_id = self.job_data.get("client_id")
+        """Load client rates when screen mounts."""
+        client_id = self.data.get("client_id")
         if client_id:
             rates = self.app.transcriptor.api.get_rates(
                 conditions={"client_id": [("=", client_id)]}
@@ -1960,116 +718,67 @@ class JobEditScreen(ModalScreen):
             if rates:
                 self.client_rates = rates[0]
 
-    def compose(self) -> ComposeResult:
-        with Container(id="job-edit"):
-            yield Label(
-                f"Edit Job: {self.job_data.get('job_number', '')}",
-                classes="edit-title",
-            )
+    def get_container_id(self) -> str:
+        return "job-edit"
 
-            # Use a ScrollableContainer to handle overflow
-            with VerticalScroll(id="job-form-container"):
-                with Vertical():
-                    yield Label("Job Number:")
-                    yield Input(
-                        value=self.job_data.get("job_number", ""),
-                        id="job_number",
-                    )
+    def get_form_id(self) -> str:
+        return "job-form-container"
 
-                    yield Label("Client ID:")
-                    yield Input(
-                        value=str(self.job_data.get("client_id", "")),
-                        id="client_id",
-                    )
+    def get_fields(self):
+        yield Label("Job Number:")
+        yield Input(value=self.data.get("job_number", ""), id="job_number")
+        yield Label("Client ID:")
+        yield Input(value=str(self.data.get("client_id", "")), id="client_id")
+        yield Label("Status:")
+        statuses = ["Pending", "Done"]
+        current_status = self.data.get("status", "Pending")
+        yield Select(
+            [(s, s) for s in statuses], value=current_status, id="status"
+        )
+        yield Label("Amount Paid:")
+        yield Input(
+            value=str(self.data.get("amount_paid", "")), id="amount_paid"
+        )
+        yield Label("Job Type:")
+        job_types = ["normal", "expedite", "interpreted"]
+        current_job_type = self.data.get("job_type", "normal")
+        yield Select(
+            [(jt, jt) for jt in job_types],
+            value=current_job_type,
+            id="job_type",
+        )
+        yield Label("Date Submitted:")
+        date_submitted = self.data.get("date_submitted", "")
+        yield Input(
+            value=date_submitted if date_submitted else "",
+            id="date_submitted",
+        )
+        yield Label("Job Rate:")
+        yield Input(value=str(self.data.get("job_rate", "")), id="job_rate")
+        yield Label("Date Received:")
+        yield Input(
+            value=self.data.get("date_received", ""), id="date_received"
+        )
+        yield Label("Date Due:")
+        yield Input(value=self.data.get("date_due", ""), id="date_due")
+        yield Label("Quantity:")
+        yield Input(value=str(self.data.get("quantity", "")), id="quantity")
+        yield Label("Total Quantity:")
+        yield Input(
+            value=str(self.data.get("total_quantity", "")),
+            id="total_quantity",
+        )
+        yield Label("Amount:")
+        yield Input(value=str(self.data.get("amount", "")), id="amount")
+        yield Label("Job Path:")
+        yield Input(value=self.data.get("job_path", ""), id="job_path")
+        yield Label("Note:")
+        yield TextArea(self.data.get("note", ""), id="note")
 
-                    yield Label("Status:")
-                    statuses = ["Pending", "Done"]
-                    current_status = self.job_data.get("status", "Pending")
-                    yield Select(
-                        [(s, s) for s in statuses],
-                        value=current_status,
-                        id="status",
-                    )
+    def collect_values(self) -> Dict | None:
+        updated = {}
 
-                    yield Label("Amount Paid:")
-                    yield Input(
-                        value=str(self.job_data.get("amount_paid", "")),
-                        id="amount_paid",
-                    )
-
-                    yield Label("Job Type:")
-                    job_types = [
-                        "normal",
-                        "expedite",
-                        "interpreted",
-                    ]
-                    current_job_type = self.job_data.get("job_type", "normal")
-                    yield Select(
-                        [(jt, jt) for jt in job_types],
-                        value=current_job_type,
-                        id="job_type",
-                    )
-
-                    yield Label("Date Submitted:")
-                    date_submitted = self.job_data.get("date_submitted", "")
-                    yield Input(
-                        value=date_submitted if date_submitted else "",
-                        id="date_submitted",
-                    )
-
-                    yield Label("Job Rate:")
-                    yield Input(
-                        value=str(self.job_data.get("job_rate", "")),
-                        id="job_rate",
-                    )
-
-                    yield Label("Date Received:")
-                    yield Input(
-                        value=self.job_data.get("date_received", ""),
-                        id="date_received",
-                    )
-
-                    yield Label("Date Due:")
-                    yield Input(
-                        value=self.job_data.get("date_due", ""), id="date_due"
-                    )
-
-                    yield Label("Quantity:")
-                    yield Input(
-                        value=str(self.job_data.get("quantity", "")),
-                        id="quantity",
-                    )
-
-                    yield Label("Total Quantity:")
-                    yield Input(
-                        value=str(self.job_data.get("total_quantity", "")),
-                        id="total_quantity",
-                    )
-
-                    yield Label("Amount:")
-                    yield Input(
-                        value=str(self.job_data.get("amount", "")),
-                        id="amount",
-                    )
-
-                    yield Label("Job Path:")
-                    yield Input(
-                        value=self.job_data.get("job_path", ""), id="job_path"
-                    )
-
-                    yield Label("Note:")
-                    yield TextArea(self.job_data.get("note", ""), id="note")
-
-            with Horizontal(id="edit-buttons"):
-                yield Button("Save", variant="primary", id="save-job")
-                yield Button("Cancel", variant="default", id="cancel-edit")
-
-    @on(Button.Pressed, "#save-job")
-    def save_job(self):
-        # Collect updated values
-        updated_values = {}
-
-        # Text input fields
+        # Text fields
         text_fields = [
             "job_number",
             "date_received",
@@ -2079,10 +788,8 @@ class JobEditScreen(ModalScreen):
         ]
         for field in text_fields:
             widget = self.query_one(f"#{field}", Input)
-            updated_values[field] = widget.value
-        updated_values["date_submitted"] = (
-            updated_values["date_submitted"] or None
-        )
+            updated[field] = widget.value
+        updated["date_submitted"] = updated["date_submitted"] or None
 
         # Numeric fields
         numeric_fields = [
@@ -2096,63 +803,65 @@ class JobEditScreen(ModalScreen):
         for field in numeric_fields:
             widget = self.query_one(f"#{field}", Input)
             try:
-                if widget.value.strip():  # Only convert if not empty
+                if widget.value.strip():
                     if field == "client_id":
-                        updated_values[field] = int(widget.value)
+                        updated[field] = int(widget.value)
                     else:
-                        updated_values[field] = float(widget.value)
+                        updated[field] = float(widget.value)
                 else:
-                    updated_values[field] = 0.0 if field != "client_id" else 0
+                    updated[field] = 0.0 if field != "client_id" else 0
             except ValueError:
                 self.app.notify(
                     f"Invalid value for {field}!", severity="error"
                 )
-                return
+                return None
 
         # Select fields
         select_fields = ["job_type", "status"]
         for field in select_fields:
             widget = self.query_one(f"#{field}", Select)
-            updated_values[field] = widget.value
+            updated[field] = widget.value
 
-        # TextArea field
+        # TextArea
         note_widget = self.query_one("#note", TextArea)
-        updated_values["note"] = note_widget.text
+        updated["note"] = note_widget.text
 
         # Date validation
-        if updated_values.get("date_submitted") and updated_values.get(
-            "date_received"
-        ):
+        if updated.get("date_submitted") and updated.get("date_received"):
             date_format = self.app.transcriptor.config.date_format
-            date_submitted = datetime.strptime(
-                updated_values["date_submitted"], date_format
-            ).date()
-            date_received = datetime.strptime(
-                updated_values["date_received"], date_format
-            ).date()
-            if date_submitted < date_received:
+            try:
+                date_submitted = datetime.strptime(
+                    updated["date_submitted"], date_format
+                ).date()
+                date_received = datetime.strptime(
+                    updated["date_received"], date_format
+                ).date()
+                if date_submitted < date_received:
+                    self.app.notify(
+                        "Error: Date submitted cannot be earlier than date received.",
+                        severity="error",
+                    )
+                    return None
+            except ValueError:
                 self.app.notify(
-                    "Error: Date submitted cannot be earlier than date received.",
+                    f"Invalid date format. Use {date_format}.",
                     severity="error",
                 )
-                return
+                return None
 
-        # Update job in database
-        job_id = self.job_data.get("id")
+        return updated
+
+    def perform_update(self, values: Dict):
+        job_id = self.data.get("id")
         if job_id:
             conditions = {"id": [("=", job_id)]}
             self.app.transcriptor.update_jobs(
-                conditions=conditions, values=updated_values
+                conditions=conditions, values=values
             )
             self.app.notify("Job updated successfully!")
-            self.dismiss(True)
 
-    @on(Button.Pressed, "#cancel-edit")
-    def cancel_edit(self):
-        self.dismiss(False)
-
+    # Dynamic calculation methods remain unchanged
     def calculate_amount(self) -> float:
-        """Calculate amount based on quantity and job_rate"""
         try:
             quantity = float(self.query_one("#quantity", Input).value or 0)
             job_rate = float(self.query_one("#job_rate", Input).value or 0)
@@ -2161,10 +870,8 @@ class JobEditScreen(ModalScreen):
             return 0.0
 
     def update_job_rate_from_type(self, job_type: str) -> None:
-        """Update job_rate based on job type using client rates"""
         if not self.client_rates:
             return
-
         job_type_lower = job_type.lower()
         rate_mapping = {
             "normal": self.client_rates.get("normal", 0),
@@ -2177,19 +884,16 @@ class JobEditScreen(ModalScreen):
 
     @on(Input.Changed, "#job_rate")
     def on_job_rate_changed(self, event: Input.Changed) -> None:
-        """Update amount when job_rate changes"""
         new_amount = self.calculate_amount()
         self.query_one("#amount", Input).value = f"{new_amount:.2f}"
 
     @on(Input.Changed, "#quantity")
     def on_quantity_changed(self, event: Input.Changed) -> None:
-        """Update amount when quantity changes"""
         new_amount = self.calculate_amount()
         self.query_one("#amount", Input).value = f"{new_amount:.2f}"
 
     @on(Select.Changed, "#job_type")
     def on_job_type_changed(self, event: Select.Changed) -> None:
-        """Update job_rate and amount when job type changes"""
         if event.value:
             self.update_job_rate_from_type(event.value)
             new_amount = self.calculate_amount()
@@ -2777,36 +1481,395 @@ class AddJobScreen(ModalScreen):
             next_button.label = "Next"
 
 
-class ConfirmDelete(ModalScreen[bool]):
-    def __init__(self, item_type):
-        super().__init__()
-        self.item_type = item_type
+class Clients(BaseTable):
+    BINDINGS = [
+        ("a", "add_client", "Add New Client (A)"),
+        ("e", "edit_client", "Edit Client (E)"),
+        ("d", "delete_client", "Delete Client (D)"),
+        ("r", "refresh_table", "Refresh Table (R)"),
+    ]
 
-    def compose(self):
-        with Container(id="confirm-delete"):
-            with Horizontal(id="confirm-delete-buttons"):
-                yield Label(
-                    "Are you sure you want to delete this item?",
-                    classes="confirm-title",
+    def compose(self) -> ComposeResult:
+        yield Label("Clients", classes="title")
+        yield DataTable(id="clients-table")
+        yield Static(id="clients-selection-info")
+        with Container(id="clients-controls", classes="panel-controls"):
+            with Horizontal(classes="button-bar"):
+                yield Button("Add Client", id="clients-add")
+                yield Button("Edit Client", id="clients-edit")
+                yield Button("Delete Client", id="clients-delete")
+                yield Button("Refresh", id="clients-refresh")
+
+    def get_table(self) -> DataTable:
+        return self.query_one("#clients-table", DataTable)
+
+    def refresh_table(self):
+        table = self.get_table()
+        table.clear(columns=True)
+        table.cursor_type = "row"
+        table.zebra_stripes = True
+        table.expand = True
+        table.add_columns(
+            ("⋮", "menu"),
+            ("ID", "id"),
+            ("Name", "name"),
+            ("Email", "email"),
+        )
+
+        clients = self.app.transcriptor.api.get_clients()
+        self.data = clients
+        self.update_selection_info()
+
+        for idx, client in enumerate(clients):
+            table.add_row(
+                "⋯",
+                str(client.get("id")),
+                client.get("name"),
+                client.get("email"),
+                key=str(idx),
+            )
+
+    def update_selection_info(self):
+        table = self.get_table()
+        info = self.query_one("#clients-selection-info", Static)
+        if table.cursor_row is not None and 0 <= table.cursor_row < len(
+            self.data
+        ):
+            client_name = self.data[table.cursor_row].get("name", "Unknown")
+            info.update(f"Selected: {client_name}")
+        else:
+            info.update("Selected: None")
+
+    def get_context_menu(self, client):
+        return ClientContextMenu(client)
+
+    # -------- actions --------
+    def action_add_client(self) -> None:
+        self.app.push_screen(AddClientScreen())
+
+    def action_edit_client(self) -> None:
+        if self.get_table().cursor_row is None:
+            self.app.notify("No client selected!", severity="error")
+            return
+        client = self.data[self.get_table().cursor_row]
+        client_dict = (
+            client.__dict__ if hasattr(client, "__dict__") else dict(client)
+        )
+        self.app.push_screen(
+            ClientEditScreen(client_dict), lambda _: self.refresh_table()
+        )
+
+    def action_delete_client(self) -> None:
+        if self.get_table().cursor_row is None:
+            self.app.notify("No client selected!", severity="error")
+            return
+        client_id = self.data[self.get_table().cursor_row].get("id")
+
+        def check_confirm(confirm):
+            if confirm:
+                self.app.transcriptor.delete_clients(
+                    conditions={"id": [("=", client_id)]}
                 )
-                yield Button(
-                    "Yes", variant="primary", id="confirm-delete-yes"
-                )
-                yield Button("No", variant="default", id="confirm-delete-no")
+                self.app.notify("Client deleted successfully!")
+                self.refresh_table()
+                self.app.query_one("#rates-pane", Rates).refresh_table()
+            else:
+                self.app.notify("Client deletion cancelled!")
 
-    def on_mount(self):
-        self.query_one("#confirm-delete-no")
+        self.app.push_screen(ConfirmDelete("client"), check_confirm)
 
-    @on(Button.Pressed, "#confirm-delete-yes")
-    def confirm_delete(self):
-        self.dismiss(True)
+    # -------- button handlers --------
+    @on(Button.Pressed, "#clients-add")
+    def on_clients_add(self):
+        self.action_add_client()
 
-    @on(Button.Pressed, "#confirm-delete-no")
-    def cancel_delete(self):
-        self.dismiss(False)
+    @on(Button.Pressed, "#clients-edit")
+    def on_clients_edit(self):
+        self.action_edit_client()
 
-    def key_escape(self):
-        self.dismiss(False)
+    @on(Button.Pressed, "#clients-delete")
+    def on_clients_delete(self):
+        self.action_delete_client()
+
+    @on(Button.Pressed, "#clients-refresh")
+    def on_clients_refresh(self):
+        self.refresh_table()
+
+
+class ClientContextMenu(BaseContextMenu):
+    def __init__(self, client_data: Dict):
+        super().__init__(
+            client_data, f"Client: {client_data.get('name', '')}"
+        )
+
+    def get_menu_items(self):
+        yield ListItem(Label("📝 Edit Client"), id="edit-client")
+        yield ListItem(Label("🗑️ Delete Client"), id="delete-client")
+        yield ListItem(Label("❌ Cancel"), id="cancel-context")
+
+    def handle_action(self, action: str):
+        client_id = self.item_data.get("id")
+        if action == "edit-client":
+            client_dict = (
+                self.item_data.__dict__
+                if hasattr(self.item_data, "__dict__")
+                else dict(self.item_data)
+            )
+            self.app.push_screen(
+                ClientEditScreen(client_dict), self.check_edit
+            )
+        elif action == "delete-client":
+
+            def check_confirm(confirm):
+                if confirm:
+                    self.app.transcriptor.delete_clients(
+                        conditions={"id": [("=", client_id)]}
+                    )
+                    self.app.notify("Client deleted successfully!")
+                    self.app.query_one(
+                        "#clients-pane", Clients
+                    ).refresh_table()
+                    self.app.query_one("#rates-pane", Rates).refresh_table()
+                    self.dismiss(True)
+                else:
+                    self.app.notify("Client deletion cancelled!")
+                    self.dismiss(False)
+
+            self.app.push_screen(ConfirmDelete("client"), check_confirm)
+        elif action == "cancel-context":
+            self.dismiss()
+
+    def check_edit(self, confirm):
+        if confirm:
+            self.app.query_one("#clients-pane", Clients).refresh_table()
+        self.dismiss()
+
+
+class ClientEditScreen(BaseEditScreen):
+    def __init__(self, client_data: Dict):
+        super().__init__(
+            client_data, f"Edit Client: {client_data.get('name', '')}"
+        )
+
+    def get_container_id(self) -> str:
+        return "client-edit"
+
+    def get_form_id(self) -> str:
+        return "client-form-container"
+
+    def get_fields(self):
+        yield Label("Name:")
+        yield Input(value=self.data.get("name", ""), id="client-name")
+        yield Label("Email:")
+        yield Input(value=self.data.get("email", ""), id="client-email")
+
+    def collect_values(self) -> Dict | None:
+        return {
+            "name": self.query_one("#client-name", Input).value,
+            "email": self.query_one("#client-email", Input).value,
+        }
+
+    def perform_update(self, values: Dict):
+        client_id = self.data.get("id")
+        if client_id:
+            conditions = {"id": [("=", client_id)]}
+            self.app.transcriptor.api.update_clients(
+                conditions=conditions, values=values
+            )
+            self.app.notify("Client updated successfully!")
+
+
+class AddClientScreen(BaseAddScreen):
+    def __init__(self):
+        super().__init__("Add New Client")
+
+    def get_container_id(self) -> str:
+        return "add-client"
+
+    def get_form_id(self) -> str:
+        return "add-client-form-container"
+
+    def get_fields(self):
+        yield Label("Name:")
+        yield Input(id="add-client-name")
+        yield Label("Email:")
+        yield Input(id="add-client-email")
+
+    def validate(self) -> bool:
+        name = self.query_one("#add-client-name", Input).value
+        email = self.query_one("#add-client-email", Input).value
+        if not name or not email:
+            self.app.notify("Name and email are required.", severity="error")
+            return False
+        return True
+
+    def perform_add(self):
+        name = self.query_one("#add-client-name", Input).value
+        email = self.query_one("#add-client-email", Input).value
+        self.app.transcriptor.create_client(name=name, email=email)
+        self.app.notify("Client added successfully!")
+        self.app.query_one("#clients-pane", Clients).refresh_table()
+        self.app.query_one("#rates-pane", Rates).refresh_table()
+
+
+class Rates(BaseTable):
+    BINDINGS = [
+        ("e", "edit_rate", "Edit Rate (E)"),
+        ("r", "refresh_table", "Refresh Table (R)"),
+    ]
+
+    def compose(self) -> ComposeResult:
+        yield Label("Rates", classes="title")
+        yield DataTable(id="rates-table")
+        yield Static(id="rates-selection-info")
+        with Container(id="rates-controls", classes="panel-controls"):
+            with Horizontal(classes="button-bar"):
+                yield Button("Edit Rate", id="rates-edit")
+                yield Button("Refresh", id="rates-refresh")
+
+    def get_table(self) -> DataTable:
+        return self.query_one("#rates-table", DataTable)
+
+    def refresh_table(self):
+        table = self.get_table()
+        table.clear(columns=True)
+        table.cursor_type = "row"
+        table.zebra_stripes = True
+        table.expand = True
+        table.add_columns(
+            ("⋮", "menu"),
+            ("Client", "client"),
+            ("Normal", "normal"),
+            ("Expedite", "expedite"),
+            ("Interpreted", "interpreted"),
+        )
+
+        rates = self.app.transcriptor.api.get_rates()
+        self.data = rates
+        self.update_selection_info()
+
+        for idx, rate in enumerate(rates):
+            table.add_row(
+                "⋯",
+                rate.get("client_name"),
+                f"${rate.get('normal', 0):.2f}",
+                f"${rate.get('expedite', 0):.2f}",
+                f"${rate.get('interpreted', 0):.2f}",
+                key=str(idx),
+            )
+
+    def update_selection_info(self):
+        table = self.get_table()
+        info = self.query_one("#rates-selection-info", Static)
+        if table.cursor_row is not None and 0 <= table.cursor_row < len(
+            self.data
+        ):
+            client_name = self.data[table.cursor_row].get(
+                "client_name", "Unknown"
+            )
+            info.update(f"Selected: {client_name}")
+        else:
+            info.update("Selected: None")
+
+    def get_context_menu(self, rate):
+        return RateContextMenu(rate)
+
+    def action_edit_rate(self) -> None:
+        if self.get_table().cursor_row is None:
+            self.app.notify("No rate selected!", severity="error")
+            return
+        rate = self.data[self.get_table().cursor_row]
+        rate_dict = rate.__dict__ if hasattr(rate, "__dict__") else dict(rate)
+        self.app.push_screen(
+            RateEditScreen(rate_dict), lambda _: self.refresh_table()
+        )
+
+    # -------- button handlers --------
+    @on(Button.Pressed, "#rates-edit")
+    def on_rates_edit(self):
+        self.action_edit_rate()
+
+    @on(Button.Pressed, "#rates-refresh")
+    def on_rates_refresh(self):
+        self.refresh_table()
+
+
+class RateContextMenu(BaseContextMenu):
+    def __init__(self, rate_data: Dict):
+        super().__init__(
+            rate_data, f"Rate for: {rate_data.get('client_name', '')}"
+        )
+
+    def get_menu_items(self):
+        yield ListItem(Label("📝 Edit Rate"), id="edit-rate")
+        yield ListItem(Label("❌ Cancel"), id="cancel-context")
+
+    def handle_action(self, action: str):
+        if action == "edit-rate":
+            rate_dict = (
+                self.item_data.__dict__
+                if hasattr(self.item_data, "__dict__")
+                else dict(self.item_data)
+            )
+            self.app.push_screen(RateEditScreen(rate_dict), self.check_edit)
+        elif action == "cancel-context":
+            self.dismiss()
+
+    def check_edit(self, confirm):
+        if confirm:
+            self.app.query_one("#rates-pane", Rates).refresh_table()
+        self.dismiss()
+
+
+class RateEditScreen(BaseEditScreen):
+    def __init__(self, rate_data: Dict):
+        super().__init__(
+            rate_data, f"Edit Rate: {rate_data.get('client_name', '')}"
+        )
+
+    def get_container_id(self) -> str:
+        return "rate-edit"
+
+    def get_form_id(self) -> str:
+        return "rate-form-container"
+
+    def get_fields(self):
+        yield Label("Normal:")
+        yield Input(value=str(self.data.get("normal", 0.0)), id="rate-normal")
+        yield Label("Expedite:")
+        yield Input(
+            value=str(self.data.get("expedite", 0.0)), id="rate-expedite"
+        )
+        yield Label("Interpreted:")
+        yield Input(
+            value=str(self.data.get("interpreted", 0.0)),
+            id="rate-interpreted",
+        )
+
+    def collect_values(self) -> Dict | None:
+        try:
+            normal = float(self.query_one("#rate-normal", Input).value)
+            expedite = float(self.query_one("#rate-expedite", Input).value)
+            interpreted = float(
+                self.query_one("#rate-interpreted", Input).value
+            )
+        except ValueError:
+            self.app.notify("Rates must be numeric values.", severity="error")
+            return None
+        return {
+            "normal": normal,
+            "expedite": expedite,
+            "interpreted": interpreted,
+        }
+
+    def perform_update(self, values: Dict):
+        rate_id = self.data.get("id")
+        if rate_id:
+            conditions = {"id": [("=", rate_id)]}
+            self.app.transcriptor.api.update_rates(
+                conditions=conditions, values=values
+            )
+            self.app.notify("Rate updated successfully!")
 
 
 class Invoice(Container):
@@ -2919,7 +1982,6 @@ class Invoice(Container):
                 self.load_cutoffs()
 
         self.app.push_screen(AddCutoffsScreen(), check_add)
-        self.load_cutoffs()
 
     @on(Button.Pressed, "#cutoffs-add")
     def on_cutoffs_add(self):
@@ -3161,6 +2223,438 @@ class InvoicePreviewScreen(ModalScreen):
     @on(Button.Pressed, "#cancel-preview")
     def cancel_preview(self):
         self.dismiss()
+
+
+class AddCutoffsScreen(BaseAddScreen):
+    def __init__(self):
+        super().__init__("Add Cutoffs from Docx")
+
+    def get_container_id(self) -> str:
+        return "add-cutoffs"
+
+    def get_form_id(self) -> str:
+        return "add-cutoffs-form-container"
+
+    def get_fields(self):
+        yield Label("Docx File Path:")
+        yield Input(
+            placeholder="Enter path to cutoffs docx file",
+            id="cutoffs-file-path",
+        )
+        yield Button("Browse", id="browse-cutoffs-file")
+        yield Label("Year:")
+        yield Input(value=str(datetime.now().year), id="cutoffs-year")
+        yield Label("Date Format:")
+        yield Input(
+            value=self.app.transcriptor.config.date_format,
+            id="invoice-date-format",
+        )
+
+    def validate(self) -> bool:
+        file_path = self.query_one("#cutoffs-file-path", Input).value
+        if not file_path:
+            self.app.notify("Please enter a file path.", severity="error")
+            return False
+        path = Path(file_path)
+        if not path.exists():
+            self.app.notify(f"File not found: {file_path}", severity="error")
+            return False
+        return True
+
+    def perform_add(self):
+        file_path = self.query_one("#cutoffs-file-path", Input).value
+        year = self.query_one("#cutoffs-year", Input).value
+        date_format = self.query_one("#invoice-date-format", Input).value
+        cutoffs = generate_cutoff_list_from_docx(
+            docx_path=file_path, date_fmt=date_format
+        )
+        self.app.transcriptor.save_cutoffs(cutoffs, year=year)
+        self.app.notify("Cutoffs imported successfully!")
+
+
+class Profile(Container):
+
+    BINDINGS = [
+        ("e", "edit_profile", "Edit Profile (E)"),
+        ("r", "refresh_table", "Refresh Table (R)"),
+    ]
+
+    # Ensure container can receive focus so its bindings work when tab is active
+    can_focus = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def compose(self) -> ComposeResult:
+        yield Label("Profile", classes="title")
+        yield Static(id="profile-display")
+        with Container(id="profile-controls", classes="panel-controls"):
+            with Horizontal(classes="button-bar"):
+                yield Button("Edit Profile", id="edit-profile")
+                yield Button("Refresh", id="profile-refresh")
+
+    def on_mount(self):
+        self.refresh_table()
+
+    def refresh_table(self):
+        """Load current profile for display"""
+        profile_display = self.query_one("#profile-display", Static)
+        profile = self.app.transcriptor.profile
+        display_text = f"""
+Name: {profile.name}
+Area: {profile.area}
+Country: {profile.country}
+        """
+        profile_display.update(display_text)
+
+    def action_edit_profile(self):
+        def check_edit(confirm):
+            if confirm:
+                self.refresh_table()
+
+        profile_dict = self.app.transcriptor.profile.__dict__.copy()
+        self.app.push_screen(ProfileEditScreen(profile_dict), check_edit)
+
+    @on(Button.Pressed, "#edit-profile")
+    def on_edit_profile_button(self):
+        self.action_edit_profile()
+
+    @on(Button.Pressed, "#profile-refresh")
+    def on_profile_refresh(self):
+        self.refresh_table()
+
+
+class ProfileEditScreen(BaseEditScreen):
+    def __init__(self, profile_data: Dict):
+        super().__init__(profile_data, "Edit Profile")
+
+    def get_container_id(self) -> str:
+        return "profile-edit"
+
+    def get_form_id(self) -> str:
+        return "profile-form-container"
+
+    def get_fields(self):
+        yield Label("Name:")
+        yield Input(value=self.data.get("name", ""), id="profile-name")
+        yield Label("Area:")
+        yield Input(value=self.data.get("area", ""), id="profile-area")
+        yield Label("Country:")
+        yield Input(value=self.data.get("country", ""), id="profile-country")
+
+    def collect_values(self) -> Dict | None:
+        return {
+            "name": self.query_one("#profile-name", Input).value,
+            "area": self.query_one("#profile-area", Input).value,
+            "country": self.query_one("#profile-country", Input).value,
+        }
+
+    def perform_update(self, values: Dict):
+        profile = self.app.transcriptor.profile
+        profile.name = values["name"]
+        profile.area = values["area"]
+        profile.country = values["country"]
+        self.app.transcriptor.save_profile()
+        self.app.notify("Profile updated successfully!")
+
+
+class ConfigurationScreen(ModalScreen):
+    """Screen for editing configuration"""
+
+    def compose(self) -> ComposeResult:
+        with Container(id="config-edit"):
+            yield Label("Edit Configuration", classes="config-title")
+
+            with Vertical():
+                yield Label("Base Directory:")
+                yield Input(
+                    value=self.app.transcriptor.config.base_dir, id="base_dir"
+                )
+
+                yield Label("Date Format:")
+                yield Input(
+                    value=self.app.transcriptor.config.date_format,
+                    id="date_format",
+                )
+
+                yield Label("Invoice Theme:")
+                # Fix: Import invoice_template_themes at the top
+                themes = invoice_template_themes()
+                select = Select(
+                    [(theme, theme) for theme in themes],
+                    id="invoice_theme",
+                    value=self.app.transcriptor.config.invoice_theme,
+                )
+                yield select
+
+            with Horizontal(id="edit-buttons"):
+                yield Button("Save", variant="primary", id="save-config")
+                yield Button("Cancel", variant="default", id="cancel-config")
+
+    @on(Button.Pressed, "#save-config")
+    def save_config(self):
+        base_dir = self.query_one("#base_dir", Input).value
+        date_format = self.query_one("#date_format", Input).value
+        invoice_theme_select = self.query_one("#invoice_theme", Select)
+        invoice_theme = (
+            invoice_theme_select.value
+            if invoice_theme_select.value
+            else "default"
+        )
+
+        # Update config
+        self.app.transcriptor.config.base_dir = base_dir
+        self.app.transcriptor.config.date_format = date_format
+        self.app.transcriptor.config.invoice_theme = invoice_theme
+
+        # Save to file
+        self.app.transcriptor.save_config()
+        self.app.notify("Configuration saved successfully!")
+        self.dismiss(True)
+        # Refresh config display
+
+    @on(Button.Pressed, "#cancel-config")
+    def cancel_config(self):
+        self.dismiss(True)
+
+
+class Configuration(Container):
+
+    BINDINGS = [
+        ("e", "edit_config", "Edit New Job (E)"),
+        ("r", "refresh_table", "Refresh Config (R)"),
+    ]
+
+    def compose(self) -> ComposeResult:
+        with VerticalScroll(id="config-container"):
+            yield Label("Configuration & Settings", classes="title")
+            yield Static(id="config-display")
+            with Horizontal(classes="edit-config-bar"):
+                yield Button("Edit Config", id="edit-config")
+
+            yield Label("Data Management", classes="subtitle")
+            with Horizontal(classes="button-bar"):
+                yield Button("Backup Database", id="backup-db")
+                yield Button("Restore Database", id="restore-db")
+                yield Button("Purge Job Files", id="purge-jobs")
+                yield Button("About", id="about-app")
+
+    def on_mount(self):
+        self.refresh_table()
+
+    def refresh_table(self):
+        """Load current configuration for display"""
+        config_display = self.query_one("#config-display", Static)
+        config = self.app.transcriptor.config
+        display_text = f"""
+Base Directory: {config.base_dir}
+Date Format: {config.date_format}
+Invoice Theme: {config.invoice_theme}
+        """
+        config_display.update(display_text)
+
+    def action_edit_config(self):
+        def check_edit(confirm):
+            if confirm:
+                self.refresh_table()
+
+        self.app.push_screen(ConfigurationScreen(), check_edit)
+
+    @on(Button.Pressed, "#edit-config")
+    def on_edit_config_button(self):
+        self.action_edit_config()
+
+    def action_refresh_table(self):
+        self.refresh_table()
+
+    @on(Button.Pressed, "#backup-db")
+    def backup_database(self):
+        try:
+            path = self.app.transcriptor.backup.create_backup()
+            self.app.notify(f"Backup created at {path}")
+        except Exception as e:
+            self.app.notify(f"Backup failed: {str(e)}", severity="error")
+
+    @on(Button.Pressed, "#restore-db")
+    def restore_database(self):
+        self.app.push_screen(RestoreScreen())
+
+    @on(Button.Pressed, "#purge-jobs")
+    def purge_jobs(self):
+        self.app.push_screen(PurgeScreen())
+
+    @on(Button.Pressed, "#about-app")
+    def about_app(self):
+        self.app.push_screen(AboutScreen())
+
+
+class RestoreScreen(ModalScreen):
+    """Screen for restoring database from backup"""
+
+    def compose(self) -> ComposeResult:
+        with Container(id="restore-screen"):
+            yield Label("Restore Database", classes="restore-title")
+            yield Label(
+                "Select a backup to restore:", classes="restore-label"
+            )
+            yield Select([], id="backup-select", prompt="Select backup")
+            with Horizontal(id="restore-buttons"):
+                yield Button(
+                    "Restore", variant="primary", id="confirm-restore"
+                )
+                yield Button("Cancel", variant="default", id="cancel-restore")
+
+    def on_mount(self):
+        backups = self.app.transcriptor.backup.list_backups()
+        options = [(b.name, str(b)) for b in backups]
+        self.query_one("#backup-select", Select).set_options(options)
+
+    @on(Button.Pressed, "#confirm-restore")
+    def confirm_restore(self):
+        backup_path = self.query_one("#backup-select", Select).value
+        if not backup_path:
+            self.app.notify("Please select a backup.", severity="error")
+            return
+
+        try:
+            self.app.transcriptor.backup.restore_backup(Path(backup_path))
+            self.app.notify("Database restored successfully!")
+            self.dismiss()
+        except Exception as e:
+            self.app.notify(f"Restore failed: {str(e)}", severity="error")
+
+    @on(Button.Pressed, "#cancel-restore")
+    def cancel_restore(self):
+        self.dismiss()
+
+
+class PurgeScreen(ModalScreen):
+    """Screen for purging job files"""
+
+    def compose(self) -> ComposeResult:
+        with Container(id="purge-screen"):
+            yield Label("Purge Job Files", classes="purge-title")
+            yield Label(
+                "Delete media files for jobs matching:", classes="purge-label"
+            )
+
+            with Vertical():
+                yield Label("Status:")
+                yield Select(
+                    [("Done", "Done"), ("Pending", "Pending")],
+                    value="Done",
+                    id="purge-status",
+                )
+                yield Label("Created Before (YYYY-MM-DD):")
+                yield Input(
+                    placeholder="Optional: 2023-01-01", id="purge-date"
+                )
+
+            with Horizontal(id="purge-buttons"):
+                yield Button("Purge", variant="error", id="confirm-purge")
+                yield Button("Cancel", variant="default", id="cancel-purge")
+
+    @on(Button.Pressed, "#confirm-purge")
+    def confirm_purge(self):
+        status = self.query_one("#purge-status", Select).value
+        date_limit = self.query_one("#purge-date", Input).value
+
+        conditions = {}
+        if status:
+            conditions["status"] = [("=", status)]
+
+        # This part is simplified. In a real scenario, we'd need to parse the date
+        # and add it to conditions properly, potentially involving complex query logic
+        # if the API supports it.
+        # For now, let's just use status as the primary filter + date if provided via where clause construction.
+
+        where_clauses = []
+        if status:
+            where_clauses.append(f"status='{status}'")
+        if date_limit:
+            where_clauses.append(f"date_received<'{date_limit}'")
+
+        conditions = parse_conditions(where_clauses)
+
+        jobs = self.app.transcriptor.api.get_jobs(conditions=conditions)
+
+        if not jobs:
+            self.app.notify(
+                "No jobs found matching criteria.", severity="warning"
+            )
+            return
+
+        def final_confirm(confirm):
+            if confirm:
+                try:
+                    self.app.transcriptor.purge_job_files(jobs)
+                    self.app.notify(f"Purged files for {len(jobs)} jobs.")
+                    self.dismiss()
+                except Exception as e:
+                    self.app.notify(
+                        f"Purge failed: {str(e)}", severity="error"
+                    )
+
+        self.app.push_screen(
+            ConfirmDelete("files for these jobs"), final_confirm
+        )
+
+    @on(Button.Pressed, "#cancel-purge")
+    def cancel_purge(self):
+        self.dismiss()
+
+
+class AboutScreen(ModalScreen):
+    def compose(self) -> ComposeResult:
+        with Container(id="about-screen"):
+            yield Label("About Transcriptor", classes="about-title")
+            yield Label(
+                f"Version: {self.app.transcriptor.version}",
+                classes="about-text",
+            )
+            yield Label(
+                "A CLI/TUI tool for managing transcription jobs.",
+                classes="about-text",
+            )
+
+            with Horizontal(id="about-buttons"):
+                yield Button("Close", variant="primary", id="close-about")
+
+    @on(Button.Pressed, "#close-about")
+    def close_about(self):
+        self.dismiss()
+
+
+class ConfirmDelete(ModalScreen[bool]):
+    def __init__(self, item_type):
+        super().__init__()
+        self.item_type = item_type
+
+    def compose(self):
+        with Container(id="confirm-delete"):
+            with Horizontal(id="confirm-delete-buttons"):
+                yield Label(
+                    "Are you sure you want to delete this item?",
+                    classes="confirm-title",
+                )
+                yield Button(
+                    "Yes", variant="primary", id="confirm-delete-yes"
+                )
+                yield Button("No", variant="default", id="confirm-delete-no")
+
+    def on_mount(self):
+        self.query_one("#confirm-delete-no")
+
+    @on(Button.Pressed, "#confirm-delete-yes")
+    def confirm_delete(self):
+        self.dismiss(True)
+
+    @on(Button.Pressed, "#confirm-delete-no")
+    def cancel_delete(self):
+        self.dismiss(False)
+
+    def key_escape(self):
+        self.dismiss(False)
 
 
 class TranscriptorTUI(App):
