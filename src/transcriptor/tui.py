@@ -114,8 +114,6 @@ class BaseTable(Container):
     UNIVERSAL_VIM_BINDINGS = [
         ("j/k", "Move down/up"),
         ("g/G", "Top/bottom"),
-        ("x", "Toggle select"),
-        ("o/Enter", "Context menu"),
         ("h/l", "Move column"),
         ("r", "Refresh"),
     ]
@@ -281,23 +279,23 @@ class BaseTable(Container):
                     method()
                     return True
 
-        if key == "a" and hasattr(self, "action_add_job"):
-            self.action_add_job()
-            return True
-
-        if key == "e":
-            # Try edit methods in priority order
-            for attr in (
-                "action_edit_job",
-                "action_edit_client",
-                "action_edit_rate",
-            ):
-                if hasattr(self, attr):
-                    getattr(self, attr)()
-                    return True
-        if key == "d" and hasattr(self, "action_delete_client"):
-            self.action_delete_client()
-            return True
+        # if key == "a" and hasattr(self, "action_add_job"):
+        #     self.action_add_job()
+        #     return True
+        #
+        # if key == "e":
+        #     # Try edit methods in priority order
+        #     for attr in (
+        #         "action_edit_job",
+        #         "action_edit_client",
+        #         "action_edit_rate",
+        #     ):
+        #         if hasattr(self, attr):
+        #             getattr(self, attr)()
+        #             return True
+        # if key == "d" and hasattr(self, "action_delete_client"):
+        #     self.action_delete_client()
+        #     return True
         return False
 
     def _move_cursor_column(self, delta: int):
@@ -485,6 +483,10 @@ class Dashboard(BaseTable):
         super().__init__(*args, **kwargs)
         self.add_vim_binding("a", "Add job", "action_add_job")
         self.add_vim_binding("e", "Edit job", "action_edit_job")
+        self.add_vim_binding("x", "Toggle select", "action_toggle_select"),
+        self.add_vim_binding(
+            "o/Enter", "Context menu", "action_context_menu"
+        ),
 
     def compose(self) -> ComposeResult:
         yield DataTable(id="pending-jobs-table")
@@ -573,6 +575,12 @@ class Dashboard(BaseTable):
     def action_add_job(self):
         self.app.push_screen(AddJobScreen())
 
+    def action_toggle_select(self):
+        self.vim_toggle_select_current()
+
+    def action_context_menu(self):
+        self.vim_open_context_current()
+
 
 class JobsTable(BaseTable):
     """All jobs table with selectable rows."""
@@ -584,6 +592,10 @@ class JobsTable(BaseTable):
         self.add_vim_binding(
             "i", "Generate invoice", "action_generate_invoice"
         )
+        self.add_vim_binding("x", "Toggle select", "action_toggle_select"),
+        self.add_vim_binding(
+            "o/Enter", "Context menu", "action_context_menu"
+        ),
 
     def compose(self) -> ComposeResult:
         yield DataTable(id="jobs-data-table")
@@ -731,6 +743,12 @@ class JobsTable(BaseTable):
         self.app.push_screen(
             InvoicePreviewScreen(html, client_name, selected)
         )
+
+    def action_toggle_select(self):
+        self.vim_toggle_select_current()
+
+    def action_context_menu(self):
+        self.vim_open_context_current()
 
     # -------- button handlers --------
     @on(Button.Pressed, "#jobs-add-job")
@@ -1584,6 +1602,10 @@ class Clients(BaseTable):
         self.add_vim_binding("a", "Add client", "action_add_client")
         self.add_vim_binding("e", "Edit client", "action_edit_client")
         self.add_vim_binding("d", "Delete client", "action_delete_client")
+        self.add_vim_binding("x", "Toggle select", "action_toggle_select"),
+        self.add_vim_binding(
+            "o/Enter", "Context menu", "action_context_menu"
+        ),
 
     def compose(self) -> ComposeResult:
         yield Label("Clients", classes="title")
@@ -1676,6 +1698,12 @@ class Clients(BaseTable):
                 self.app.notify("Client deletion cancelled!")
 
         self.app.push_screen(ConfirmDelete("client"), check_confirm)
+
+    def action_toggle_select(self):
+        self.vim_toggle_select_current()
+
+    def action_context_menu(self):
+        self.vim_open_context_current()
 
     # -------- button handlers --------
     @on(Button.Pressed, "#clients-add")
@@ -1815,6 +1843,10 @@ class Rates(BaseTable):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.add_vim_binding("e", "Edit rate", "action_edit_rate")
+        self.add_vim_binding("x", "Toggle select", "action_toggle_select"),
+        self.add_vim_binding(
+            "o/Enter", "Context menu", "action_context_menu"
+        ),
 
     def compose(self) -> ComposeResult:
         yield Label("Rates", classes="title")
@@ -1884,6 +1916,12 @@ class Rates(BaseTable):
         self.app.push_screen(
             RateEditScreen(rate_dict), lambda _: self.refresh_table()
         )
+
+    def action_toggle_select(self):
+        self.vim_toggle_select_current()
+
+    def action_context_menu(self):
+        self.vim_open_context_current()
 
     # -------- button handlers --------
     @on(Button.Pressed, "#rates-edit")
@@ -2872,6 +2910,36 @@ class VimHelpScreen(ModalScreen):
         self.dismiss()
 
 
+class VimFooter(Static):
+    """Dynamic footer showing vim key bindings for the active pane."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vim_mode = False
+        self.bindings: List[tuple[str, str]] = []
+
+    def set_vim_mode(self, enabled: bool):
+        self.vim_mode = enabled
+        self.update_display()
+
+    def set_bindings(self, bindings: List[tuple[str, str]]):
+        self.bindings = bindings
+        self.update_display()
+
+    def update_display(self):
+        if not self.vim_mode:
+            self.update("Vim Mode: Disabled (press 'v' to enable)")
+            return
+
+        if not self.bindings:
+            self.update("Vim Mode: Enabled (no actions available)")
+            return
+
+        # Format as "key: description  |  next key: description"
+        parts = [f"{key}: {desc}" for key, desc in self.bindings]
+        self.update("Vim Mode: " + "  |  ".join(parts))
+
+
 class TranscriptorTUI(App):
     """An application with per-tab and toggleable bindings."""
 
@@ -2922,11 +2990,7 @@ class TranscriptorTUI(App):
                 yield Configuration(
                     id="config-pane", classes="config-container"
                 )
-
-        yield Static(
-            "Vim Mode: Disabled (Press 'v' to toggle)", id="vim-status"
-        )
-        yield Footer()
+        yield VimFooter(id="vim-footer")
 
     def action_toggle_vim_mode(self) -> None:
         self.vim_mode = not self.vim_mode
@@ -2934,8 +2998,21 @@ class TranscriptorTUI(App):
         self.query_one(TabbedContent).focus()
 
     def watch_vim_mode(self, enabled: bool) -> None:
-        status = "Enabled" if enabled else "Disabled (Press 'v' to toggle)"
-        self.query_one("#vim-status").update(f"Vim Mode: {status}")
+        """Update footer when vim mode changes."""
+        footer = self.query_one("#vim-footer", VimFooter)
+        footer.set_vim_mode(enabled)
+        # Also update bindings (in case pane changed while vim was off)
+        self.update_vim_footer()
+
+    def update_vim_footer(self):
+        """Refresh footer with current pane's bindings."""
+        footer = self.query_one("#vim-footer", VimFooter)
+        pane = self._get_active_pane()
+        if pane and hasattr(pane, "get_vim_bindings"):
+            bindings = pane.get_vim_bindings()
+            footer.set_bindings(bindings)
+        else:
+            footer.set_bindings([])
 
     def action_show_vim_help(self):
         self.push_screen(VimHelpScreen())
@@ -2999,6 +3076,7 @@ class TranscriptorTUI(App):
         """Refresh and focus the newly activated pane."""
         pane_id = event.pane.id
         self.call_after_refresh(lambda: self._refresh_and_focus_pane(pane_id))
+        self.call_after_refresh(self.update_vim_footer)
 
     def _refresh_and_focus_pane(self, pane_id: str) -> None:
         """Refresh the pane's data and give focus to its main widget."""
