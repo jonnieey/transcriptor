@@ -5,7 +5,7 @@ from itertools import cycle
 from pathlib import Path
 from typing import Callable, Dict, List
 
-from textual import on
+from textual import events, on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
@@ -130,11 +130,17 @@ class Dashboard(Container):
     def compose(self) -> ComposeResult:
         yield DataTable(id="pending-jobs-table")
         yield Static(id="pending-jobs-selection-info")
+        with Container(id="dashboard-controls", classes="panel-controls"):
+            with Horizontal(classes="button-bar"):
+                yield Button("Add Job", id="dash-add-job")
+                yield Button("Edit Job", id="dash-edit-job")
+                yield Button("Refresh", id="dash-refresh")
 
     def refresh_table(self):
         table = self.query_one("#pending-jobs-table", DataTable)
         table.clear(columns=True)
         # Alternate row backgrounds for readability
+        table.expand = True
         table.zebra_stripes = True
         table.add_columns(
             ("⋮", "menu"),
@@ -202,6 +208,19 @@ class Dashboard(Container):
     def action_refresh_table(self) -> None:
         self.refresh_table()
         self.selected_jobs = []
+
+    # Button handlers
+    @on(Button.Pressed, "#dash-add-job")
+    def on_dash_add(self):
+        self.action_add_job()
+
+    @on(Button.Pressed, "#dash-edit-job")
+    def on_dash_edit(self):
+        self.action_edit_job()
+
+    @on(Button.Pressed, "#dash-refresh")
+    def on_dash_refresh(self):
+        self.action_refresh_table()
 
     def action_edit_job(self) -> None:
         """Edit the first selected job"""
@@ -271,6 +290,76 @@ class Dashboard(Container):
         info = self.query_one("#pending-jobs-selection-info", Static)
         info.update(f"Selected: {len(self.selected_jobs)} jobs")
 
+    # Vim-like helpers
+    def _table_row_count(self, table: DataTable) -> int:
+        try:
+            return table.row_count  # type: ignore[attr-defined]
+        except Exception:
+            return len(getattr(self, "dashboard_jobs_data", []) or [])
+
+    def vim_focus_table(self):
+        self.query_one("#pending-jobs-table", DataTable).focus()
+
+    def vim_move_down(self):
+        table = self.query_one("#pending-jobs-table", DataTable)
+        if table.cursor_row is None:
+            table.move_cursor(row=0)
+        else:
+            row_count = self._table_row_count(table)
+            table.move_cursor(
+                row=min(table.cursor_row + 1, max(0, row_count - 1))
+            )
+
+    def vim_move_up(self):
+        table = self.query_one("#pending-jobs-table", DataTable)
+        if table.cursor_row is None:
+            table.move_cursor(row=0)
+        else:
+            table.move_cursor(row=max(table.cursor_row - 1, 0))
+
+    def vim_top(self):
+        table = self.query_one("#pending-jobs-table", DataTable)
+        table.move_cursor(row=0)
+
+    def vim_bottom(self):
+        table = self.query_one("#pending-jobs-table", DataTable)
+        row_count = self._table_row_count(table)
+        if row_count:
+            table.move_cursor(row=row_count - 1)
+
+    def vim_toggle_select_current(self):
+        table = self.query_one("#pending-jobs-table", DataTable)
+        if table.cursor_row is None:
+            return
+        # Resolve the actual row_key at current cursor position
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        job_id = int(table.get_cell(row_key, "id"))
+        current_value = table.get_cell(row_key, "select")
+        if current_value == "□":
+            table.update_cell(row_key, "select", "✓")
+            if job_id not in self.selected_jobs:
+                self.selected_jobs.append(job_id)
+        else:
+            table.update_cell(row_key, "select", "□")
+            if job_id in self.selected_jobs:
+                self.selected_jobs.remove(job_id)
+        self.update_jobs_selection_info()
+
+    def vim_open_context_current(self):
+        table = self.query_one("#pending-jobs-table", DataTable)
+        if table.cursor_row is None:
+            return
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        job_id_cell = table.get_cell(row_key, "id")
+        try:
+            job_id = int(job_id_cell)
+            for job in self.dashboard_jobs_data:
+                if job.get("id") == job_id:
+                    self.app.push_screen(JobContextMenu(job))
+                    break
+        except Exception:
+            pass
+
     def get_selected_jobs_data(self):
         """Get full data for selected jobs"""
         selected_data = []
@@ -322,6 +411,11 @@ class JobsTable(Container):
     def compose(self) -> ComposeResult:
         yield DataTable(id="jobs-data-table")
         yield Static(id="jobs-selection-info")
+        with Container(id="jobs-controls", classes="panel-controls"):
+            with Horizontal(classes="button-bar"):
+                yield Button("Add Job", id="jobs-add-job")
+                yield Button("Edit Job", id="jobs-edit-job")
+                yield Button("Refresh", id="jobs-refresh")
 
     def on_mount(self):
         self.refresh_table()
@@ -385,6 +479,19 @@ class JobsTable(Container):
         self.refresh_table()
         self.selected_jobs = []
 
+    # Button handlers
+    @on(Button.Pressed, "#jobs-add-job")
+    def on_jobs_add(self):
+        self.action_add_job()
+
+    @on(Button.Pressed, "#jobs-edit-job")
+    def on_jobs_edit(self):
+        self.action_edit_job()
+
+    @on(Button.Pressed, "#jobs-refresh")
+    def on_jobs_refresh(self):
+        self.action_refresh_table()
+
     @on(DataTable.CellSelected, "#jobs-data-table")
     def handle_all_jobs_cell_click(self, event: DataTable.CellSelected):
         """Handle cell clicks in all jobs table"""
@@ -444,6 +551,75 @@ class JobsTable(Container):
         """Update the selection info display"""
         info = self.query_one("#jobs-selection-info", Static)
         info.update(f"Selected: {len(self.selected_jobs)} jobs")
+
+    # Vim-like helpers
+    def _table_row_count(self, table: DataTable) -> int:
+        try:
+            return table.row_count  # type: ignore[attr-defined]
+        except Exception:
+            return len(getattr(self, "jobs_data", []) or [])
+
+    def vim_focus_table(self):
+        self.query_one("#jobs-data-table", DataTable).focus()
+
+    def vim_move_down(self):
+        table = self.query_one("#jobs-data-table", DataTable)
+        if table.cursor_row is None:
+            table.move_cursor(row=0)
+        else:
+            row_count = self._table_row_count(table)
+            table.move_cursor(
+                row=min(table.cursor_row + 1, max(0, row_count - 1))
+            )
+
+    def vim_move_up(self):
+        table = self.query_one("#jobs-data-table", DataTable)
+        if table.cursor_row is None:
+            table.move_cursor(row=0)
+        else:
+            table.move_cursor(row=max(table.cursor_row - 1, 0))
+
+    def vim_top(self):
+        table = self.query_one("#jobs-data-table", DataTable)
+        table.move_cursor(row=0)
+
+    def vim_bottom(self):
+        table = self.query_one("#jobs-data-table", DataTable)
+        row_count = self._table_row_count(table)
+        if row_count:
+            table.move_cursor(row=row_count - 1)
+
+    def vim_toggle_select_current(self):
+        table = self.query_one("#jobs-data-table", DataTable)
+        if table.cursor_row is None:
+            return
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        job_id = int(table.get_cell(row_key, "id"))
+        current_value = table.get_cell(row_key, "select")
+        if current_value == "□":
+            table.update_cell(row_key, "select", "✓")
+            if job_id not in self.selected_jobs:
+                self.selected_jobs.append(job_id)
+        else:
+            table.update_cell(row_key, "select", "□")
+            if job_id in self.selected_jobs:
+                self.selected_jobs.remove(job_id)
+        self.update_jobs_selection_info()
+
+    def vim_open_context_current(self):
+        table = self.query_one("#jobs-data-table", DataTable)
+        if table.cursor_row is None:
+            return
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        job_id_cell = table.get_cell(row_key, "id")
+        try:
+            job_id = int(job_id_cell)
+            for job in self.jobs_data:
+                if job.get("id") == job_id:
+                    self.app.push_screen(JobContextMenu(job))
+                    break
+        except Exception:
+            pass
 
     def get_selected_jobs_data(self):
         """Get full data for selected jobs"""
@@ -512,11 +688,17 @@ class Cutoffs(Container):
     def compose(self) -> ComposeResult:
         yield Label("Cutoffs", classes="title")
         yield DataTable(id="cutoffs-table")
+        with Container(id="cutoffs-controls", classes="panel-controls"):
+            with Horizontal(classes="button-bar"):
+                yield Button("Add Cutoffs", id="cutoffs-add")
+                yield Button("Refresh", id="cutoffs-refresh")
 
     def refresh_table(self):
         """Load cutoff dates"""
-        table = self.query_one("#cutoffs-table", DataTable)
+        table = self.query_one("#invoice-cutoffs-table", DataTable)
         table.clear(columns=True)
+        table.expand = True
+        table.zebra_stripes = True
         table.add_columns(
             ("Cutoff Date", "cutoff-date"), ("Deposit Date", "deposit-date")
         )
@@ -538,6 +720,14 @@ class Cutoffs(Container):
                 self.refresh_table()
 
         self.app.push_screen(AddCutoffsScreen(), check_add)
+
+    @on(Button.Pressed, "#cutoffs-add")
+    def on_cutoffs_add(self):
+        self.action_add_cutoffs()
+
+    @on(Button.Pressed, "#cutoffs-refresh")
+    def on_cutoffs_refresh(self):
+        self.refresh_table()
 
 
 class AddCutoffsScreen(ModalScreen):
@@ -618,6 +808,12 @@ class Clients(Container):
         yield Label("Clients", classes="title")
         yield DataTable(id="clients-table")
         yield Static(id="clients-selection-info")
+        with Container(id="clients-controls", classes="panel-controls"):
+            with Horizontal(classes="button-bar"):
+                yield Button("Add Client", id="clients-add")
+                yield Button("Edit Client", id="clients-edit")
+                yield Button("Delete Client", id="clients-delete")
+                yield Button("Refresh", id="clients-refresh")
 
     def on_mount(self):
         self.refresh_table()
@@ -628,6 +824,7 @@ class Clients(Container):
         table.clear(columns=True)
         table.cursor_type = "row"
         table.zebra_stripes = True
+        table.expand = True
         table.add_columns(
             ("⋮", "menu"),
             ("ID", "id"),
@@ -651,6 +848,23 @@ class Clients(Container):
 
     def action_add_client(self) -> None:
         self.app.push_screen(AddClientScreen())
+
+    # Button handlers
+    @on(Button.Pressed, "#clients-add")
+    def on_clients_add(self):
+        self.action_add_client()
+
+    @on(Button.Pressed, "#clients-edit")
+    def on_clients_edit(self):
+        self.action_edit_client()
+
+    @on(Button.Pressed, "#clients-delete")
+    def on_clients_delete(self):
+        self.action_delete_client()
+
+    @on(Button.Pressed, "#clients-refresh")
+    def on_clients_refresh(self):
+        self.refresh_table()
 
     def get_selected_client_id(self):
         table = self.query_one("#clients-table", DataTable)
@@ -744,6 +958,57 @@ class Clients(Container):
             info.update(f"Selected: {client_name}")
         else:
             info.update("Selected: None")
+
+    # Vim-like helpers
+    def vim_focus_table(self):
+        self.query_one("#clients-table", DataTable).focus()
+
+    def vim_move_down(self):
+        table = self.query_one("#clients-table", DataTable)
+        if table.cursor_row is None:
+            table.move_cursor(row=0)
+        else:
+            try:
+                row_count = table.row_count  # type: ignore[attr-defined]
+            except Exception:
+                row_count = len(self.clients_data)
+            table.move_cursor(
+                row=min(table.cursor_row + 1, max(0, row_count - 1))
+            )
+
+    def vim_move_up(self):
+        table = self.query_one("#clients-table", DataTable)
+        if table.cursor_row is None:
+            table.move_cursor(row=0)
+        else:
+            table.move_cursor(row=max(table.cursor_row - 1, 0))
+
+    def vim_top(self):
+        self.query_one("#clients-table", DataTable).move_cursor(row=0)
+
+    def vim_bottom(self):
+        table = self.query_one("#clients-table", DataTable)
+        try:
+            row_count = table.row_count  # type: ignore[attr-defined]
+        except Exception:
+            row_count = len(self.clients_data)
+        if row_count:
+            table.move_cursor(row=row_count - 1)
+
+    def vim_open_context_current(self):
+        table = self.query_one("#clients-table", DataTable)
+        if table.cursor_row is None:
+            return
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        client_id_cell = table.get_cell(row_key, "id")
+        try:
+            client_id = int(client_id_cell)
+            for client in self.clients_data:
+                if client.get("id") == client_id:
+                    self.app.push_screen(ClientContextMenu(client))
+                    break
+        except Exception:
+            pass
 
 
 class ClientContextMenu(ModalScreen):
@@ -912,6 +1177,10 @@ class Rates(Container):
         yield Label("Rates", classes="title")
         yield DataTable(id="rates-table")
         yield Static(id="rates-selection-info")
+        with Container(id="rates-controls", classes="panel-controls"):
+            with Horizontal(classes="button-bar"):
+                yield Button("Edit Rate", id="rates-edit")
+                yield Button("Refresh", id="rates-refresh")
 
     def on_mount(self):
         self.refresh_table()
@@ -922,6 +1191,7 @@ class Rates(Container):
         table.clear(columns=True)
         table.cursor_type = "row"
         table.zebra_stripes = True
+        table.expand = True
         table.add_columns(
             ("⋮", "menu"),
             ("Client", "client"),
@@ -973,6 +1243,15 @@ class Rates(Container):
                 rate_data = rate_data.__dict__
             self.app.push_screen(RateEditScreen(rate_data), check_edit)
 
+    # Button handlers
+    @on(Button.Pressed, "#rates-edit")
+    def on_rates_edit(self):
+        self.action_edit_rate()
+
+    @on(Button.Pressed, "#rates-refresh")
+    def on_rates_refresh(self):
+        self.refresh_table()
+
     @on(DataTable.CellSelected, "#rates-table")
     def handle_all_rates_cell_click(self, event: DataTable.CellSelected):
         table = event.data_table
@@ -1014,6 +1293,53 @@ class Rates(Container):
             info.update(f"Selected: {client_name}")
         else:
             info.update("Selected: None")
+
+    # Vim-like helpers
+    def vim_focus_table(self):
+        self.query_one("#rates-table", DataTable).focus()
+
+    def vim_move_down(self):
+        table = self.query_one("#rates-table", DataTable)
+        if table.cursor_row is None:
+            table.move_cursor(row=0)
+        else:
+            try:
+                row_count = table.row_count  # type: ignore[attr-defined]
+            except Exception:
+                row_count = len(self.rates_data)
+            table.move_cursor(
+                row=min(table.cursor_row + 1, max(0, row_count - 1))
+            )
+
+    def vim_move_up(self):
+        table = self.query_one("#rates-table", DataTable)
+        if table.cursor_row is None:
+            table.move_cursor(row=0)
+        else:
+            table.move_cursor(row=max(table.cursor_row - 1, 0))
+
+    def vim_top(self):
+        self.query_one("#rates-table", DataTable).move_cursor(row=0)
+
+    def vim_bottom(self):
+        table = self.query_one("#rates-table", DataTable)
+        try:
+            row_count = table.row_count  # type: ignore[attr-defined]
+        except Exception:
+            row_count = len(self.rates_data)
+        if row_count:
+            table.move_cursor(row=row_count - 1)
+
+    def vim_open_context_current(self):
+        table = self.query_one("#rates-table", DataTable)
+        if table.cursor_row is None:
+            return
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        client_name_cell = table.get_cell(row_key, "client")
+        for rate in self.rates_data:
+            if rate.get("client_name") == client_name_cell:
+                self.app.push_screen(RateContextMenu(rate))
+                break
 
 
 class RateContextMenu(ModalScreen):
@@ -1136,8 +1462,10 @@ class Profile(Container):
     def compose(self) -> ComposeResult:
         yield Label("Profile", classes="title")
         yield Static(id="profile-display")
-        with Horizontal(classes="button-bar"):
-            yield Button("Edit Profile", id="edit-profile")
+        with Container(id="profile-controls", classes="panel-controls"):
+            with Horizontal(classes="button-bar"):
+                yield Button("Edit Profile", id="edit-profile")
+                yield Button("Refresh", id="profile-refresh")
 
     def on_mount(self):
         self.refresh_table()
@@ -1163,6 +1491,10 @@ Country: {profile.country}
     @on(Button.Pressed, "#edit-profile")
     def on_edit_profile_button(self):
         self.action_edit_profile()
+
+    @on(Button.Pressed, "#profile-refresh")
+    def on_profile_refresh(self):
+        self.refresh_table()
 
 
 class ProfileEditScreen(ModalScreen):
@@ -2409,6 +2741,11 @@ class ConfirmDelete(ModalScreen[bool]):
 
 
 class Invoice(Container):
+    BINDINGS = [
+        ("a", "add_cutoffs", "Add Cutoffs from Docx (A)"),
+        ("r", "refresh_table", "Refresh Table (R)"),
+    ]
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.clients = []
@@ -2460,6 +2797,8 @@ class Invoice(Container):
             with Container(id="invoice-cutoffs-container"):
                 yield Label("Select Deposit Period", classes="title")
                 yield DataTable(id="invoice-cutoffs-table")
+                with Horizontal(classes="button-bar"):
+                    yield Button("Add Cutoffs", id="cutoffs-add")
 
     def on_mount(self):
         self.load_clients()
@@ -2486,8 +2825,10 @@ class Invoice(Container):
     def load_cutoffs(self):
         """Load cutoffs into the right-hand table"""
         table = self.query_one("#invoice-cutoffs-table", DataTable)
-        table.clear(columns=True)
         table.cursor_type = "row"
+        table.expand = True
+        table.zebra_stripes = True
+        table.clear(columns=True)
         table.add_columns("Cutoff Date", "Deposit Date")
 
         try:
@@ -2502,6 +2843,18 @@ class Invoice(Container):
                     table.add_row(cutoff[0], cutoff[1], key=str(idx))
         except Exception as e:
             table.add_row("Error loading", str(e))
+
+    def action_add_cutoffs(self):
+        def check_add(confirm):
+            if confirm:
+                self.load_cutoffs()
+
+        self.app.push_screen(AddCutoffsScreen(), check_add)
+        self.load_cutoffs()
+
+    @on(Button.Pressed, "#cutoffs-add")
+    def on_cutoffs_add(self):
+        self.action_add_cutoffs()
 
     @on(DataTable.RowHighlighted, "#invoice-cutoffs-table")
     def on_cutoff_highlighted(self, event: DataTable.RowHighlighted):
@@ -2595,7 +2948,6 @@ class Invoice(Container):
         table.display = True
         md_container.display = False
         table.clear(columns=True)
-        table.cursor_type = "row"
         table.add_columns("Job Number", "Date Submitted", "Amount")
 
         if self.invoice_jobs:
@@ -2607,7 +2959,7 @@ class Invoice(Container):
                 )
             # Move focus to the table and ensure it's visible
             try:
-                table.cursor_row = 0
+                table.move_cursor(row=0)
             except Exception:
                 pass
             try:
@@ -2842,33 +3194,128 @@ class TranscriptorTUI(App):
     def on_tabs_tab_activated(
         self, event: TabbedContent.TabActivated
     ) -> None:
-        """Show only the content for the active tab and refresh its data."""
-        # Focus the pane's primary container so its key bindings (e, r, etc.) work
-        # and refresh its data.
-        if event.pane.id == "dashboard":
+        """Schedule a refresh of the newly activated pane after layout is done."""
+        pane_id = event.pane.id
+        self.call_after_refresh(lambda: self._refresh_pane(pane_id))
+
+    def _refresh_pane(self, pane_id: str) -> None:
+        """Refresh the content of the given pane and set focus."""
+        if pane_id == "dashboard":
             pane = self.query_one("#dashboard-pane", Dashboard)
             pane.refresh_table()
             pane.focus()
-        elif event.pane.id == "all-jobs":
+        elif pane_id == "all-jobs":
             pane = self.query_one("#jobstable-pane", JobsTable)
             pane.refresh_table()
             pane.focus()
-        elif event.pane.id == "clients":
+        elif pane_id == "clients":
             pane = self.query_one("#clients-pane", Clients)
             pane.refresh_table()
             pane.focus()
-        elif event.pane.id == "rates":
+        elif pane_id == "rates":
             pane = self.query_one("#rates-pane", Rates)
             pane.refresh_table()
             pane.focus()
-        elif event.pane.id == "profile":
+        elif pane_id == "profile":
             pane = self.query_one("#profile-pane", Profile)
             pane.refresh_table()
             pane.focus()
-        elif event.pane.id == "config":
+        elif pane_id == "config":
             pane = self.query_one("#config-pane", Configuration)
             pane.refresh_table()
             pane.focus()
+
+    # Vim-like global key handling routed to active pane
+    def on_key(self, event: events.Key) -> None:
+        # If a modal screen (context menu, edit dialog, etc.) is open, let it handle keys
+        if isinstance(self.screen, ModalScreen):
+            return
+
+        if not self.vim_mode:
+            return
+        key = event.key
+        tab_content = self.query_one(TabbedContent)
+        active_id = tab_content.active
+
+        pane_widget = None
+        if active_id == "dashboard":
+            pane_widget = self.query_one("#dashboard-pane", Dashboard)
+        elif active_id == "all-jobs":
+            pane_widget = self.query_one("#jobstable-pane", JobsTable)
+        elif active_id == "clients":
+            pane_widget = self.query_one("#clients-pane", Clients)
+        elif active_id == "rates":
+            pane_widget = self.query_one("#rates-pane", Rates)
+        elif active_id == "profile":
+            pane_widget = self.query_one("#profile-pane", Profile)
+        elif active_id == "config":
+            pane_widget = self.query_one("#config-pane", Configuration)
+
+        if pane_widget is None:
+            return
+
+        # Navigation
+        if key == "j" and hasattr(pane_widget, "vim_move_down"):
+            getattr(pane_widget, "vim_focus_table", lambda: None)()
+            pane_widget.vim_move_down()
+            return
+        if key == "k" and hasattr(pane_widget, "vim_move_up"):
+            getattr(pane_widget, "vim_focus_table", lambda: None)()
+            pane_widget.vim_move_up()
+            return
+        if key == "g" and hasattr(pane_widget, "vim_top"):
+            getattr(pane_widget, "vim_focus_table", lambda: None)()
+            pane_widget.vim_top()
+            return
+        if key == "G" and hasattr(pane_widget, "vim_bottom"):
+            getattr(pane_widget, "vim_focus_table", lambda: None)()
+            pane_widget.vim_bottom()
+            return
+
+        # Toggle selection (tables with a select column)
+        if key == "x" and hasattr(pane_widget, "vim_toggle_select_current"):
+            getattr(pane_widget, "vim_focus_table", lambda: None)()
+            pane_widget.vim_toggle_select_current()
+            return
+
+        # Open context (o or Enter)
+        if key in ("o", "enter") and hasattr(
+            pane_widget, "vim_open_context_current"
+        ):
+            pane_widget.vim_open_context_current()
+            return
+
+        # Common actions by pane capabilities
+        if key == "r" and hasattr(pane_widget, "refresh_table"):
+            pane_widget.refresh_table()
+            return
+
+        # Edit / Add across panes
+        if key == "e":
+            for attr in (
+                "action_edit_job",
+                "action_edit_client",
+                "action_edit_rate",
+                "action_edit_profile",
+                "action_edit_config",
+            ):
+                if hasattr(pane_widget, attr):
+                    getattr(pane_widget, attr)()
+                    return
+
+        if key == "a":
+            for attr in (
+                "action_add_job",
+                "action_add_client",
+                "action_add_cutoffs",
+            ):
+                if hasattr(pane_widget, attr):
+                    getattr(pane_widget, attr)()
+                    return
+
+        if key == "d" and hasattr(pane_widget, "action_delete_client"):
+            pane_widget.action_delete_client()
+            return
 
 
 def main():

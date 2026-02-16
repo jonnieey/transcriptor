@@ -1,6 +1,6 @@
-/* transcriptor_tui.css */
+/* transcriptor_tui.css - Refactored */
 
-/* Main app styling */
+/* Base element styles */
 Screen {
     background: $surface;
 }
@@ -8,173 +8,199 @@ VerticalScroll {
     scrollbar-size: 1 1;
     scrollbar-color: $panel;
 }
-
-/* Header and titles */
-.section-title {
-    text-style: bold;
-    color: $accent;
-    margin: 1;
-}
-
-.preview-title, .edit-title, .query-title, .config-title, .selection-title {
-    text-style: bold;
-    color: $accent;
-    text-align: center;
-    margin: 1;
-}
-
-.selection-subtitle {
-    margin: 1;
-    text-align: center;
-}
-
-/* Containers */
-.dashboard-container, .jobs-container, .cutoffs-container, .profile-container,
-.clients-container, .rates-container, .config-container, .sql-container {
-    padding: 1;
-    border: solid $accent;
-}
-
-.add-job-title {
-}
-
-#dashboard-toolbar {
-    height: auto;
-    margin: 1;
-}
-
-/* Modal screens */
-#invoice-preview, #job-edit, #sql-query, #config-edit, #client-selection {
-    width: 90%;
-    height: 90%;
-    border: double $accent;
-    background: $surface;
-}
-
-#invoice-markdown {
-    height: 1fr;
-    border: solid $panel;
-    margin: 1;
-    padding: 1;
-}
-
-Button {
-    height: auto;
-}
-
-#preview-buttons, #edit-buttons, #query-buttons, #config-buttons, #selection-buttons, #profile-buttons {
-    height: auto;
-    align: right top;
-}
-
-/* Toolbars */
-.jobs-toolbar, .clients-toolbar, .rates-toolbar {
-    height: auto;
-    margin: 1;
-}
-
-/* Data tables */
 DataTable {
     height: 1fr;
     scrollbar-size: 1 1;
     scrollbar-color: $panel;
 }
+Button {
+    height: auto;
+}
+Input, Select, TextArea {
+    background: $surface;
+    color: $text;
+    border: solid $panel;
+}
+Input:focus, Select:focus, TextArea:focus {
+    border: solid $accent;
+}
 
-/* Dashboard table zebra rows */
+/* Common classes */
+.preview-title, .edit-title, .config-title {
+    text-style: bold;
+    color: $accent;
+    text-align: center;
+    margin: 1;
+}
+.dashboard-container, .profile-container, .clients-container,
+.rates-container, .config-container, .invoicing-container {
+    padding: 1;
+    border: solid $accent;
+}
+.panel-controls {
+    dock: bottom;
+    height: auto;
+    width: 100%;
+    background: $panel;
+    padding: 1;
+    margin: 0;
+}
+.panel-controls .button-bar {
+    height: auto;
+    align: right top;
+}
+.panel-controls .button-bar > Button {
+    margin-left: 1;
+    min-width: 18;
+}
+.summary-title {
+    text-style: bold;
+    color: $accent;
+    margin-top: 2;
+    margin-bottom: 1;
+}
+.summary-item {
+    margin-left: 2;
+    margin-bottom: 1;
+}
+.restore-title, .purge-title, .about-title, .add-cutoffs-title {
+    text-align: center;
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+.restore-label, .purge-label, .about-text {
+    margin-bottom: 1;
+}
+.context-title {
+    text-align: center;
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+    border-bottom: solid $accent;
+}
+.title {
+    text-style: bold;
+    color: $accent;
+    margin: 1;
+}
+.form-row {
+    height: auto;
+    margin: 1 0;
+    align: left top;
+}
+.form-row > Label {
+    width: 16;
+    text-align: left;
+    color: $accent;
+}
+.form-row > Input,
+.form-row > Select {
+    width: 1fr;
+}
+.two-col > Label {
+    width: 12;
+}
+.two-col > Input,
+.two-col > Select {
+    width: 1fr;
+}
+
+/* Table zebra striping */
 #pending-jobs-table .datatable--even-row { background: $panel; }
 #pending-jobs-table .datatable--odd-row  { background: $surface; }
-
-/* All jobs table zebra rows */
 #jobs-data-table .datatable--even-row { background: $panel; }
 #jobs-data-table .datatable--odd-row  { background: $surface; }
-
-/* Clients table zebra rows */
 #clients-table .datatable--even-row { background: $panel; }
 #clients-table .datatable--odd-row  { background: $surface; }
-
-/* Rates table zebra rows */
 #rates-table .datatable--even-row { background: $panel; }
 #rates-table .datatable--odd-row  { background: $surface; }
+#invoice-cutoffs-table .datatable--even-row { background: $panel; }
+#invoice-cutoffs-table .datatable--odd-row  { background: $surface; }
 
-/* SQL input */
-#sql-input {
-    height: 30%;
+/* Modal screens */
+#invoice-preview, #job-edit, #config-edit,
+#client-edit, #rate-edit, #profile-edit, #context-menu {
+    width: 90%;
+    height: 90%;
+    border: double $accent;
+    background: $surface;
+}
+#client-edit, #rate-edit, #profile-edit, #context-menu {
+    width: 60%;
+    height: auto;
+    align: center middle;
+}
+#invoice-preview {
+    width: 90%;
+    height: 90%;
+}
+#job-edit {
+    width: 1fr;
+    height: 1fr;
+    padding: 1;
+}
+#config-edit {
+    width: 90%;
+    height: 90%;
+}
+#invoice-markdown {
+    height: 1fr;
     border: solid $panel;
     margin: 1;
+    padding: 1;
+    background: $panel;
 }
-
-#sql-results {
-    height: 50%;
-    margin: 1;
+#preview-buttons, #edit-buttons {
+    height: auto;
+    align: right top;
 }
-/* profile display */
+#edit-buttons {
+    background: $panel;
+    align: center bottom;
+    width: 1fr;
+    height: auto;
+    dock: bottom;
+}
+#edit-buttons > Button {
+    margin: 0 2;
+    min-width: 20%;
+}
 #profile-display {
     margin: 1;
     padding: 1;
     border: solid $panel;
     background: $panel;
 }
-
-
-#edit-profile, #edit-config {
-    height: auto;
-    border: solid $panel;
-    background: $panel;
-}
-
-/* Configuration display */
 #config-display {
     margin: 1;
     padding: 1;
     border: solid $panel;
     background: $panel;
 }
-/* Job Edit Screen Styles */
-#job-edit {
-    width: 1fr;
-    height: 1fr;
-    border: double $accent;
-    background: $surface;
-    padding: 1;
-}
-
 #job-form-container {
     height: 80%;
     border: solid $panel;
     margin: 1;
     padding: 1;
 }
-
-/* Ensure proper spacing in the form */
 #job-form-container > Vertical {
     height: auto;
 }
-
 #add-job-screen {
     width: 100%;
-    height:100%;
+    height: 100%;
     border: double $accent;
     background: $surface;
     padding: 1;
     layout: vertical;
 }
-
-.add-job-title {
-    width: 1fr;
-    align: center top;
-    text-style: bold;
-    color: $accent;
-    text-align: center;
-    border-bottom: solid $accent;
-}
-
 #add-job-step-info {
     background: $panel;
     text-align: center;
     text-style: bold;
     border-bottom: solid $accent;
 }
-
 #add-job-form {
     height: 1fr;
     border: double $accent;
@@ -182,7 +208,6 @@ DataTable {
     padding: 1;
     overflow-y: auto;
 }
-
 #add-job-form Input,
 #add-job-form Select,
 #add-job-form TextArea,
@@ -191,13 +216,11 @@ DataTable {
     width: 100%;
     height: auto;
 }
-
 #add-job-form Label {
     margin-top: 1;
     margin-bottom: 0;
     color: cyan;
 }
-
 #add-job-buttons {
     background: $panel;
     align: center bottom;
@@ -205,111 +228,17 @@ DataTable {
     height: auto;
     dock: bottom;
 }
-
 #add-job-buttons > Button {
     margin: 0 2;
     min-width: 20%;
 }
-
-#edit-buttons {
-    background: $panel;
-    align: center bottom;
-    width: 1fr;
-    height: auto;
-    dock: bottom;
-}
-
-#edit-buttons > Button {
-    margin: 0 2;
-    min-width: 20%;
-}
-
-/* Summary styles */
-.summary-title {
-    text-style: bold;
-    color: $accent;
-    margin-top: 2;
-    margin-bottom: 1;
-}
-
-.summary-item {
-    margin-left: 2;
-    margin-bottom: 1;
-}
-
-/* Ensure inputs are visible */
-Input, Select, TextArea {
-    background: $surface;
-    color: $text;
-    border: solid $panel;
-}
-
-Input:focus, Select:focus, TextArea:focus {
-    border: solid $accent;
-}
-
-/* Confirmation Dialog */
-#confirmation-dialog {
-    width: 50%;
-    height: auto;
-    border: double $error;
-    background: $surface;
-    padding: 2;
-}
-
-.dialog-title {
-    text-style: bold;
-    color: $error;
-    text-align: center;
-    margin-bottom: 1;
-}
-
-.dialog-message {
-    text-align: center;
-    margin-bottom: 2;
-}
-
-#confirmation-buttons {
-    align: center middle;
-    width: 100%;
-}
-
-#confirmation-buttons > Button {
-    margin: 0 1;
-}
-
 #confirm-delete {
     background: $error;
 }
-
 #confirm-delete:hover {
     background: $error-darken-1;
 }
-
-#confirmation-dialog {
-    align: center middle;
-    width: 50%;
-    height: auto;
-    padding: 1 2;
-    border: thick $error 50%;
-    background: $surface;
-}
-
-.dialog-title {
-    width: 100%;
-    text-align: center;
-    padding-bottom: 1;
-    border-bottom: solid $error;
-    color: $error;
-}
-
-.dialog-message {
-    padding: 2 0;
-}
-
-
-/* Restore Screen Styles */
-#restore-screen {
+#restore-screen, #purge-screen, #about-screen, #add-cutoffs {
     width: 60%;
     height: auto;
     border: double $accent;
@@ -317,251 +246,67 @@ Input:focus, Select:focus, TextArea:focus {
     padding: 1;
     align: center middle;
 }
-
-.restore-title {
-    text-align: center;
-    text-style: bold;
-    color: $accent;
-    margin-bottom: 1;
-}
-
-.restore-label {
-    margin-bottom: 1;
-}
-
-#restore-buttons {
+#restore-buttons, #purge-buttons, #about-buttons, #add-cutoffs-buttons {
     margin-top: 1;
     align: center middle;
     width: 100%;
 }
-
-#restore-buttons > Button {
+#restore-buttons > Button,
+#purge-buttons > Button,
+#about-buttons > Button,
+#add-cutoffs-buttons > Button {
     margin: 0 1;
 }
-
-/* Purge Screen Styles */
-#purge-screen {
-    width: 60%;
-    height: auto;
-    border: double $error;
-    background: $surface;
-    padding: 1;
-    align: center middle;
-}
-
-.purge-title {
-    text-align: center;
-    text-style: bold;
-    color: $error;
-    margin-bottom: 1;
-}
-
-.purge-label {
-    margin-bottom: 1;
-}
-
-#purge-buttons {
-    margin-top: 1;
-    align: center middle;
-    width: 100%;
-}
-
-#purge-buttons > Button {
-    margin: 0 1;
-}
-
-/* About Screen Styles */
-#about-screen {
-    width: 50%;
-    height: auto;
-    border: double $accent;
-    background: $surface;
-    padding: 1;
-    align: center middle;
-}
-
-.about-title {
-    text-align: center;
-    text-style: bold;
-    color: $accent;
-    margin-bottom: 1;
-}
-
-.about-text {
-    text-align: center;
-    margin-bottom: 1;
-}
-
-#about-buttons {
-    align: center middle;
-    width: 100%;
-}
-
-/* Add Cutoffs Styles */
-#add-cutoffs {
-    width: 60%;
-    height: auto;
-    border: double $accent;
-    background: $surface;
-    padding: 1;
-}
-
-.add-cutoffs-title {
-    text-align: center;
-    text-style: bold;
-    color: $accent;
-    margin-bottom: 1;
-}
-
 #add-cutoffs-form-container {
     height: auto;
     max-height: 70%;
     margin-bottom: 1;
 }
-
-#add-cutoffs-buttons {
-    align: center middle;
-    width: 100%;
-}
-
-#add-cutoffs-buttons > Button {
-    margin: 0 1;
-}
-
-/* Edit Screens Styles */
-#client-edit, #rate-edit, #profile-edit, #context-menu {
-    width: 60%;
-    height: auto;
-    border: double $accent;
-    background: $surface;
-    padding: 1;
-    align: center middle;
-}
-
 #client-form-container, #rate-form-container, #profile-form-container {
     height: auto;
     max-height: 80%;
     margin-bottom: 1;
 }
-
-.context-title {
-    text-align: center;
-    text-style: bold;
-    color: $accent;
-    margin-bottom: 1;
-    border-bottom: solid $accent;
-}
-
 #action-list {
     margin: 1;
     height: auto;
 }
-
-/* Invoicing Tab Styles */
-.invoicing-container {
-    padding: 1;
-    border: solid $panel;
-}
-
 #invoice-main-layout {
     height: 1fr;
 }
-
 #invoice-input-pane {
     width: 3fr;
     height: 1fr;
     padding: 1;
 }
-
 #invoice-controls {
     height: auto;
     background: $panel;
     padding: 1;
     margin-bottom: 1;
 }
-
 #invoice-form-container {
     background: $surface;
     padding: 1;
     margin: 1 0;
 }
-
-.form-row {
-    height: auto;
-    margin: 1 0;
-    align: left middle;
-}
-
-.form-row > Label {
-    width: 16;
-    text-align: right;
-    color: $accent;
-}
-
-.form-row > Input,
-.form-row > Select {
-    width: 1fr;
-}
-
-/* Two-pair row (Start/End dates in one row) */
-.two-col > Label {
-    width: 12;
-}
-.two-col > Input,
-.two-col > Select {
-    width: 1fr;
-}
-#config-container .edit-config > Button {
-    margin-left: 1;
-    width: 18;
-    background: $panel;
-}
-#config-container .button-bar {
-    height: auto;
-    align: left top;
-    background: $panel;
-}
-
-#config-container .button-bar > Button {
-    margin-left: 1;
-    min-width: 18;
-}
-
-/* Buttons in invoicing controls */
-#invoice-controls .button-bar {
-    height: auto;
-    margin: 1 0 0 0;
-    align: right top;
-}
-
 #invoice-results {
     height: auto;
     border: solid $panel;
     background: $surface;
     padding: 1;
 }
-
 #invoice-jobs-table {
     height: 1fr;
     margin: 1 0;
     min-height: 4;
 }
-
-/* Override/extend existing invoice markdown styles for the tab */
-#invoice-markdown {
-    background: $panel;
-    border: solid $panel;
-    margin: 1 0;
-    padding: 1;
-}
-
 #invoice-cutoffs-container {
     width: 1fr;
     padding: 1;
     border-left: solid $panel;
     background: $surface;
 }
-
 #invoice-cutoffs-container .title {
     text-style: bold;
     color: $accent;
@@ -569,8 +314,64 @@ Input:focus, Select:focus, TextArea:focus {
     padding-bottom: 1;
     border-bottom: solid $accent;
 }
-
 #invoice-cutoffs-table {
     height: 1fr;
     margin-top: 1;
+}
+#config-container .button-bar {
+    height: auto;
+    align: left top;
+    background: $panel;
+}
+#config-container .button-bar > Button {
+    margin-left: 1;
+    min-width: 18;
+}
+#invoice-controls .button-bar {
+    height: auto;
+    align: left top;
+    background: $panel;
+}
+#invoice-container .button-bar > Button {
+    margin-left: 1;
+    min-width: 18;
+}
+#invoice-cutoffs-container .button-bar {
+    height: auto;
+    align: left top;
+    background: $panel;
+}
+#invoice-cutoffs-container .button-bar > Button {
+    margin-left: 1;
+    min-width: 18;
+}
+#invoice-cutoffs-pane {
+    width: 1fr;
+    height: 100%;
+    layout: vertical;
+    padding: 1;
+    border-left: solid $panel;
+    background: $surface;
+}
+#invoice-cutoffs-pane > .title {
+    text-style: bold;
+    color: $accent;
+    text-align: center;
+    padding-bottom: 1;
+    border-bottom: solid $accent;
+}
+#invoice-cutoffs-table {
+    height: 1fr;
+    margin-top: 1;
+    margin-bottom: 1;
+}
+#invoice-cutoffs-container > .button-bar {
+    height: auto;
+    align: left top;
+    background: $panel;
+    padding: 1;
+}
+#invoice-cutoffs-container > .button-bar > Button {
+    margin-left: 1;
+    min-width: 18;
 }
