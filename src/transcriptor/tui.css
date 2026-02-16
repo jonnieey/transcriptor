@@ -406,3 +406,42 @@ Input:focus, Select:focus, TextArea:focus {
     align: right top;
     margin-top: 1;
 }
+#vim-help {
+    width: 80%;
+    height: 80%;
+    border: double $accent;
+    background: $surface;
+    padding: 1;
+    layout: vertical;
+}
+.help-title {
+    text-style: bold;
+    color: $accent;
+    text-align: center;
+    margin-bottom: 1;
+    height: auto;
+}
+#help-content {
+    height: 1fr;
+    border: solid $panel;
+    margin: 1;
+    padding: 1;
+    background: $panel;
+    overflow-y: auto;
+}
+#help-buttons {
+    height: auto;
+    align: center middle;
+    margin-top: 1;
+}
+#vim-status {
+    background: $accent;
+    color: $text;
+    text-style: bold;
+    text-align: center;
+    padding: 1;
+    dock: bottom;
+}
+.selected-row {
+    background: $accent 30%;
+}

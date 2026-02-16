@@ -1,7 +1,6 @@
 import shutil
 import zipfile
 from datetime import date, datetime, timedelta
-from itertools import cycle
 from pathlib import Path
 from typing import Callable, Dict, List
 
@@ -14,7 +13,6 @@ from textual.screen import ModalScreen
 from textual.widgets import (
     Button,
     Checkbox,
-    ContentSwitcher,
     DataTable,
     Footer,
     Header,
@@ -25,10 +23,8 @@ from textual.widgets import (
     Markdown,
     Select,
     Static,
-    Tab,
     TabbedContent,
     TabPane,
-    Tabs,
     TextArea,
 )
 
@@ -152,6 +148,12 @@ class BaseTable(Container):
         """Return a ModalScreen for the given item (must be overridden)."""
         raise NotImplementedError
 
+    def _row_count(self) -> int:
+        try:
+            return self.get_table().row_count
+        except Exception:
+            return len(self.data)
+
     def get_selected_data(self):
         """Return full dicts for selected items."""
         selected = []
@@ -220,18 +222,70 @@ class BaseTable(Container):
             ),
         )
 
-    # -------- vim navigation --------
-    def _row_count(self) -> int:
-        try:
-            return self.get_table().row_count
-        except Exception:
-            return len(self.data)
+    def handle_vim_key(self, key: str) -> bool:
+        """Handle vim keys common to all tables."""
+        # Navigation and selection
+        if key == "j":
+            self.vim_move_down()
+            return True
+        if key == "k":
+            self.vim_move_up()
+            return True
+        if key == "g":
+            self.vim_top()
+            return True
+        if key == "G":
+            self.vim_bottom()
+            return True
+        if key == "x":
+            self.vim_toggle_select_current()
+            return True
+        if key in ("o", "enter"):
+            self.vim_open_context_current()
+            return True
+        if key == "h":
+            self._move_cursor_column(-1)
+            return True
+        if key == "l":
+            self._move_cursor_column(1)
+            return True
+        if key == "r":
+            self.refresh_table()
+            return True
+        # Action keys (to be overridden by subclasses that have them)
+        if key == "a" and hasattr(self, "action_add_job"):
+            self.action_add_job()
+            return True
+        if key == "e":
+            # Try edit methods in priority order
+            for attr in (
+                "action_edit_job",
+                "action_edit_client",
+                "action_edit_rate",
+            ):
+                if hasattr(self, attr):
+                    getattr(self, attr)()
+                    return True
+        if key == "d" and hasattr(self, "action_delete_client"):
+            self.action_delete_client()
+            return True
+        return False
 
-    def vim_focus_table(self):
-        self.get_table().focus()
+    def _move_cursor_column(self, delta: int):
+        """Move table cursor horizontally."""
+        table = self.get_table()
+        table.focus()
+        if table.cursor_column is None:
+            table.move_cursor(column=0)
+        else:
+            new_col = table.cursor_column + delta
+            if 0 <= new_col < len(table.columns):
+                table.move_cursor(column=new_col)
 
+    # vim_* methods already focus the table, so we just need to ensure they do.
     def vim_move_down(self):
         table = self.get_table()
+        table.focus()
         if table.cursor_row is None:
             table.move_cursor(row=0)
         else:
@@ -240,22 +294,27 @@ class BaseTable(Container):
 
     def vim_move_up(self):
         table = self.get_table()
+        table.focus()
         if table.cursor_row is None:
             table.move_cursor(row=0)
         else:
             table.move_cursor(row=max(table.cursor_row - 1, 0))
 
     def vim_top(self):
-        self.get_table().move_cursor(row=0)
+        table = self.get_table()
+        table.focus()
+        table.move_cursor(row=0)
 
     def vim_bottom(self):
         table = self.get_table()
+        table.focus()
         rc = self._row_count()
         if rc:
             table.move_cursor(row=rc - 1)
 
     def vim_toggle_select_current(self):
         table = self.get_table()
+        table.focus()
         if table.cursor_row is None:
             return
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
@@ -263,6 +322,7 @@ class BaseTable(Container):
 
     def vim_open_context_current(self):
         table = self.get_table()
+        table.focus()
         if table.cursor_row is None:
             return
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
@@ -392,12 +452,6 @@ class BaseContextMenu(ModalScreen):
 
 
 class Dashboard(BaseTable):
-    BINDINGS = [
-        ("a", "add_job", "Add New Job (A)"),
-        ("e", "edit_job", "Edit New Job (E)"),
-        ("r", "refresh_table", "Refresh Table (R)"),
-    ]
-
     def compose(self) -> ComposeResult:
         yield DataTable(id="pending-jobs-table")
         yield Static(id="pending-jobs-selection-info")
@@ -438,7 +492,6 @@ class Dashboard(BaseTable):
 
         for idx, job in enumerate(jobs):
             client_name = self.get_item_client_name(job)
-            print("====>", client_name)
             table.add_row(
                 "⋯",
                 "☐",
@@ -462,6 +515,16 @@ class Dashboard(BaseTable):
     def get_context_menu(self, job):
         return JobContextMenu(job)
 
+    def handle_vim_key(self, key: str) -> bool:
+        if key == "a":
+            self.action_add_job()
+            return True
+        if key == "e":
+            self.action_edit_job()
+            return True
+        # Fall back to base class handling
+        return super().handle_vim_key(key)
+
     def action_edit_job(self):
         if not self.selected_items:
             self.notify("No job selected!", severity="error")
@@ -480,16 +543,12 @@ class Dashboard(BaseTable):
                 JobEditScreen(job_data), lambda _: self.refresh_table()
             )
 
+    def action_add_job(self):
+        self.app.push_screen(AddJobScreen())
+
 
 class JobsTable(BaseTable):
     """All jobs table with selectable rows."""
-
-    BINDINGS = [
-        ("a", "add_job", "Add New Job (A)"),
-        ("e", "edit_job", "Edit New Job (E)"),
-        ("r", "refresh_table", "Refresh Table (R)"),
-        ("i", "generate_invoice", "Generate Invoice from Selected (I)"),
-    ]
 
     def compose(self) -> ComposeResult:
         yield DataTable(id="jobs-data-table")
@@ -500,6 +559,18 @@ class JobsTable(BaseTable):
                 yield Button("Edit Job", id="jobs-edit-job")
                 yield Button("Refresh", id="jobs-refresh")
                 yield Button("Generate Invoice", id="jobs-generate-invoice")
+
+    def handle_vim_key(self, key: str) -> bool:
+        if key == "a":
+            self.action_add_job()
+            return True
+        if key == "e":
+            self.action_edit_job()
+            return True
+        if key == "i":
+            self.action_generate_invoice()
+            return True
+        return super().handle_vim_key(key)
 
     def get_table(self) -> DataTable:
         return self.query_one("#jobs-data-table", DataTable)
@@ -1482,13 +1553,6 @@ class AddJobScreen(ModalScreen):
 
 
 class Clients(BaseTable):
-    BINDINGS = [
-        ("a", "add_client", "Add New Client (A)"),
-        ("e", "edit_client", "Edit Client (E)"),
-        ("d", "delete_client", "Delete Client (D)"),
-        ("r", "refresh_table", "Refresh Table (R)"),
-    ]
-
     def compose(self) -> ComposeResult:
         yield Label("Clients", classes="title")
         yield DataTable(id="clients-table")
@@ -1502,6 +1566,18 @@ class Clients(BaseTable):
 
     def get_table(self) -> DataTable:
         return self.query_one("#clients-table", DataTable)
+
+    def handle_vim_key(self, key: str) -> bool:
+        if key == "a":
+            self.action_add_client()
+            return True
+        if key == "e":
+            self.action_edit_client()
+            return True
+        if key == "d":
+            self.action_delete_client()
+            return True
+        return super().handle_vim_key(key)
 
     def refresh_table(self):
         table = self.get_table()
@@ -1713,11 +1789,6 @@ class AddClientScreen(BaseAddScreen):
 
 
 class Rates(BaseTable):
-    BINDINGS = [
-        ("e", "edit_rate", "Edit Rate (E)"),
-        ("r", "refresh_table", "Refresh Table (R)"),
-    ]
-
     def compose(self) -> ComposeResult:
         yield Label("Rates", classes="title")
         yield DataTable(id="rates-table")
@@ -1729,6 +1800,12 @@ class Rates(BaseTable):
 
     def get_table(self) -> DataTable:
         return self.query_one("#rates-table", DataTable)
+
+    def handle_vim_key(self, key: str) -> bool:
+        if key == "e":
+            self.action_edit_rate()
+            return True
+        return super().handle_vim_key(key)
 
     def refresh_table(self):
         table = self.get_table()
@@ -1873,11 +1950,6 @@ class RateEditScreen(BaseEditScreen):
 
 
 class Invoice(Container):
-    BINDINGS = [
-        ("a", "add_cutoffs", "Add Cutoffs from Docx (A)"),
-        ("r", "refresh_table", "Refresh Table (R)"),
-    ]
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.clients = []
@@ -1944,6 +2016,16 @@ class Invoice(Container):
             ).display = False
         except Exception:
             pass
+
+    def handle_vim_key(self, key: str) -> bool:
+        if key == "a":
+            self.action_add_cutoffs()
+            return True
+        if key == "r":
+            self.load_cutoffs()
+            return True
+        # Optional: add keys for Generate/Preview/Save if desired
+        return False
 
     def load_clients(self):
         self.clients = self.app.transcriptor.api.get_clients()
@@ -2274,12 +2356,6 @@ class AddCutoffsScreen(BaseAddScreen):
 
 class Profile(Container):
 
-    BINDINGS = [
-        ("e", "edit_profile", "Edit Profile (E)"),
-        ("r", "refresh_table", "Refresh Table (R)"),
-    ]
-
-    # Ensure container can receive focus so its bindings work when tab is active
     can_focus = True
 
     def __init__(self, *args, **kwargs):
@@ -2295,6 +2371,15 @@ class Profile(Container):
 
     def on_mount(self):
         self.refresh_table()
+
+    def handle_vim_key(self, key: str) -> bool:
+        if key == "e":
+            self.action_edit_profile()
+            return True
+        if key == "r":
+            self.refresh_table()
+            return True
+        return False
 
     def refresh_table(self):
         """Load current profile for display"""
@@ -2419,12 +2504,6 @@ class ConfigurationScreen(ModalScreen):
 
 
 class Configuration(Container):
-
-    BINDINGS = [
-        ("e", "edit_config", "Edit New Job (E)"),
-        ("r", "refresh_table", "Refresh Config (R)"),
-    ]
-
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="config-container"):
             yield Label("Configuration & Settings", classes="title")
@@ -2441,6 +2520,16 @@ class Configuration(Container):
 
     def on_mount(self):
         self.refresh_table()
+
+    def handle_vim_key(self, key: str) -> bool:
+        if key == "e":
+            self.action_edit_config()
+            return True
+        if key == "r":
+            self.refresh_table()
+            return True
+        # Optional: add keys for backup/restore/purge/about if desired
+        return False
 
     def refresh_table(self):
         """Load current configuration for display"""
@@ -2657,6 +2746,95 @@ class ConfirmDelete(ModalScreen[bool]):
         self.dismiss(False)
 
 
+class VimHelpScreen(ModalScreen):
+    """Display available vim keybindings."""
+
+    def compose(self) -> ComposeResult:
+        with Container(id="vim-help"):
+            yield Label("Vim Mode Keybindings", classes="help-title")
+            with VerticalScroll(id="help-content"):
+                yield Markdown(self._get_help_text())
+            with Horizontal(id="help-buttons"):
+                yield Button("Close", variant="primary", id="close-help")
+
+    def _get_help_text(self) -> str:
+        # Determine active tab to show context-specific bindings
+        active_id = self.app.query_one(TabbedContent).active
+        pane_name = {
+            "dashboard": "Dashboard",
+            "all-jobs": "All Jobs",
+            "clients": "Clients",
+            "rates": "Rates",
+            "profile": "Profile",
+            "invoicing": "Invoicing",
+            "config": "Configuration",
+        }.get(active_id, "Current Pane")
+
+        help_text = f"""# Vim Mode Help
+
+## Global (always available)
+- `v`          : Toggle vim mode on/off
+- `H` / `L`    : Switch to previous/next tab
+- `?`          : Show this help
+
+## Navigation (when focused on a table or scrollable area)
+- `j` / `k`    : Move down/up (table rows or scroll)
+- `g` / `G`    : Go to top/bottom
+- `x`          : Toggle selection (tables with checkboxes)
+- `o` / `Enter`: Open context menu for current item
+
+## Actions in **{pane_name}**
+"""
+        # Add pane-specific actions
+        if active_id in ("dashboard", "all-jobs"):
+            help_text += """
+- `a` : Add new job
+- `e` : Edit selected job
+- `r` : Refresh table
+- `i` : Generate invoice from selected (All Jobs only)
+"""
+        elif active_id == "clients":
+            help_text += """
+- `a` : Add new client
+- `e` : Edit selected client
+- `d` : Delete selected client
+- `r` : Refresh table
+"""
+        elif active_id == "rates":
+            help_text += """
+- `e` : Edit selected rate
+- `r` : Refresh table
+"""
+        elif active_id == "profile":
+            help_text += """
+- `e` : Edit profile
+- `r` : Refresh
+"""
+        elif active_id == "invoicing":
+            help_text += """
+- `a` : Add cutoffs
+- `r` : Refresh cutoffs table
+"""
+        elif active_id == "config":
+            help_text += """
+- `e` : Edit configuration
+- `r` : Refresh
+"""
+
+        help_text += """
+
+## In modal screens (edit, context menu, etc.)
+- `Esc` : Cancel / close
+- `Tab` : Move between fields
+- `Enter`: Select / confirm
+"""
+        return help_text
+
+    @on(Button.Pressed, "#close-help")
+    def close(self):
+        self.dismiss()
+
+
 class TranscriptorTUI(App):
     """An application with per-tab and toggleable bindings."""
 
@@ -2665,19 +2843,16 @@ class TranscriptorTUI(App):
     # Reactive attribute to control the Vim mode
     vim_mode: reactive[bool] = reactive(False)
 
-    # App-level bindings for toggling the mode
     BINDINGS = [
         ("v", "toggle_vim_mode", "Toggle Vim Mode (V)"),
-        ("h", "vim_tab_left", "Tab Left (H)"),
-        ("l", "vim_tab_right", "Tab Right (L)"),
+        ("H", "vim_tab_left", "Tab Left (H)"),
+        ("L", "vim_tab_right", "Tab Right (L)"),
+        ("?", "show_vim_help", "Vim Help"),
     ]
-
-    # Global CSS for a bit of style
 
     def __init__(self):
         super().__init__()
         self.transcriptor = Transcriptor()
-        self.jobs_table = None
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -2717,179 +2892,89 @@ class TranscriptorTUI(App):
         yield Footer()
 
     def action_toggle_vim_mode(self) -> None:
-        """Toggle the vim_mode reactive attribute."""
         self.vim_mode = not self.vim_mode
-        # Set focus to the tab content when the app starts
+        # Optionally focus the main content after toggling
         self.query_one(TabbedContent).focus()
 
     def watch_vim_mode(self, enabled: bool) -> None:
-        """Update the status text when vim_mode changes."""
-        status = (
-            "Enabled (H/L to switch tabs)"
-            if enabled
-            else "Disabled (Press 'v' to toggle)"
-        )
+        status = "Enabled" if enabled else "Disabled (Press 'v' to toggle)"
         self.query_one("#vim-status").update(f"Vim Mode: {status}")
 
-    def _get_pane_ids(self) -> List[str]:
-        """Helper to get an ordered list of all TabPane IDs."""
-        tab_content = self.query_one(TabbedContent)
-        return [pane.id for pane in tab_content.query(TabPane)]
+    def action_show_vim_help(self):
+        self.push_screen(VimHelpScreen())
 
     def action_vim_tab_left(self) -> None:
-        """Switch to the previous tab by manipulating the 'active' attribute."""
-        if self.vim_mode:
-            tab_content = self.query_one(TabbedContent)
-            pane_ids = self._get_pane_ids()
-            active_id = tab_content.active
+        self.screen.set_focus(None)
+        self._switch_tab(-1)
 
-            try:
-                current_index = pane_ids.index(active_id)
-                prev_index = (current_index - 1) % len(pane_ids)
-                tab_content.active = pane_ids[prev_index]
-            except ValueError:
-                self.app.bell()
-
+    #
     def action_vim_tab_right(self) -> None:
-        """Switch to the next tab by manipulating the 'active' attribute."""
-        if self.vim_mode:
-            tab_content = self.query_one(TabbedContent)
-            pane_ids = self._get_pane_ids()
-            active_id = tab_content.active
+        self.screen.set_focus(None)
+        self._switch_tab(1)
 
-            try:
-                current_index = pane_ids.index(active_id)
-                next_index = (current_index + 1) % len(pane_ids)
-                tab_content.active = pane_ids[next_index]
-            except ValueError:
-                self.app.bell()
+    def on_key(self, event: events.Key) -> None:
+        """Global vim key dispatcher."""
+        # Only active when vim_mode is on and not in a modal screen
+        if not self.vim_mode or isinstance(self.screen, ModalScreen):
+            return
+
+        key = event.key
+
+        # Delegate to the active pane
+        pane = self._get_active_pane()
+        if pane and hasattr(pane, "handle_vim_key"):
+            if pane.handle_vim_key(key):
+                event.stop()
+                # No need to return; event.stop already prevents further processing
+
+    def _switch_tab(self, direction: int):
+        """Switch to previous (-1) or next (+1) tab."""
+        tab_content = self.query_one(TabbedContent)
+        pane_ids = [pane.id for pane in tab_content.query(TabPane)]
+        try:
+            current_index = pane_ids.index(tab_content.active)
+            new_index = (current_index + direction) % len(pane_ids)
+            tab_content.active = pane_ids[new_index]
+        except ValueError:
+            self.bell()
+
+    def _get_active_pane(self):
+        """Return the widget of the currently active tab."""
+        tab_content = self.query_one(TabbedContent)
+        active_id = tab_content.active
+        mapping = {
+            "dashboard": "#dashboard-pane",
+            "all-jobs": "#jobstable-pane",
+            "clients": "#clients-pane",
+            "rates": "#rates-pane",
+            "profile": "#profile-pane",
+            "invoicing": "#invoicing-pane",
+            "config": "#config-pane",
+        }
+        if active_id in mapping:
+            return self.query_one(mapping[active_id])
+        return None
 
     @on(TabbedContent.TabActivated)
     def on_tabs_tab_activated(
         self, event: TabbedContent.TabActivated
     ) -> None:
-        """Schedule a refresh of the newly activated pane after layout is done."""
+        """Refresh and focus the newly activated pane."""
         pane_id = event.pane.id
-        self.call_after_refresh(lambda: self._refresh_pane(pane_id))
+        self.call_after_refresh(lambda: self._refresh_and_focus_pane(pane_id))
 
-    def _refresh_pane(self, pane_id: str) -> None:
-        """Refresh the content of the given pane and set focus."""
-        if pane_id == "dashboard":
-            pane = self.query_one("#dashboard-pane", Dashboard)
+    def _refresh_and_focus_pane(self, pane_id: str) -> None:
+        """Refresh the pane's data and give focus to its main widget."""
+        pane = self._get_active_pane()
+        if pane is None:
+            return
+        if hasattr(pane, "refresh_table"):
             pane.refresh_table()
+        # Try to focus the main table if it exists
+        if hasattr(pane, "get_table"):
+            pane.get_table().focus()
+        else:
             pane.focus()
-        elif pane_id == "all-jobs":
-            pane = self.query_one("#jobstable-pane", JobsTable)
-            pane.refresh_table()
-            pane.focus()
-        elif pane_id == "clients":
-            pane = self.query_one("#clients-pane", Clients)
-            pane.refresh_table()
-            pane.focus()
-        elif pane_id == "rates":
-            pane = self.query_one("#rates-pane", Rates)
-            pane.refresh_table()
-            pane.focus()
-        elif pane_id == "profile":
-            pane = self.query_one("#profile-pane", Profile)
-            pane.refresh_table()
-            pane.focus()
-        elif pane_id == "config":
-            pane = self.query_one("#config-pane", Configuration)
-            pane.refresh_table()
-            pane.focus()
-
-    # Vim-like global key handling routed to active pane
-    def on_key(self, event: events.Key) -> None:
-        # If a modal screen (context menu, edit dialog, etc.) is open, let it handle keys
-        if isinstance(self.screen, ModalScreen):
-            return
-
-        if not self.vim_mode:
-            return
-        key = event.key
-        tab_content = self.query_one(TabbedContent)
-        active_id = tab_content.active
-
-        pane_widget = None
-        if active_id == "dashboard":
-            pane_widget = self.query_one("#dashboard-pane", Dashboard)
-        elif active_id == "all-jobs":
-            pane_widget = self.query_one("#jobstable-pane", JobsTable)
-        elif active_id == "clients":
-            pane_widget = self.query_one("#clients-pane", Clients)
-        elif active_id == "rates":
-            pane_widget = self.query_one("#rates-pane", Rates)
-        elif active_id == "profile":
-            pane_widget = self.query_one("#profile-pane", Profile)
-        elif active_id == "config":
-            pane_widget = self.query_one("#config-pane", Configuration)
-
-        if pane_widget is None:
-            return
-
-        # Navigation
-        if key == "j" and hasattr(pane_widget, "vim_move_down"):
-            getattr(pane_widget, "vim_focus_table", lambda: None)()
-            pane_widget.vim_move_down()
-            return
-        if key == "k" and hasattr(pane_widget, "vim_move_up"):
-            getattr(pane_widget, "vim_focus_table", lambda: None)()
-            pane_widget.vim_move_up()
-            return
-        if key == "g" and hasattr(pane_widget, "vim_top"):
-            getattr(pane_widget, "vim_focus_table", lambda: None)()
-            pane_widget.vim_top()
-            return
-        if key == "G" and hasattr(pane_widget, "vim_bottom"):
-            getattr(pane_widget, "vim_focus_table", lambda: None)()
-            pane_widget.vim_bottom()
-            return
-
-        # Toggle selection (tables with a select column)
-        if key == "x" and hasattr(pane_widget, "vim_toggle_select_current"):
-            getattr(pane_widget, "vim_focus_table", lambda: None)()
-            pane_widget.vim_toggle_select_current()
-            return
-
-        # Open context (o or Enter)
-        if key in ("o", "enter") and hasattr(
-            pane_widget, "vim_open_context_current"
-        ):
-            pane_widget.vim_open_context_current()
-            return
-
-        # Common actions by pane capabilities
-        if key == "r" and hasattr(pane_widget, "refresh_table"):
-            pane_widget.refresh_table()
-            return
-
-        # Edit / Add across panes
-        if key == "e":
-            for attr in (
-                "action_edit_job",
-                "action_edit_client",
-                "action_edit_rate",
-                "action_edit_profile",
-                "action_edit_config",
-            ):
-                if hasattr(pane_widget, attr):
-                    getattr(pane_widget, attr)()
-                    return
-
-        if key == "a":
-            for attr in (
-                "action_add_job",
-                "action_add_client",
-                "action_add_cutoffs",
-            ):
-                if hasattr(pane_widget, attr):
-                    getattr(pane_widget, attr)()
-                    return
-
-        if key == "d" and hasattr(pane_widget, "action_delete_client"):
-            pane_widget.action_delete_client()
-            return
 
 
 def main():
