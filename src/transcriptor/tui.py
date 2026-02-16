@@ -6,7 +6,6 @@ from typing import Callable, Dict, List
 
 from textual import events, on
 from textual.app import App, ComposeResult
-from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.screen import ModalScreen
@@ -464,6 +463,9 @@ class Dashboard(BaseTable):
     def get_table(self) -> DataTable:
         return self.query_one("#pending-jobs-table", DataTable)
 
+    def on_mount(self):
+        self.refresh_table()
+
     def refresh_table(self):
         table = self.get_table()
         table.clear(columns=True)
@@ -512,8 +514,8 @@ class Dashboard(BaseTable):
             f"Selected: {len(self.selected_items)} jobs"
         )
 
-    def get_context_menu(self, job):
-        return JobContextMenu(job)
+    def get_context_menu(self, item):
+        return JobContextMenu(item)
 
     def handle_vim_key(self, key: str) -> bool:
         if key == "a":
@@ -560,6 +562,9 @@ class JobsTable(BaseTable):
                 yield Button("Refresh", id="jobs-refresh")
                 yield Button("Generate Invoice", id="jobs-generate-invoice")
 
+    def on_mount(self):
+        self.refresh_table()
+
     def handle_vim_key(self, key: str) -> bool:
         if key == "a":
             self.action_add_job()
@@ -580,8 +585,8 @@ class JobsTable(BaseTable):
             f"Selected: {len(self.selected_items)} jobs"
         )
 
-    def get_context_menu(self, job):
-        return JobContextMenu(job)
+    def get_context_menu(self, item):
+        return JobContextMenu(item)
 
     def refresh_table(self):
         table = self.get_table()
@@ -1564,6 +1569,9 @@ class Clients(BaseTable):
                 yield Button("Delete Client", id="clients-delete")
                 yield Button("Refresh", id="clients-refresh")
 
+    def on_mount(self):
+        self.refresh_table()
+
     def get_table(self) -> DataTable:
         return self.query_one("#clients-table", DataTable)
 
@@ -1798,6 +1806,9 @@ class Rates(BaseTable):
                 yield Button("Edit Rate", id="rates-edit")
                 yield Button("Refresh", id="rates-refresh")
 
+    def on_mount(self):
+        self.refresh_table()
+
     def get_table(self) -> DataTable:
         return self.query_one("#rates-table", DataTable)
 
@@ -2024,7 +2035,6 @@ class Invoice(Container):
         if key == "r":
             self.load_cutoffs()
             return True
-        # Optional: add keys for Generate/Preview/Save if desired
         return False
 
     def load_clients(self):
@@ -2968,8 +2978,8 @@ class TranscriptorTUI(App):
         pane = self._get_active_pane()
         if pane is None:
             return
-        if hasattr(pane, "refresh_table"):
-            pane.refresh_table()
+        # if hasattr(pane, "refresh_table") and pane.id not in ["#dashboard-pane", "#jobstable-pane"]:
+        # pane.refresh_table()
         # Try to focus the main table if it exists
         if hasattr(pane, "get_table"):
             pane.get_table().focus()
