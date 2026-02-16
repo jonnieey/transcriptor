@@ -111,11 +111,32 @@ def sort_datatable_by_column(
 class BaseTable(Container):
     """Base class for tables with selectable rows and vim-like navigation."""
 
+    UNIVERSAL_VIM_BINDINGS = [
+        ("j/k", "Move down/up"),
+        ("g/G", "Top/bottom"),
+        ("x", "Toggle select"),
+        ("o/Enter", "Context menu"),
+        ("h/l", "Move column"),
+        ("r", "Refresh"),
+    ]
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.selected_items = []  # list of selected IDs
         self._sort_toggles = set()
         self.data = []  # raw data (list of dicts)
+        self._custom_vim_bindings = []
+
+    def add_vim_binding(self, key: str, description: str, method_name: str):
+        """Register a custom vim key binding."""
+        self._custom_vim_bindings.append((key, description, method_name))
+
+    def get_vim_bindings(self) -> List[tuple[str, str]]:
+        """Return all vim bindings (universal + custom) for display."""
+        bindings = list(self.UNIVERSAL_VIM_BINDINGS)
+        for key, desc, _ in self._custom_vim_bindings:
+            bindings.append((key, desc))
+        return bindings
 
     def get_table(self) -> DataTable:
         """Return the main DataTable widget (must be overridden)."""
@@ -252,9 +273,18 @@ class BaseTable(Container):
             self.refresh_table()
             return True
         # Action keys (to be overridden by subclasses that have them)
+
+        for k, _, method_name in self._custom_vim_bindings:
+            if key == k:
+                method = getattr(self, method_name, None)
+                if method:
+                    method()
+                    return True
+
         if key == "a" and hasattr(self, "action_add_job"):
             self.action_add_job()
             return True
+
         if key == "e":
             # Try edit methods in priority order
             for attr in (
@@ -451,6 +481,11 @@ class BaseContextMenu(ModalScreen):
 
 
 class Dashboard(BaseTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_vim_binding("a", "Add job", "action_add_job")
+        self.add_vim_binding("e", "Edit job", "action_edit_job")
+
     def compose(self) -> ComposeResult:
         yield DataTable(id="pending-jobs-table")
         yield Static(id="pending-jobs-selection-info")
@@ -517,16 +552,6 @@ class Dashboard(BaseTable):
     def get_context_menu(self, item):
         return JobContextMenu(item)
 
-    def handle_vim_key(self, key: str) -> bool:
-        if key == "a":
-            self.action_add_job()
-            return True
-        if key == "e":
-            self.action_edit_job()
-            return True
-        # Fall back to base class handling
-        return super().handle_vim_key(key)
-
     def action_edit_job(self):
         if not self.selected_items:
             self.notify("No job selected!", severity="error")
@@ -552,6 +577,14 @@ class Dashboard(BaseTable):
 class JobsTable(BaseTable):
     """All jobs table with selectable rows."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_vim_binding("a", "Add job", "action_add_job")
+        self.add_vim_binding("e", "Edit job", "action_edit_job")
+        self.add_vim_binding(
+            "i", "Generate invoice", "action_generate_invoice"
+        )
+
     def compose(self) -> ComposeResult:
         yield DataTable(id="jobs-data-table")
         yield Static(id="jobs-selection-info")
@@ -564,18 +597,6 @@ class JobsTable(BaseTable):
 
     def on_mount(self):
         self.refresh_table()
-
-    def handle_vim_key(self, key: str) -> bool:
-        if key == "a":
-            self.action_add_job()
-            return True
-        if key == "e":
-            self.action_edit_job()
-            return True
-        if key == "i":
-            self.action_generate_invoice()
-            return True
-        return super().handle_vim_key(key)
 
     def get_table(self) -> DataTable:
         return self.query_one("#jobs-data-table", DataTable)
@@ -1558,6 +1579,12 @@ class AddJobScreen(ModalScreen):
 
 
 class Clients(BaseTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_vim_binding("a", "Add client", "action_add_client")
+        self.add_vim_binding("e", "Edit client", "action_edit_client")
+        self.add_vim_binding("d", "Delete client", "action_delete_client")
+
     def compose(self) -> ComposeResult:
         yield Label("Clients", classes="title")
         yield DataTable(id="clients-table")
@@ -1574,18 +1601,6 @@ class Clients(BaseTable):
 
     def get_table(self) -> DataTable:
         return self.query_one("#clients-table", DataTable)
-
-    def handle_vim_key(self, key: str) -> bool:
-        if key == "a":
-            self.action_add_client()
-            return True
-        if key == "e":
-            self.action_edit_client()
-            return True
-        if key == "d":
-            self.action_delete_client()
-            return True
-        return super().handle_vim_key(key)
 
     def refresh_table(self):
         table = self.get_table()
@@ -1797,6 +1812,10 @@ class AddClientScreen(BaseAddScreen):
 
 
 class Rates(BaseTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_vim_binding("e", "Edit rate", "action_edit_rate")
+
     def compose(self) -> ComposeResult:
         yield Label("Rates", classes="title")
         yield DataTable(id="rates-table")
@@ -1811,12 +1830,6 @@ class Rates(BaseTable):
 
     def get_table(self) -> DataTable:
         return self.query_one("#rates-table", DataTable)
-
-    def handle_vim_key(self, key: str) -> bool:
-        if key == "e":
-            self.action_edit_rate()
-            return True
-        return super().handle_vim_key(key)
 
     def refresh_table(self):
         table = self.get_table()
@@ -1967,6 +1980,10 @@ class Invoice(Container):
         self.selected_client_id = None
         self.invoice_jobs = []
         self.cutoffs_data = []
+        self._vim_bindings = [
+            ("a", "Add cutoffs", "action_add_cutoffs"),
+            ("r", "Refresh cutoffs", "load_cutoffs"),
+        ]
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="invoice-main-layout"):
@@ -2028,13 +2045,16 @@ class Invoice(Container):
         except Exception:
             pass
 
+    def get_vim_bindings(self) -> List[tuple[str, str]]:
+        return [(key, desc) for key, desc, _ in self._vim_bindings]
+
     def handle_vim_key(self, key: str) -> bool:
-        if key == "a":
-            self.action_add_cutoffs()
-            return True
-        if key == "r":
-            self.load_cutoffs()
-            return True
+        for k, _, method_name in self._vim_bindings:
+            if key == k:
+                method = getattr(self, method_name, None)
+                if method:
+                    method()
+                    return True
         return False
 
     def load_clients(self):
@@ -2370,6 +2390,10 @@ class Profile(Container):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._vim_bindings = [
+            ("e", "Edit profile", "action_edit_profile"),
+            ("r", "Refresh profile", "action_refresh_table"),
+        ]
 
     def compose(self) -> ComposeResult:
         yield Label("Profile", classes="title")
@@ -2382,15 +2406,6 @@ class Profile(Container):
     def on_mount(self):
         self.refresh_table()
 
-    def handle_vim_key(self, key: str) -> bool:
-        if key == "e":
-            self.action_edit_profile()
-            return True
-        if key == "r":
-            self.refresh_table()
-            return True
-        return False
-
     def refresh_table(self):
         """Load current profile for display"""
         profile_display = self.query_one("#profile-display", Static)
@@ -2401,6 +2416,9 @@ Area: {profile.area}
 Country: {profile.country}
         """
         profile_display.update(display_text)
+
+    def action_refresh_table(self):
+        self.refresh_table()
 
     def action_edit_profile(self):
         def check_edit(confirm):
@@ -2514,6 +2532,13 @@ class ConfigurationScreen(ModalScreen):
 
 
 class Configuration(Container):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._vim_bindings = [
+            ("e", "Edit configuration", "action_edit_config"),
+            ("r", "Refresh cutoffs", "action_refresh_table"),
+        ]
+
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="config-container"):
             yield Label("Configuration & Settings", classes="title")
@@ -2531,14 +2556,16 @@ class Configuration(Container):
     def on_mount(self):
         self.refresh_table()
 
+    def get_vim_bindings(self) -> List[tuple[str, str]]:
+        return [(key, desc) for key, desc, _ in self._vim_bindings]
+
     def handle_vim_key(self, key: str) -> bool:
-        if key == "e":
-            self.action_edit_config()
-            return True
-        if key == "r":
-            self.refresh_table()
-            return True
-        # Optional: add keys for backup/restore/purge/about if desired
+        for k, _, method_name in self._vim_bindings:
+            if key == k:
+                method = getattr(self, method_name, None)
+                if method:
+                    method()
+                    return True
         return False
 
     def refresh_table(self):
