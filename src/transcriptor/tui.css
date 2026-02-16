@@ -375,3 +375,34 @@ Input:focus, Select:focus, TextArea:focus {
     margin-left: 1;
     min-width: 18;
 }
+#invoice-preview {
+    width: 90%;
+    height: 90%;
+    border: double $accent;
+    background: $surface;
+    layout: vertical;
+    padding: 1;
+}
+
+#invoice-preview > .preview-title {
+    text-style: bold;
+    color: $accent;
+    text-align: center;
+    margin-bottom: 1;
+    height: auto;
+}
+
+#invoice-markdown {
+    height: 1fr;
+    border: solid $panel;
+    margin: 1;
+    padding: 1;
+    background: $panel;
+    overflow-y: auto;
+}
+
+#preview-buttons {
+    height: auto;
+    align: right top;
+    margin-top: 1;
+}

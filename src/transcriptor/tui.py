@@ -400,6 +400,7 @@ class JobsTable(Container):
         ("a", "add_job", "Add New Job (A)"),
         ("e", "edit_job", "Edit New Job (E)"),
         ("r", "refresh_table", "Refresh Table (R)"),
+        ("i", "generate_invoice", "Generate Invoice from Selected (I)"),
     ]
 
     def __init__(self, *args, **kwargs):
@@ -416,6 +417,7 @@ class JobsTable(Container):
                 yield Button("Add Job", id="jobs-add-job")
                 yield Button("Edit Job", id="jobs-edit-job")
                 yield Button("Refresh", id="jobs-refresh")
+                yield Button("Generate Invoice", id="jobs-generate-invoice")
 
     def on_mount(self):
         self.refresh_table()
@@ -479,6 +481,64 @@ class JobsTable(Container):
         self.refresh_table()
         self.selected_jobs = []
 
+    def action_generate_invoice(self) -> None:
+        """Generate an invoice for all selected jobs (must be Done and same client)."""
+        if not self.selected_jobs:
+            self.notify("No jobs selected!", severity="error")
+            return
+
+        selected = self.get_selected_jobs_data()
+        if not selected:
+            self.notify("Could not retrieve job data.", severity="error")
+            return
+
+        # Validate that all jobs are Done
+        for job in selected:
+            if job.get("status", "").lower() != "done":
+                self.notify(
+                    f"Job {job.get('job_number')} is not Done. Only completed jobs can be invoiced.",
+                    severity="error",
+                )
+                return
+
+        # Validate that all jobs belong to the same client
+        client_ids = {job.get("client_id") for job in selected}
+        if len(client_ids) != 1:
+            self.notify(
+                "Selected jobs must belong to the same client.",
+                severity="error",
+            )
+            return
+
+        client_id = selected[0].get("client_id")
+        # Get client name from the first job (set in get_selected_jobs_data)
+        client_name = selected[0].get("client").name or selected[0].get(
+            "client_name"
+        )
+        if not client_name:
+            # Fallback: fetch client from API
+            try:
+                clients = self.app.transcriptor.api.get_clients(
+                    conditions={"id": [("=", client_id)]}
+                )
+                client_name = clients[0]["name"] if clients else "Unknown"
+            except Exception:
+                client_name = "Unknown"
+
+        try:
+            # Generate invoice HTML (re‑used in preview)
+            html, _ = self.app.transcriptor.generate_invoice(selected)
+        except Exception as e:
+            self.notify(
+                f"Error generating invoice: {str(e)}", severity="error"
+            )
+            return
+
+        # Pass the HTML, client name, and the job list to the preview screen
+        self.app.push_screen(
+            InvoicePreviewScreen(html, client_name, selected)
+        )
+
     # Button handlers
     @on(Button.Pressed, "#jobs-add-job")
     def on_jobs_add(self):
@@ -491,6 +551,10 @@ class JobsTable(Container):
     @on(Button.Pressed, "#jobs-refresh")
     def on_jobs_refresh(self):
         self.action_refresh_table()
+
+    @on(Button.Pressed, "#jobs-generate-invoice")
+    def on_jobs_generate_invoice(self):
+        self.action_generate_invoice()
 
     @on(DataTable.CellSelected, "#jobs-data-table")
     def handle_all_jobs_cell_click(self, event: DataTable.CellSelected):
@@ -749,6 +813,11 @@ class AddCutoffsScreen(ModalScreen):
                         value=str(datetime.now().year),
                         id="cutoffs-year",
                     )
+                    yield Label("Date Format:")
+                    yield Input(
+                        value=self.app.transcriptor.config.date_format,
+                        id="invoice-date-format",
+                    )
             with Horizontal(id="add-cutoffs-buttons"):
                 yield Button("Save", variant="primary", id="save-cutoffs")
                 yield Button(
@@ -764,6 +833,7 @@ class AddCutoffsScreen(ModalScreen):
     def save_cutoffs(self):
         file_path = self.query_one("#cutoffs-file-path", Input).value
         year = self.query_one("#cutoffs-year", Input).value
+        date_format = self.query_one("#invoice-date-format", Input).value
 
         if not file_path:
             self.app.notify("Please enter a file path.", severity="error")
@@ -776,8 +846,7 @@ class AddCutoffsScreen(ModalScreen):
 
         try:
             cutoffs = generate_cutoff_list_from_docx(
-                docx_path=str(path),
-                date_fmt=self.app.transcriptor.config.date_format,
+                docx_path=str(path), date_fmt=date_format
             )
             self.app.transcriptor.save_cutoffs(cutoffs, year=year)
             self.app.notify("Cutoffs imported successfully!")
@@ -3039,9 +3108,6 @@ class Invoice(Container):
 
 
 class InvoicePreviewScreen(ModalScreen):
-
-    """Screen for previewing invoices before generating PDF/CSV"""
-
     def __init__(self, html_content: str, client_name: str, jobs: List[Dict]):
         super().__init__()
         self.html_content = html_content
@@ -3066,17 +3132,31 @@ class InvoicePreviewScreen(ModalScreen):
 
     @on(Button.Pressed, "#generate-pdf")
     def generate_pdf(self):
-        self.app.transcriptor.html_to_pdf(self.html_content, self.client_name)
-        self.app.notify("PDF invoice generated successfully!")
-        self.dismiss()
+        """Generate PDF invoice (mirrors Invoicing tab behavior)."""
+        try:
+            # Regenerate invoice to ensure latest data (same as Invoicing tab)
+            html, _ = self.app.transcriptor.generate_invoice(self.jobs)
+            self.app.transcriptor.html_to_pdf(html, self.client_name)
+            self.app.notify(f"Invoice for {self.client_name} saved as PDF.")
+            self.dismiss()
+        except Exception as e:
+            self.app.notify(
+                f"Error generating PDF: {str(e)}", severity="error"
+            )
 
     @on(Button.Pressed, "#generate-csv")
     def generate_csv(self):
-        self.app.transcriptor.generate_csv_invoice(
-            self.jobs, self.client_name
-        )
-        self.app.notify("CSV invoice generated successfully!")
-        self.dismiss()
+        """Generate CSV invoice (mirrors Invoicing tab behavior)."""
+        try:
+            self.app.transcriptor.generate_csv_invoice(
+                self.jobs, self.client_name
+            )
+            self.app.notify(f"Invoice for {self.client_name} saved as CSV.")
+            self.dismiss()
+        except Exception as e:
+            self.app.notify(
+                f"Error generating CSV: {str(e)}", severity="error"
+            )
 
     @on(Button.Pressed, "#cancel-preview")
     def cancel_preview(self):
