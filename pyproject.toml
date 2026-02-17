@@ -23,7 +23,8 @@ dependencies = [
     "pydantic>= 2.11.0b1",
     "platformdirs~=4.2.2",
     "cffi>=1.17.1",
-    "gnureadline>=8.2.13",
+    "gnureadline>=8.2.13; sys_platform != 'win32'",
+    "pyreadline3>=3.4.1; sys_platform == 'win32'",
     "textual==6.2.0"
 ]
 dynamic = ["version"]

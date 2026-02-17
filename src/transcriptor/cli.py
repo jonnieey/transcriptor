@@ -339,7 +339,7 @@ class TranscriptorCMD(cmd2.Cmd):
     def do_clear(self, arg):
         """Clear screen"""
 
-        os.system("clear")
+        os.system("cls" if os.name == "nt" else "clear")
 
     def show_config(self, arg: Namespace):
         """

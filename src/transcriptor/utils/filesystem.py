@@ -62,11 +62,11 @@ def next_non_existent_file(filename: Path | str) -> Path:
     Returns:
         Name of next non-existant file
     """
-    base_dir = str(Path(filename).parent.absolute())
-    nf = filename
-    root, ext = Path(nf).stem, Path(nf).suffix
+    base_dir = Path(filename).parent.absolute()
+    nf = Path(filename)
+    root, ext = nf.stem, nf.suffix
     i = 0
-    while Path(nf).exists():
+    while nf.exists():
         i += 1
-        nf = f"{base_dir}/{root}_{i}{ext}"
-    return Path(nf)
+        nf = base_dir / f"{root}_{i}{ext}"
+    return nf

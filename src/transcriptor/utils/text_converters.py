@@ -35,6 +35,7 @@ def convert_case(string: str, from_: str, to_: str) -> str:
 
 
 def sc(s: str) -> str:
+    s = re.sub(r'[<>:"/\\|?*]', "", s)
     return convert_case(s, r"[ -]", "_")
 
 
@@ -43,6 +44,7 @@ def nc(s: str) -> str:
 
 
 def kc(s):
+    s = re.sub(r'[<>:"/\\|?*]', "", s)
     return convert_case(s, r"[ _]", "-")
 
 
