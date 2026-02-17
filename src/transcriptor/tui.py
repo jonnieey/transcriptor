@@ -489,6 +489,7 @@ class Dashboard(BaseTable):
         ),
 
     def compose(self) -> ComposeResult:
+        yield Label("Pending Jobs", classes="title")
         yield DataTable(id="pending-jobs-table")
         yield Static(id="pending-jobs-selection-info")
         with Container(id="dashboard-controls", classes="panel-controls"):
@@ -510,7 +511,7 @@ class Dashboard(BaseTable):
         table.zebra_stripes = True
         table.add_columns(
             ("⋮", "menu"),
-            ("Select", "select"),
+            ("", "select"),
             ("ID", "id"),
             ("Job Number", "job number"),
             ("Client", "client"),
@@ -598,6 +599,7 @@ class JobsTable(BaseTable):
         ),
 
     def compose(self) -> ComposeResult:
+        yield Label("All Jobs", classes="title")
         yield DataTable(id="jobs-data-table")
         yield Static(id="jobs-selection-info")
         with Container(id="jobs-controls", classes="panel-controls"):
@@ -627,7 +629,7 @@ class JobsTable(BaseTable):
         table.zebra_stripes = True
         table.add_columns(
             ("⋮", "menu"),
-            ("Select", "select"),
+            ("", "select"),
             ("ID", "id"),
             ("Job Number", "job number"),
             ("Client", "client"),
@@ -1657,6 +1659,7 @@ class Clients(BaseTable):
         table.expand = True
         table.add_columns(
             ("⋮", "menu"),
+            ("", "select"),
             ("ID", "id"),
             ("Name", "name"),
             ("Email", "email"),
@@ -1669,6 +1672,7 @@ class Clients(BaseTable):
         for idx, client in enumerate(clients):
             table.add_row(
                 "⋯",
+                "☐",
                 str(client.get("id")),
                 client.get("name"),
                 client.get("email"),
@@ -1896,6 +1900,7 @@ class Rates(BaseTable):
         table.expand = True
         table.add_columns(
             ("⋮", "menu"),
+            ("", "select"),
             ("Client", "client"),
             ("Normal", "normal"),
             ("Expedite", "expedite"),
@@ -1909,6 +1914,7 @@ class Rates(BaseTable):
         for idx, rate in enumerate(rates):
             table.add_row(
                 "⋯",
+                "☐",
                 rate.get("client_name"),
                 f"${rate.get('normal', 0):.2f}",
                 f"${rate.get('expedite', 0):.2f}",
@@ -2050,6 +2056,7 @@ class Invoice(Container):
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="invoice-main-layout"):
+            yield Label("Invoicing", classes="title")
             # Left pane: Invoice input sections
             with VerticalScroll(id="invoice-input-pane"):
                 # Controls (form + buttons)
