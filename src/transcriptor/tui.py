@@ -2606,10 +2606,10 @@ class Configuration(Container):
         with VerticalScroll(id="config-container"):
             yield Label("Configuration & Settings", classes="title")
             yield Static(id="config-display")
-            with Horizontal(classes="edit-config-bar"):
+            with Horizontal(classes="button-bar"):
                 yield Button("Edit Config", id="edit-config")
 
-            yield Label("Data Management", classes="subtitle")
+            yield Label("Data Management", classes="title")
             with Horizontal(classes="button-bar"):
                 yield Button("Backup Database", id="backup-db")
                 yield Button("Restore Database", id="restore-db")
