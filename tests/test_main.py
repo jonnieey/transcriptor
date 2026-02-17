@@ -5,11 +5,12 @@ import pytest
 from transcriptor.main import main
 
 
+@patch("transcriptor.main.sys.platform", "linux")
 @patch("transcriptor.main.cli_main")
 @patch("transcriptor.main.tui_main")
 @patch("transcriptor.main.argparse.ArgumentParser.parse_args")
 def test_main_cli_default(mock_parse_args, mock_tui_main, mock_cli_main):
-    # Case 1: No arguments provided -> run CLI (default)
+    # Case 1: No arguments provided -> run CLI (default on Linux)
     mock_args = MagicMock()
     mock_args.command = None
     del mock_args.func  # Ensure func attribute is missing
@@ -18,6 +19,24 @@ def test_main_cli_default(mock_parse_args, mock_tui_main, mock_cli_main):
     main()
     mock_cli_main.assert_called_once()
     mock_tui_main.assert_not_called()
+
+
+@patch("transcriptor.main.sys.platform", "win32")
+@patch("transcriptor.main.cli_main")
+@patch("transcriptor.main.tui_main")
+@patch("transcriptor.main.argparse.ArgumentParser.parse_args")
+def test_main_tui_default_windows(
+    mock_parse_args, mock_tui_main, mock_cli_main
+):
+    # Case 1b: No arguments provided -> run TUI (default on Windows)
+    mock_args = MagicMock()
+    mock_args.command = None
+    del mock_args.func  # Ensure func attribute is missing
+    mock_parse_args.return_value = mock_args
+
+    main()
+    mock_tui_main.assert_called_once()
+    mock_cli_main.assert_not_called()
 
 
 @patch("transcriptor.main.cli_main")
@@ -51,22 +70,27 @@ def test_main_tui(mock_parse_args, mock_tui_main, mock_cli_main):
     mock_cli_main.assert_not_called()
 
 
-@patch("transcriptor.main.exit")
-@patch("transcriptor.main.argparse.ArgumentParser")
-def test_main_invalid_command(mock_argparser, mock_exit):
+@patch("transcriptor.main.sys.exit")
+@patch("transcriptor.main.argparse.ArgumentParser.parse_args")
+def test_main_invalid_command(mock_parse_args, mock_sys_exit):
     # Case 4: Invalid command handling (usually handled by argparse itself,
     # but the else block handles cases where func is missing and command is not None)
 
     # Mock parse_args return value
     mock_args = MagicMock()
-    mock_args.command = "invalid"
     # Ensure 'func' is NOT present
     del mock_args.func
+    # Set command to something not None, but func is missing
+    mock_args.command = "invalid"
 
-    mock_parser_instance = mock_argparser.return_value
-    mock_parser_instance.parse_args.return_value = mock_args
+    mock_parse_args.return_value = mock_args
 
-    main()
+    # Mock ArgumentParser constructor to capture instance
+    with patch("transcriptor.main.argparse.ArgumentParser") as mock_argparser:
+        mock_parser_instance = mock_argparser.return_value
+        mock_parser_instance.parse_args.return_value = mock_args
 
-    mock_parser_instance.print_help.assert_called_once()
-    mock_exit.assert_called_once_with(1)
+        main()
+
+        mock_parser_instance.print_help.assert_called_once()
+        mock_sys_exit.assert_called_once_with(1)

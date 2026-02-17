@@ -1,5 +1,5 @@
 import argparse
-from sys import exit
+import sys
 
 from transcriptor.cli import main as cli_main
 from transcriptor.tui import main as tui_main
@@ -44,11 +44,14 @@ def main():
             args.func()
     elif (
         args.command is None
-    ):  # If no subcommand is specified, run the default CLI
-        cli_main()
+    ):  # If no subcommand is specified, run the default CLI (or TUI on Windows)
+        if sys.platform == "win32":
+            tui_main()
+        else:
+            cli_main()
     else:
         parser.print_help()
-        exit(1)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
