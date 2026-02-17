@@ -1,4 +1,3 @@
 include src/transcriptor/templates/*
 include src/transcriptor/invoice_templates/*
-include src/transcriptor/Transcriptor.css
-include src/transcriptor/createdb.sql
+include src/transcriptor/tui.css

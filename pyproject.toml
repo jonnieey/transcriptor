@@ -44,6 +44,7 @@ dev = [
     "sqlalchemy[mypy]>=2.0.0",
     "types-PyYAML~=6.0.2",
     "pre-commit~=4.2.0",
+    "pyinstaller>=6.3.0",
 ]
 
 [tool.pytest.ini_options]
