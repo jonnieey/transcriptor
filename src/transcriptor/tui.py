@@ -1473,7 +1473,8 @@ class AddJobScreen(ModalScreen):
             return False
 
         # Get client name
-        client_id = client_select.value
+        # Cast to int to mirror CLI behavior and DB schema
+        client_id = int(client_select.value)
         clients = self.app.transcriptor.api.get_clients(
             conditions={"id": [("=", client_id)]}
         )
@@ -1521,12 +1522,15 @@ class AddJobScreen(ModalScreen):
         current_file = self.media_files[self.current_media_index]
 
         task_data = {
-            "file_path": str(current_file),
+            # Store absolute path to make matching robust when creating the job
+            "file_path": str(current_file.resolve()),
             "file_name": current_file.name,
             "job_type": job_type_select.value,
             "quantity": quantity,
             "template": template_select.value,
             "note": note_textarea.text,
+            # Keep original media duration for total_quantity like CLI flow
+            "total_quantity": get_media_duration(current_file),
         }
 
         if "tasks" not in self.job_data:
@@ -1536,7 +1540,7 @@ class AddJobScreen(ModalScreen):
         return True
 
     def create_job(self):
-        """Create the job using the collected data"""
+        """Create the job using the collected data, mirroring CLI callback flow."""
         try:
             job_info = {
                 "client_id": self.job_data["client_id"],
@@ -1545,30 +1549,51 @@ class AddJobScreen(ModalScreen):
                 "date_due": self.job_data["date_due"],
             }
 
-            # For now, Transcriptor.create_job applies one task_info to all media files found.
-            # If the TUI collected multiple tasks, we might need a loop or adjust base.py.
-            # Looking at base.py, it loops over media files and uses task_info for EACH.
-            # In TUI, we collected specific info per file.
-            # To preserve TUI behavior without breaking base.py, we might need to call
-            # create_job for each file if they have different settings,
-            # OR refactor base.py to accept a list of tasks.
-
-            # Temporary fix: Use the first task's info if available
+            # Build a mapping of media file absolute path -> per-file task settings
             tasks = self.job_data.get("tasks", [])
-            if tasks:
-                task_info = {
-                    "job_type": tasks[0]["job_type"],
-                    "quantity": tasks[0]["quantity"],
-                    "job_template": tasks[0]["template"],
-                    "note": tasks[0]["note"],
-                    "total_quantity": tasks[0]["quantity"],
+            task_map = {str(Path(t["file_path"]).resolve()): t for t in tasks}
+
+            def task_callback(task_file: Path) -> Dict | None:
+                """Return task_info for a given media file or None to skip it.
+
+                This mirrors CLI's per-file interactive callback but uses data
+                already collected in the TUI forms.
+                """
+                key = str(Path(task_file).resolve())
+                info = task_map.get(key)
+                if not info:
+                    return None  # Skip files the user did not select/process
+                return {
+                    "job_type": str(info.get("job_type", "normal")).lower(),
+                    "quantity": float(info.get("quantity", 0) or 0),
+                    "job_template": info.get("template", "zd"),
+                    "note": info.get("note", ""),
+                    "total_quantity": float(
+                        info.get("total_quantity", info.get("quantity", 0))
+                        or 0
+                    ),
                 }
 
-                self.app.transcriptor.create_job(
-                    job_file=self.job_data["job_file"],
-                    job_info=job_info,
-                    task_info=task_info,
-                )
+            # Delegate to core create_job which handles moving/extracting and rate/amount calc
+            self.app.transcriptor.create_job(
+                job_file=self.job_data["job_file"],
+                job_info=job_info,
+                task_callback=task_callback,
+            )
+
+            # Refresh relevant tables
+            try:
+                self.app.query_one(
+                    "#dashboard-pane", Dashboard
+                ).refresh_table()
+            except Exception:
+                pass
+            try:
+                self.app.query_one(
+                    "#jobstable-pane", JobsTable
+                ).refresh_table()
+            except Exception:
+                pass
 
             self.app.notify("Job created successfully!")
             self.dismiss()
