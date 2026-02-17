@@ -6,3 +6,13 @@ build/
 *cache*
 *.pyc
 egg-info/
+.coverage
+.gp.md
+.python-version
+.sourcery.yaml
+.trans_docker_data/
+.vimspector.json
+PROJECT.md
+audio.mp3
+docs/
+scripts/
