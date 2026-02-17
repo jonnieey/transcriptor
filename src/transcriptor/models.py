@@ -272,7 +272,9 @@ class InvoiceLine(BaseModel):
 
     @property
     def amount(self) -> float:
-        return self.quantity * self.job_rate
+        from transcriptor.utils.media_utils import round_up
+
+        return round_up(self.quantity * self.job_rate)
 
 
 class Invoice(BaseModel):
