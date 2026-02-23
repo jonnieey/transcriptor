@@ -582,6 +582,21 @@ class Dashboard(BaseTable):
     def action_context_menu(self):
         self.vim_open_context_current()
 
+    def action_refresh_table(self):
+        self.refresh_table()
+
+    @on(Button.Pressed, "#dash-add-job")
+    def on_jobs_add(self):
+        self.action_add_job()
+
+    @on(Button.Pressed, "#dash-edit-job")
+    def on_jobs_edit(self):
+        self.action_edit_job()
+
+    @on(Button.Pressed, "#dash-refresh")
+    def on_jobs_refresh(self):
+        self.action_refresh_table()
+
 
 class JobsTable(BaseTable):
     """All jobs table with selectable rows."""
