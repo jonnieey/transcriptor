@@ -178,15 +178,11 @@ class BaseTable(Container):
         for item in self.data:
             item_id = self.get_item_id(item)
             if item_id in self.selected_items:
-                # Build a dict with client_name
-                if hasattr(item, "client"):
-                    client_name = (
-                        item.client.name
-                        if hasattr(item.client, "name")
-                        else str(item.client)
-                    )
-                else:
-                    client_name = item.get("client_name", "Unknown")
+
+                client_name = item.get("client_name") or getattr(
+                    item.get("client"), "name", "Unkown"
+                )
+
                 if hasattr(item, "__dict__"):
                     d = item.__dict__.copy()
                 else:
@@ -729,6 +725,8 @@ class JobsTable(BaseTable):
                 )
                 return
 
+        # validate client
+
         # Validate same client
         client_ids = {job.get("client_id") for job in selected}
         if len(client_ids) != 1:
@@ -748,6 +746,9 @@ class JobsTable(BaseTable):
                 client_name = clients[0]["name"] if clients else "Unknown"
             except Exception:
                 client_name = "Unknown"
+
+        if client_name == "Unknown" or not client_name:
+            return
 
         try:
             html, _ = self.app.transcriptor.generate_invoice(selected)
