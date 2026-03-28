@@ -1,37 +1,24 @@
-import re
 from pathlib import Path
 from typing import Optional
 
-from bs4.element import Tag
-from jinja2 import (
-    ChoiceLoader,
-    Environment,
-    FileSystemLoader,
-    PackageLoader,
-    StrictUndefined,
-    select_autoescape,
-)
-from markdownify import MarkdownConverter  # type: ignore
-from weasyprint import HTML  # type: ignore
-
 from transcriptor.models import Invoice, SummaryInvoice
 
-
-def _init_jinja_env(custom_templates_dir: Optional[Path]) -> Environment:
-    loaders = []
-    if custom_templates_dir is not None:
-        loaders.append(FileSystemLoader(custom_templates_dir))
-    loaders.append(PackageLoader("transcriptor", "invoice_templates"))  # type: ignore
-    loader = ChoiceLoader(loaders)
-    return Environment(
-        loader=loader,
-        autoescape=select_autoescape(),
-        undefined=StrictUndefined,
-    )
+from .reportlab_utils import (
+    generate_invoice_pdf,
+    generate_summary_invoice_pdf,
+)
 
 
 def htmlstr_to_pdf(htmlstr: str, output_path: Path) -> Optional[bytes]:
-    return HTML(string=htmlstr).write_pdf(output_path)
+    """Deprecated: HTML to PDF conversion no longer supported."""
+    import warnings
+
+    warnings.warn(
+        "htmlstr_to_pdf is deprecated. Use generate_invoice_pdf instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return None  # Return None for backward compatibility
 
 
 def render_invoice(
@@ -39,12 +26,15 @@ def render_invoice(
     custom_templates_dir: Optional[Path] = None,
     template_name: Optional[str] = None,
 ) -> str:
-    if template_name is None:
-        template_name = "invoice_default.html"
-    template = _init_jinja_env(custom_templates_dir).get_template(
-        template_name
+    """Deprecated: Template rendering no longer supported."""
+    import warnings
+
+    warnings.warn(
+        "render_invoice is deprecated. Invoice generation now uses ReportLab directly.",
+        DeprecationWarning,
+        stacklevel=2,
     )
-    return template.render(invoice=invoice)
+    return ""  # Return empty string for backward compatibility
 
 
 def render_summary_invoice(
@@ -52,53 +42,72 @@ def render_summary_invoice(
     custom_templates_dir: Optional[Path] = None,
     template_name: Optional[str] = None,
 ) -> str:
-    if template_name is None:
-        template_name = "summary_invoice.html"
-    template = _init_jinja_env(custom_templates_dir).get_template(
-        template_name
+    """Deprecated: Template rendering no longer supported."""
+    import warnings
+
+    warnings.warn(
+        "render_summary_invoice is deprecated. Summary invoice generation now uses ReportLab directly.",
+        DeprecationWarning,
+        stacklevel=2,
     )
-    return template.render(summary_invoice=summary_invoice)
+    return ""  # Return empty string for backward compatibility
 
 
 def write_pdf(
-    invoice,
+    invoice: Invoice,
     output_path: Path,
-    custom_templates_dir: Optional[Path],
-    template_name=Optional[str],
-) -> Optional[bytes]:
-    return htmlstr_to_pdf(
-        render_invoice(invoice, custom_templates_dir, template_name),
-        output_path,
-    )
-
-
-class MDConverter(MarkdownConverter):
+    custom_templates_dir: Optional[Path] = None,
+    template_name: Optional[str] = None,
+) -> None:
     """
-    Converter for Markdown to HTML
-    """
+    Generate invoice PDF using ReportLab.
 
-    def convert_tr(self, el: Tag, text: str, convert_as_inline: bool) -> str:
-        return super().convert_tr(el, text, convert_as_inline) + "\n"
+    Args:
+        invoice: Invoice model instance
+        output_path: Path where PDF will be saved
+        custom_templates_dir: Ignored (for backward compatibility)
+        template_name: Ignored (for backward compatibility)
+    """
+    generate_invoice_pdf(invoice, output_path)
 
 
-def md(html: str, **options) -> str:
+def write_summary_pdf(
+    summary_invoice: SummaryInvoice,
+    output_path: Path,
+    custom_templates_dir: Optional[Path] = None,
+    template_name: Optional[str] = None,
+) -> None:
     """
-    Convert Markdown to HTML
+    Generate summary invoice PDF using ReportLab.
+
+    Args:
+        summary_invoice: SummaryInvoice model instance
+        output_path: Path where PDF will be saved
+        custom_templates_dir: Ignored (for backward compatibility)
+        template_name: Ignored (for backward compatibility)
     """
-    return MDConverter(**options).convert(html)
+    generate_summary_invoice_pdf(summary_invoice, output_path)
 
 
 def html_to_md(html: str) -> str:
-    markdown = md(html)
-    md_table = markdown[markdown.find("![]()") + 5 :]
-    md_table = re.sub(r"\n{2,}", "\n\n", md_table)
-    return md_table
+    """Deprecated: HTML to Markdown conversion no longer supported."""
+    import warnings
+
+    warnings.warn(
+        "html_to_md is deprecated. HTML templates are no longer used.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return ""  # Return empty string for backward compatibility
 
 
 def invoice_template_themes():
-    invoice_template_dir = Path(__file__).parent.parent / "invoice_templates"
-    template_themes = []
-    for invoice_file in invoice_template_dir.iterdir():
-        if invoice_file.stem.startswith("invoice_"):
-            template_themes.append(invoice_file.stem.replace("invoice_", ""))
-    return template_themes
+    """Deprecated: Invoice templates are no longer used."""
+    import warnings
+
+    warnings.warn(
+        "invoice_template_themes is deprecated. Invoice templates are no longer used.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return []  # Return empty list for backward compatibility

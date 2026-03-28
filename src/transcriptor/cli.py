@@ -943,10 +943,20 @@ class TranscriptorCMD(cmd2.Cmd):
                 self.poutput("No jobs found for summary.")
                 return
 
-            html, client_name = self.app.generate_summary_invoice(
-                invoice_jobs_dict
-            )
-            invoice_jobs = invoice_jobs_dict[client_name]
+            if args.print:
+                pdf_path = self.app.generate_summary_invoice(
+                    invoice_jobs_dict
+                )
+                # Get client name from the dictionary
+                client_name = list(invoice_jobs_dict.keys())[0]
+                invoice_jobs = invoice_jobs_dict[client_name]
+
+                if pdf_path:
+                    self.poutput(f"Summary invoice generated: {pdf_path}")
+            else:
+                # Just get client name and jobs for table display
+                client_name = list(invoice_jobs_dict.keys())[0]
+                invoice_jobs = invoice_jobs_dict[client_name]
 
         if args.table:
             cutoffs = self.app.load_cutoffs(as_str=True, year=args.year)
@@ -993,10 +1003,30 @@ class TranscriptorCMD(cmd2.Cmd):
                 raw_sql_stmt=args.raw,
             )
 
-            html, client_name = self.app.generate_invoice(
-                invoice_jobs,
-                invoice_theme=args.invoice_template,
-            )
+            if args.print:
+                pdf_path = self.app.generate_invoice(
+                    invoice_jobs,
+                    invoice_theme=args.invoice_template,
+                )
+                if pdf_path:
+                    # Get client name from the first job
+                    if invoice_jobs:
+                        client_name = (
+                            invoice_jobs[0].get("client").name
+                            if hasattr(invoice_jobs[0].get("client"), "name")
+                            else invoice_jobs[0].get("client")
+                        )
+                        self.poutput(f"Invoice generated: {pdf_path}")
+                    else:
+                        self.poutput("No jobs found for invoice.")
+            else:
+                # Just get client name for table display
+                if invoice_jobs:
+                    client_name = (
+                        invoice_jobs[0].get("client").name
+                        if hasattr(invoice_jobs[0].get("client"), "name")
+                        else invoice_jobs[0].get("client")
+                    )
 
         elif args.where:
             if args.table:
@@ -1009,9 +1039,29 @@ class TranscriptorCMD(cmd2.Cmd):
                 conditions=conditions,
             )
 
-            html, client_name = self.app.generate_invoice(
-                invoice_jobs, invoice_theme=args.invoice_template
-            )
+            if args.print:
+                pdf_path = self.app.generate_invoice(
+                    invoice_jobs, invoice_theme=args.invoice_template
+                )
+                if pdf_path:
+                    # Get client name from the first job
+                    if invoice_jobs:
+                        client_name = (
+                            invoice_jobs[0].get("client").name
+                            if hasattr(invoice_jobs[0].get("client"), "name")
+                            else invoice_jobs[0].get("client")
+                        )
+                        self.poutput(f"Invoice generated: {pdf_path}")
+                    else:
+                        self.poutput("No jobs found for invoice.")
+            else:
+                # Just get client name for table display
+                if invoice_jobs:
+                    client_name = (
+                        invoice_jobs[0].get("client").name
+                        if hasattr(invoice_jobs[0].get("client"), "name")
+                        else invoice_jobs[0].get("client")
+                    )
 
         else:
             if args.table and not args.summary:
@@ -1022,22 +1072,102 @@ class TranscriptorCMD(cmd2.Cmd):
                     conditions=conditions,
                 )
 
-                html, client_name = self.app.generate_invoice(
-                    invoice_jobs, invoice_theme=args.invoice_template
-                )
+                if args.summary:
+                    if args.print:
+                        # Summary invoice uses new ReportLab method
+                        self.poutput(
+                            "Generating summary invoice using Reportlab..."
+                        )
 
+                        pdf_path = self.app.get_summary_invoice(
+                            client_id=args.client_id,
+                            previous_year_cutoff=args.previous_year_cutoff,
+                            cutoffs_year=args.cutoffs_year,
+                            year=args.year,
+                        )
+                        if pdf_path:
+                            # Get client name from the first job
+                            if invoice_jobs:
+                                client_name = (
+                                    invoice_jobs[0].get("client").name
+                                    if hasattr(
+                                        invoice_jobs[0].get("client"), "name"
+                                    )
+                                    else invoice_jobs[0].get("client")
+                                )
+                            else:
+                                # Fallback: extract from PDF path or use args
+                                client_name = (
+                                    args.client_name
+                                    if hasattr(args, "client_name")
+                                    else "Unknown"
+                                )
+                            print(f"Summary invoice generated: {pdf_path}")
+                    else:
+                        # Just get client name for table display
+                        if invoice_jobs:
+                            client_name = (
+                                invoice_jobs[0].get("client").name
+                                if hasattr(
+                                    invoice_jobs[0].get("client"), "name"
+                                )
+                                else invoice_jobs[0].get("client")
+                            )
+                else:
+                    if args.print:
+                        # Regular invoice uses new ReportLab method
+                        self.poutput("Generating invoice using Reportlab...")
+
+                        pdf_path = self.app.generate_invoice(
+                            invoice_jobs, invoice_theme=args.invoice_template
+                        )
+                        if pdf_path:
+                            client_name = (
+                                invoice_jobs[0].get("client").name
+                                if hasattr(
+                                    invoice_jobs[0].get("client"), "name"
+                                )
+                                else invoice_jobs[0].get("client")
+                            )
+                            print(f"Invoice generated: {pdf_path}")
+                    else:
+                        # Just get client name for table display
+                        if invoice_jobs:
+                            client_name = (
+                                invoice_jobs[0].get("client").name
+                                if hasattr(
+                                    invoice_jobs[0].get("client"), "name"
+                                )
+                                else invoice_jobs[0].get("client")
+                            )
+
+        # PDFs are generated when -p flag is provided
         if args.print:
-            self.app.html_to_pdf(
-                html, client_name, summary_invoice=args.summary
-            )
+            self.poutput("PDF generated successfully.")
 
         if args.csv:
             self.app.generate_csv_invoice(invoice_jobs, client_name)
 
         if args.markdown:
-            md = self.app.to_md(html)
+            # Markdown preview is deprecated since we no longer generate HTML
+            self.poutput(
+                "Markdown preview is deprecated. PDFs are generated directly."
+            )
+            # We could generate a text representation of the invoice here if needed
+            if invoice_jobs:
+                # Create a simple text representation
+                total = sum(job.get("amount", 0) for job in invoice_jobs)
+                md_output = f"# Invoice Summary\n\n"
+                md_output += f"Client: {client_name}\n"
+                md_output += f"Total Jobs: {len(invoice_jobs)}\n"
+                md_output += f"Total Amount: ${total:.2f}\n\n"
+                md_output += "## Job Details\n\n"
+                for i, job in enumerate(invoice_jobs, 1):
+                    md_output += f"{i}. {job.get('job_number', 'N/A')}: ${job.get('amount', 0):.2f}\n"
 
-            TranscriptorView().console.print(md)
+                TranscriptorView().console.print(md_output)
+            else:
+                self.poutput("No jobs to display.")
 
         else:
             title = f"Jobs for {client_name}"

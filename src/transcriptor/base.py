@@ -38,7 +38,7 @@ from transcriptor.utils import (
     sc,
 )
 from transcriptor.utils import str_to_date as std
-from transcriptor.utils import to_date_object
+from transcriptor.utils import to_date_object, write_pdf, write_summary_pdf
 
 APP_NAME = "transcriptor"
 CONFIG_FILE_NAME = "config.yaml"
@@ -582,7 +582,7 @@ class Transcriptor:
     def generate_invoice(self, jobs, invoice_theme: Optional[str] = None):
         if not jobs:
             logger.warning("No jobs found")
-            return ("", "")
+            return
 
         invoice_lines = [InvoiceLine.parse_obj(job) for job in jobs]
         client = jobs[0].get("client")
@@ -598,13 +598,18 @@ class Transcriptor:
             client_name=client_name,
             jobs=invoice_lines,
         )
-        if invoice_theme is None:
-            invoice_theme = self.config.invoice_theme
-        html = render_invoice(
-            invoice=invoice, template_name=f"invoice_{invoice_theme}.html"
-        )
 
-        return html, client_name
+        # Generate PDF directly using ReportLab
+        date_str = date.today().strftime("%Y-%m-%d")
+        client_name_sc = sc(client_name)
+        output_path = INVOICE_DIR / f"{date_str}_{client_name_sc}_invoice.pdf"
+
+        write_pdf(invoice, output_path)
+
+        # Increase invoice counter
+        self.increase_invoice_counter(INVOICE_NUM_COUNTER_FILE)
+
+        return output_path
 
     def get_summary_invoice_jobs(
         self,
@@ -705,31 +710,66 @@ class Transcriptor:
             client_name=client_name,
             summary_lines=months_summary_list,
         )
-        html = render_summary_invoice(summary_invoice=summary_invoice)
 
-        return html, client_name
-
-    def html_to_pdf(
-        self, html, client_name, output_file=None, summary_invoice=False
-    ):
+        # Generate PDF directly using ReportLab
         INVOICE_DIR = self.base_dir / "clients" / sc(client_name) / "invoices"
-
         if not INVOICE_DIR.exists():
             INVOICE_DIR.mkdir(parents=True, exist_ok=True)
 
         date_str = date.today().strftime("%Y-%m-%d")
         client_name_sc = sc(client_name)
-        file_type = "summary" if summary_invoice else "invoice"
+        output_path = INVOICE_DIR / f"{date_str}_{client_name_sc}_summary.pdf"
 
-        INVOICE_FILE = (
-            INVOICE_DIR / f"{date_str}_{client_name_sc}_{file_type}.pdf"
+        write_summary_pdf(summary_invoice, output_path)
+
+        return output_path
+
+    def get_summary_invoice(
+        self,
+        client_id: str,
+        previous_year_cutoff: None = None,
+        cutoffs_year: None = None,
+        year: None = None,
+    ):
+        """
+        Get and generate summary invoice for a client.
+
+        This is a convenience method that combines get_summary_invoice_jobs
+        and generate_summary_invoice.
+        """
+        # Get summary invoice jobs
+        invoice_jobs_dict = self.get_summary_invoice_jobs(
+            client_id=client_id,
+            previous_year_cutoff=previous_year_cutoff,
+            year=year,
         )
 
-        htmlstr_to_pdf(html, output_path=INVOICE_FILE)
+        if not invoice_jobs_dict:
+            logger.warning("No jobs found for summary invoice")
+            return None
 
-        if summary_invoice is False:
-            INVOICE_NUM_COUNTER_FILE = INVOICE_DIR / "invoice_number_counter"
-            self.increase_invoice_counter(INVOICE_NUM_COUNTER_FILE)
+        # Generate the PDF
+        return self.generate_summary_invoice(invoice_jobs_dict)
+
+    def html_to_pdf(
+        self, html, client_name, output_file=None, summary_invoice=False
+    ):
+        """Legacy method for backward compatibility."""
+        logger.warning(
+            "html_to_pdf is deprecated. "
+            "Use generate_invoice or get_summary_invoice methods instead."
+        )
+
+        if summary_invoice:
+            # For summary invoices, we need to generate from data
+            # This is a fallback for old code paths
+            logger.info(
+                "Summary invoice PDF should be generated via get_summary_invoice method."
+            )
+        else:
+            logger.info(
+                "Regular invoice PDF should be generated via generate_invoice method."
+            )
 
     def generate_csv_invoice(self, jobs, client_name):
         if not jobs:

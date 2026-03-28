@@ -2345,9 +2345,13 @@ class Invoice(Container):
                 client_name = client["name"]
                 break
 
-        html, _ = self.app.transcriptor.generate_invoice(self.invoice_jobs)
-        self.app.transcriptor.html_to_pdf(html, client_name)
-        self.app.notify(f"Invoice for {client_name} saved as PDF.")
+        pdf_path = self.app.transcriptor.generate_invoice(self.invoice_jobs)
+        if pdf_path:
+            self.app.notify(
+                f"Invoice for {client_name} saved as PDF: {pdf_path}"
+            )
+        else:
+            self.app.notify("Failed to generate invoice.", severity="error")
 
     @on(Button.Pressed, "#save-csv")
     def on_save_csv(self):
@@ -2395,10 +2399,16 @@ class InvoicePreviewScreen(ModalScreen):
         """Generate PDF invoice (mirrors Invoicing tab behavior)."""
         try:
             # Regenerate invoice to ensure latest data (same as Invoicing tab)
-            html, _ = self.app.transcriptor.generate_invoice(self.jobs)
-            self.app.transcriptor.html_to_pdf(html, self.client_name)
-            self.app.notify(f"Invoice for {self.client_name} saved as PDF.")
-            self.dismiss()
+            pdf_path = self.app.transcriptor.generate_invoice(self.jobs)
+            if pdf_path:
+                self.app.notify(
+                    f"Invoice for {self.client_name} saved as PDF: {pdf_path}"
+                )
+                self.dismiss()
+            else:
+                self.app.notify(
+                    "Failed to generate invoice.", severity="error"
+                )
         except Exception as e:
             self.app.notify(
                 f"Error generating PDF: {str(e)}", severity="error"
