@@ -30,19 +30,30 @@ def is_valid_job_type(text: str) -> bool:
     return bool(re.match(r"(?i)^(?:Normal|Interpreted|Expedite)$", text))
 
 
-template_mapping = {
-    "zd": "Zoom Deposition Block Files.docx",
-    "nh": "Hearing Block Files.docx",
-    "zeo": "Zoom Examination Under Oath Block Files.docx",
-    "zh": "Zoom Hearing Block Files.docx",
-    "zus": "Zoom Unsworn Statement Block Files.docx",
-    "zwc": "Zoom Workers Comp Deposition Block Files.docx",
-    "tt": "Tape Transcript.docx",
-    "me": "Compulsory Medical Exam Template.docx",
-    "zdi": "Zoom Deposition Block File with Interpreter.docx",
-    "od": "Overflow Deposition Block Files.docx",
-    "oh": "Overflow Hearing Block Files.docx",
-}
+def get_template_mapping():
+    template_mapping_skeleton = {
+        "zd": "Zoom Deposition Block Files.docx",
+        "nh": "Hearing Block Files.docx",
+        "zeo": "Zoom Examination Under Oath Block Files.docx",
+        "zh": "Zoom Hearing Block Files.docx",
+        "zus": "Zoom Unsworn Statement Block Files.docx",
+        "zwc": "Zoom Workers Comp Deposition Block Files.docx",
+        "tt": "Tape Transcript.docx",
+        "me": "Compulsory Medical Exam Template.docx",
+        "zdi": "Zoom Deposition Block File with Interpreter.docx",
+        "od": "Overflow Deposition Block Files.docx",
+        "oh": "Overflow Hearing Block Files.docx",
+    }
+    short_names = [f"{key}a" for key in template_mapping_skeleton.keys()]
+    auto_templates_names = [
+        f"{Path(value).stem}-auto.docx"
+        for value in template_mapping_skeleton.values()
+    ]
+    auto_templates_mapping = dict(zip(short_names, auto_templates_names))
+    return {**template_mapping_skeleton, **auto_templates_mapping}
+
+
+template_mapping = get_template_mapping()
 
 
 def is_valid_template(text: str):
