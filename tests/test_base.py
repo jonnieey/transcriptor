@@ -294,8 +294,8 @@ def test_generate_invoice(transcriptor):
     assert "24.0" in html
 
 
-@patch("transcriptor.utils.invoice_utils.HTML.write_pdf")
-def test_html_to_pdf(mock_write_pdf, transcriptor, test_base_dir):
+@patch("transcriptor.base.htmlstr_to_pdf")
+def test_html_to_pdf(mock_htmlstr_to_pdf, transcriptor, test_base_dir):
     """Test HTML to PDF conversion"""
     test_html = "<html><body>Test</body></html>"
     client_name = "PDFClient"
@@ -309,7 +309,7 @@ def test_html_to_pdf(mock_write_pdf, transcriptor, test_base_dir):
     # Verify PDF would be created with today's date
     today = date.today().strftime("%Y-%m-%d")
     invoice_dir / f"{today}_PDFClient_invoice.pdf"
-    mock_write_pdf.assert_called_once()
+    mock_htmlstr_to_pdf.assert_called_once()
 
 
 def test_save_and_load_cutoffs(transcriptor, test_base_dir):

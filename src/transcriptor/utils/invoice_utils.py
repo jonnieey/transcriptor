@@ -1,4 +1,6 @@
+import asyncio
 import re
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -12,7 +14,7 @@ from jinja2 import (
     select_autoescape,
 )
 from markdownify import MarkdownConverter  # type: ignore
-from weasyprint import HTML  # type: ignore
+from playwright.async_api import async_playwright
 
 from transcriptor.models import Invoice, SummaryInvoice
 
@@ -30,8 +32,69 @@ def _init_jinja_env(custom_templates_dir: Optional[Path]) -> Environment:
     )
 
 
+async def htmlstr_to_pdf_async(
+    htmlstr: str, output_path: Path
+) -> Optional[bytes]:
+    """Convert HTML string to PDF using Playwright (async version)."""
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page()
+
+        # Create temporary HTML file
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".html", delete=False, encoding="utf-8"
+        ) as f:
+            f.write(htmlstr)
+            temp_html = f.name
+
+        try:
+            # Load HTML content from file
+            await page.goto(f"file://{temp_html}")
+
+            # Generate PDF with reasonable defaults
+            pdf_bytes = await page.pdf(
+                format="A4",
+                print_background=True,
+                margin={
+                    "top": "0.5in",
+                    "right": "0.5in",
+                    "bottom": "0.5in",
+                    "left": "0.5in",
+                },
+            )
+
+            # Write to output path
+            output_path.write_bytes(pdf_bytes)
+            return pdf_bytes
+        finally:
+            await browser.close()
+            Path(temp_html).unlink(missing_ok=True)
+
+
 def htmlstr_to_pdf(htmlstr: str, output_path: Path) -> Optional[bytes]:
-    return HTML(string=htmlstr).write_pdf(output_path)
+    """Synchronous wrapper for async PDF generation."""
+    try:
+        # Try to get existing event loop
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If loop is running, we need to run in a thread
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    lambda: asyncio.run(
+                        htmlstr_to_pdf_async(htmlstr, output_path)
+                    )
+                )
+                return future.result()
+        else:
+            # Loop exists but not running
+            return loop.run_until_complete(
+                htmlstr_to_pdf_async(htmlstr, output_path)
+            )
+    except RuntimeError:
+        # No event loop, create new one
+        return asyncio.run(htmlstr_to_pdf_async(htmlstr, output_path))
 
 
 def render_invoice(
@@ -63,8 +126,8 @@ def render_summary_invoice(
 def write_pdf(
     invoice,
     output_path: Path,
-    custom_templates_dir: Optional[Path],
-    template_name=Optional[str],
+    custom_templates_dir: Optional[Path] = None,
+    template_name: Optional[str] = None,
 ) -> Optional[bytes]:
     return htmlstr_to_pdf(
         render_invoice(invoice, custom_templates_dir, template_name),
