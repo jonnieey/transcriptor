@@ -1,6 +1,5 @@
 import asyncio
 import re
-import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -35,23 +34,29 @@ def _init_jinja_env(custom_templates_dir: Optional[Path]) -> Environment:
 async def htmlstr_to_pdf_async(
     htmlstr: str, output_path: Path
 ) -> Optional[bytes]:
-    """Convert HTML string to PDF using Playwright (async version)."""
+    fonts_dir = Path(__file__).parent.parent / "invoice_templates" / "fonts"
+    font_file = fonts_dir / "Montserrat-VariableFont_wght.ttf"
+
+    # Embed font as data URI
+    html_with_font = htmlstr
+    if font_file.exists():
+        import base64
+
+        with open(font_file, "rb") as f:
+            font_b64 = base64.b64encode(f.read()).decode()
+        font_data_uri = f"data:font/ttf;charset=utf-8;base64,{font_b64}"
+        html_with_font = htmlstr.replace(
+            "url('fonts/Montserrat-VariableFont_wght.ttf')",
+            f"url('{font_data_uri}')",
+        )
+
     async with async_playwright() as p:
         browser = await p.chromium.launch()
         page = await browser.new_page()
-
-        # Create temporary HTML file
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".html", delete=False, encoding="utf-8"
-        ) as f:
-            f.write(htmlstr)
-            temp_html = f.name
-
         try:
-            # Load HTML content from file
-            await page.goto(f"file://{temp_html}")
+            await page.set_content(html_with_font, wait_until="networkidle")
+            await page.evaluate("document.fonts.ready")  # wait for fonts
 
-            # Generate PDF with reasonable defaults
             pdf_bytes = await page.pdf(
                 format="A4",
                 print_background=True,
@@ -62,13 +67,10 @@ async def htmlstr_to_pdf_async(
                     "left": "0.5in",
                 },
             )
-
-            # Write to output path
             output_path.write_bytes(pdf_bytes)
             return pdf_bytes
         finally:
             await browser.close()
-            Path(temp_html).unlink(missing_ok=True)
 
 
 def htmlstr_to_pdf(htmlstr: str, output_path: Path) -> Optional[bytes]:
