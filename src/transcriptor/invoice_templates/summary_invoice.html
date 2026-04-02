@@ -4,8 +4,16 @@
 	<meta charset="UTF-8">
 	<title>summary_invoice</title>
 	<style>
+		@font-face {
+			font-family: 'Montserrat';
+			src: url('fonts/Montserrat-VariableFont_wght.ttf') format('truetype');
+			font-weight: 100 900;
+			font-style: normal;
+			font-display: swap;
+		}
+
 		body {
-			font-family: Arial, sans-serif;
+			font-family: 'Montserrat', Arial, sans-serif;
 			font-size: 14px;
 			color: #333;
 			margin: 0;
@@ -92,7 +100,7 @@
 	<div class="header">
 		<img alt="">
     <h1>Summary Invoice {{ summary_invoice.create_date.year }}</h1>
-					
+
 	</div>
 	<div class="invoice-details">
 		<table>
@@ -148,5 +156,4 @@
 		</table>
 	</div>
 </body>
-</html> 
-
+</html>
