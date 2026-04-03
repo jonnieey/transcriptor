@@ -43,6 +43,29 @@ This project uses `uv` for modern, fast Python package management.
     uv pip install -e .
     ```
 
+### PDF Backends (Optional)
+
+Transcriptor supports multiple PDF rendering engines. Install one or more backends as needed:
+
+```bash
+# Install with Playwright (recommended for Windows)
+uv pip install -e '.[playwright]'
+playwright install  # Install browser binaries
+
+# Install with WeasyPrint (requires system libraries)
+uv pip install -e '.[weasyprint]'
+
+# Install with xhtml2pdf (pure Python, limited CSS)
+uv pip install -e '.[xhtml2pdf]'
+
+# Install all backends
+uv pip install -e '.[all]'
+```
+
+The system will auto-detect available backends with priority: Playwright > WeasyPrint > xhtml2pdf.
+
+You can override the backend selection with the `TRANSCRIPTOR_PDF_BACKEND` environment variable (set to `playwright`, `weasyprint`, or `xhtml2pdf`).
+
 ## Usage
 
 ### 🖥️ TUI Mode (Interactive Dashboard)

@@ -7,9 +7,17 @@ For Windows users who are not comfortable with command-line tools or installing 
 1.  **Download**: Go to the Releases page (e.g., on GitHub) and download `transcriptor.exe`.
 2.  **Run**: Double-click `transcriptor.exe` to launch the application.
 3.  **Requirements**:
-    *   **GTK3 Runtime**: The PDF generation feature (WeasyPrint) requires the GTK3 runtime libraries.
+    *   **PDF Backend**: For PDF invoice generation, you need a PDF rendering backend.
+
+    **Recommended for Windows: Playwright**
+    ```powershell
+    pip install playwright
+    playwright install
+    ```
+
+    *   **GTK3 Runtime (Alternative)**: If using WeasyPrint backend, install GTK3 runtime libraries.
         *   Download and install the latest "GTK3 Runtime Environment" from [GTK-for-Windows-Runtime-Environment-Installer](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases).
-        *   Make sure to restart your computer after installing GTK3.
+        *   Restart your computer after installing GTK3.
 
 ## Building from Source (For Developers)
 

@@ -9,6 +9,7 @@ authors = [{ name = "Jonnieey", email = "johnjahi55@gmail.com" }]
 requires-python = ">=3.9,<3.13" #aifc module dropped in 3.13
 readme = "README.md"
 license = "MIT"
+dynamic = ["version"]
 dependencies = [
     "audioread~=3.0.0",
     "cmd2~=2.4.3",
@@ -26,14 +27,11 @@ dependencies = [
     "pyreadline3>=3.4.1; sys_platform == 'win32'",
     "textual==6.2.0"
 ]
-optional-dependencies = [
-    "weasyprint = [\"weasyprint\"]",
-    "playwright = [\"playwright\"]",
-    "xhtml2pdf = [\"xhtml2pdf\"]",
-    "all = [\"weasyprint\", \"playwright\", \"xhtml2pdf\"]",
-]
-dynamic = ["version"]
-
+[project.optional-dependencies]
+    weasyprint = ["weasyprint>=60.0"]
+    playwright = ["playwright>=1.40"]
+    xhtml2pdf = ["xhtml2pdf>=0.2"]
+    all = [ "weasyprint>=60.0", "playwright>=1.40", "xhtml2pdf>=0.2" ]
 [project.scripts]
 trans5 = "transcriptor.main:main"
 

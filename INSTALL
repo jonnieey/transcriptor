@@ -1,1 +1,1 @@
- uv tool install . --force -n -p  ~/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/bin/python3.12
+ uv tool install -e '.[all]' --force -n -p  ~/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/bin/python3.12
