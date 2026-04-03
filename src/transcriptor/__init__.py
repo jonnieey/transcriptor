@@ -1,7 +1,12 @@
 import logging
+import os
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+
+# Set level from environment variable, default to ERROR to reduce noise
+log_level = os.environ.get("TRANSCRIPTOR_LOG_LEVEL", "ERROR").upper()
+level = getattr(logging, log_level, logging.ERROR)
+logger.setLevel(level)
 
 handler = logging.StreamHandler()
 

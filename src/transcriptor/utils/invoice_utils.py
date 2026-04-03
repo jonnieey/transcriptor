@@ -1,4 +1,3 @@
-import asyncio
 import re
 from pathlib import Path
 from typing import Optional
@@ -16,6 +15,7 @@ from markdownify import MarkdownConverter  # type: ignore
 from playwright.async_api import async_playwright
 
 from transcriptor.models import Invoice, SummaryInvoice
+from transcriptor.pdf import PDFRenderer, render_pdf
 
 
 def _init_jinja_env(custom_templates_dir: Optional[Path]) -> Environment:
@@ -34,69 +34,19 @@ def _init_jinja_env(custom_templates_dir: Optional[Path]) -> Environment:
 async def htmlstr_to_pdf_async(
     htmlstr: str, output_path: Path
 ) -> Optional[bytes]:
-    fonts_dir = Path(__file__).parent.parent / "invoice_templates" / "fonts"
-    font_file = fonts_dir / "Montserrat-VariableFont_wght.ttf"
-
-    # Embed font as data URI
-    html_with_font = htmlstr
-    if font_file.exists():
-        import base64
-
-        with open(font_file, "rb") as f:
-            font_b64 = base64.b64encode(f.read()).decode()
-        font_data_uri = f"data:font/ttf;charset=utf-8;base64,{font_b64}"
-        html_with_font = htmlstr.replace(
-            "url('fonts/Montserrat-VariableFont_wght.ttf')",
-            f"url('{font_data_uri}')",
-        )
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page()
-        try:
-            await page.set_content(html_with_font, wait_until="networkidle")
-            await page.evaluate("document.fonts.ready")  # wait for fonts
-
-            pdf_bytes = await page.pdf(
-                format="A4",
-                print_background=True,
-                margin={
-                    "top": "0.5in",
-                    "right": "0.5in",
-                    "bottom": "0.5in",
-                    "left": "0.5in",
-                },
-            )
-            output_path.write_bytes(pdf_bytes)
-            return pdf_bytes
-        finally:
-            await browser.close()
+    """
+    Async HTML to PDF rendering using the default async backend (Playwright).
+    """
+    output_path = Path(output_path)
+    # Use Playwright backend for async rendering (it's the only async backend)
+    renderer = PDFRenderer(backend="playwright")
+    return await renderer.render_async(htmlstr, output_path)
 
 
 def htmlstr_to_pdf(htmlstr: str, output_path: Path) -> Optional[bytes]:
-    """Synchronous wrapper for async PDF generation."""
-    try:
-        # Try to get existing event loop
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If loop is running, we need to run in a thread
-            import concurrent.futures
-
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    lambda: asyncio.run(
-                        htmlstr_to_pdf_async(htmlstr, output_path)
-                    )
-                )
-                return future.result()
-        else:
-            # Loop exists but not running
-            return loop.run_until_complete(
-                htmlstr_to_pdf_async(htmlstr, output_path)
-            )
-    except RuntimeError:
-        # No event loop, create new one
-        return asyncio.run(htmlstr_to_pdf_async(htmlstr, output_path))
+    """Render HTML to PDF using the configured PDF backend."""
+    output_path = Path(output_path)
+    return render_pdf(htmlstr, output_path)
 
 
 def render_invoice(

@@ -18,7 +18,6 @@ dependencies = [
     "python-docx~=0.8.11",
     "PyYAML~=6.0",
     "rich~=13.3.1",
-    "playwright>=1.40.0",
     "sqlalchemy>=2.0.0",
     "pydantic>= 2.11.0b1",
     "platformdirs~=4.2.2",
@@ -26,6 +25,12 @@ dependencies = [
     "gnureadline>=8.2.13; sys_platform != 'win32'",
     "pyreadline3>=3.4.1; sys_platform == 'win32'",
     "textual==6.2.0"
+]
+optional-dependencies = [
+    "weasyprint = [\"weasyprint\"]",
+    "playwright = [\"playwright\"]",
+    "xhtml2pdf = [\"xhtml2pdf\"]",
+    "all = [\"weasyprint\", \"playwright\", \"xhtml2pdf\"]",
 ]
 dynamic = ["version"]
 
