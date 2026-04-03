@@ -18,6 +18,9 @@ hiddenimports = []
 hiddenimports += collect_submodules('sqlalchemy')
 hiddenimports += collect_submodules('pydantic')
 hiddenimports += collect_submodules('playwright')
+hiddenimports += collect_submodules('weasyprint')
+hiddenimports += collect_submodules('xhtml2pdf')
+hiddenimports += collect_submodules('transcriptor.pdf')
 # Add any other hidden imports as needed
 
 a = Analysis(

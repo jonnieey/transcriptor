@@ -29,12 +29,14 @@ If you want to build the executable yourself:
     pip install pyinstaller uv
     ```
 3.  **Build**:
-    Run the provided PowerShell script:
+    Run the provided PowerShell script (will prompt for PDF backend selection):
     ```powershell
     .\scripts\build_windows_exe.ps1
     ```
-    Or run PyInstaller manually:
+    Or run PyInstaller manually (specify backend via environment variable):
     ```powershell
+    # Set preferred backend before building
+    $env:TRANSCRIPTOR_PDF_BACKEND = "playwright"
     pyinstaller transcriptor.spec
     ```
     The executable will be generated in the `dist` folder.
@@ -47,9 +49,17 @@ If you are comfortable with the command line:
     ```powershell
     irm https://astral.sh/uv/install.ps1 | iex
     ```
-2.  **Install Transcriptor**:
+2.  **Install Transcriptor with PDF backend**:
     ```powershell
-    uv tool install . --force
+    # Install with Playwright (recommended for Windows)
+    uv tool install ".\[playwright]" --force
+    playwright install
+
+    # Or with xhtml2pdf
+    uv tool install ".\[xhtml2pdf]" --force
+
+    # Or with WeasyPrint (requires GTK3 runtime)
+    uv tool install ".\[weasyprint]" --force
     ```
 3.  **Run**:
     ```powershell

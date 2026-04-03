@@ -5,6 +5,12 @@
     This script downloads the Transcriptor source code from GitHub,
     extracts it, and runs the build script to create the application
     and desktop shortcut.
+
+    During installation, you will be prompted to choose a PDF backend:
+    - Playwright (recommended for Windows, uses headless Chromium)
+    - xhtml2pdf (pure Python, limited CSS support)
+    - WeasyPrint (requires GTK3 runtime libraries)
+    - All backends (install all three, larger package)
 .NOTES
     Run this script by right-clicking and selecting "Run with PowerShell".
     If PowerShell blocks execution, open a Command Prompt and run:

@@ -12,7 +12,6 @@ from jinja2 import (
     select_autoescape,
 )
 from markdownify import MarkdownConverter  # type: ignore
-from playwright.async_api import async_playwright
 
 from transcriptor.models import Invoice, SummaryInvoice
 from transcriptor.pdf import PDFRenderer, render_pdf

@@ -130,6 +130,17 @@ date_format: "%Y-%m-%d"
 invoice_theme: default
 ```
 
+## Windows Installation
+
+For Windows users, see [INSTALL_WINDOWS.md](INSTALL_WINDOWS.md) for detailed instructions.
+
+**Recommended PDF backend for Windows:** Playwright
+```powershell
+# Install with Playwright backend
+pip install transcriptor[playwright]
+playwright install
+```
+
 ## Database & Structure
 
 Data is stored in an **SQLite** database (`transcriptor.db`) located in your `base_dir`.
